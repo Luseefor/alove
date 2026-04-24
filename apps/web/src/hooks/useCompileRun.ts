@@ -66,8 +66,17 @@ export function useCompileRun({
         }),
       });
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
+        let detail = `HTTP ${res.status}`;
+        try {
+          const parsed = (await res.json()) as { error?: string; detail?: string };
+          if (parsed.error) {
+            detail = parsed.detail ? `${parsed.error}: ${parsed.detail}` : parsed.error;
+          }
+        } catch {
+          const t = await res.text();
+          if (t) detail = t;
+        }
+        throw new Error(detail);
       }
       const { jobId } = (await res.json()) as { jobId: string };
       setBuild({ kind: "running", jobId });

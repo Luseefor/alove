@@ -28,7 +28,19 @@ export async function POST(req: Request) {
     );
   }
 
-  const queue = getCompileQueue();
-  const job = await queue.add("build", body);
-  return NextResponse.json({ jobId: job.id });
+  try {
+    const queue = getCompileQueue();
+    const job = await queue.add("build", body);
+    return NextResponse.json({ jobId: job.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error:
+          "Compile queue unavailable. Start Redis and compile-worker, then retry.",
+        detail: message,
+      },
+      { status: 503 },
+    );
+  }
 }

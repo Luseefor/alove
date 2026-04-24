@@ -19,8 +19,10 @@ import {
   bracketMatching,
   codeFolding,
   foldGutter,
+  HighlightStyle,
   indentOnInput,
   StreamLanguage,
+  syntaxHighlighting,
 } from "@codemirror/language";
 import {
   closeBrackets,
@@ -30,6 +32,7 @@ import { stex } from "@codemirror/legacy-modes/mode/stex";
 import { searchKeymap } from "@codemirror/search";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { lintGutter } from "@codemirror/lint";
+import { tags as t } from "@lezer/highlight";
 import { vim } from "@replit/codemirror-vim";
 import { parseLatexOutline, type OutlineHeading } from "./outline";
 import { latexBeginEndFold } from "./latexFold";
@@ -45,8 +48,30 @@ export type LatexEditorOptions = {
   vim?: boolean;
 };
 
+const latexHighlightLight = HighlightStyle.define([
+  { tag: [t.keyword, t.controlKeyword], color: "#0c4a6e", fontWeight: "600" },
+  { tag: [t.macroName, t.function(t.variableName)], color: "#0369a1" },
+  { tag: [t.string, t.special(t.string)], color: "#166534" },
+  { tag: [t.number, t.bool, t.atom], color: "#7c2d12" },
+  { tag: [t.comment, t.lineComment], color: "#64748b", fontStyle: "italic" },
+  { tag: [t.brace, t.paren, t.squareBracket], color: "#334155" },
+  { tag: [t.invalid], color: "#b91c1c" },
+]);
+
+const latexHighlightDark = HighlightStyle.define([
+  { tag: [t.keyword, t.controlKeyword], color: "#7dd3fc", fontWeight: "600" },
+  { tag: [t.macroName, t.function(t.variableName)], color: "#38bdf8" },
+  { tag: [t.string, t.special(t.string)], color: "#86efac" },
+  { tag: [t.number, t.bool, t.atom], color: "#fdba74" },
+  { tag: [t.comment, t.lineComment], color: "#94a3b8", fontStyle: "italic" },
+  { tag: [t.brace, t.paren, t.squareBracket], color: "#cbd5e1" },
+  { tag: [t.invalid], color: "#fca5a5" },
+]);
+
 function themeExtension(theme: EditorTheme): Extension[] {
-  return theme === "dark" ? [oneDark] : [];
+  return theme === "dark"
+    ? [oneDark, syntaxHighlighting(latexHighlightDark)]
+    : [syntaxHighlighting(latexHighlightLight)];
 }
 
 export function createLatexEditorExtensions(

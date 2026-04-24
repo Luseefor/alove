@@ -5,7 +5,16 @@ export async function pollCompileJob(jobId: string) {
   for (let tick = 0; tick < maxTicks; tick += 1) {
     const res = await fetch(`/api/compile/${jobId}`);
     if (!res.ok) {
-      throw new Error(`status ${res.status}`);
+      let detail = `status ${res.status}`;
+      try {
+        const parsed = (await res.json()) as { error?: string; detail?: string };
+        if (parsed.error) {
+          detail = parsed.detail ? `${parsed.error}: ${parsed.detail}` : parsed.error;
+        }
+      } catch {
+        // keep generic status message when body is not JSON
+      }
+      throw new Error(detail);
     }
     const data = (await res.json()) as {
       state: string;

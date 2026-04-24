@@ -86,6 +86,7 @@
         "@codemirror/state": "^6.5.2",
         "@codemirror/theme-one-dark": "^6.1.2",
         "@codemirror/view": "^6.36.5",
+        "@lezer/highlight": "^1.2.3",
         "@replit/codemirror-vim": "^6.3.0",
       },
       "devDependencies": {
