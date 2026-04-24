@@ -1,96 +1,165 @@
 # alove
 
-Monorepo for a web LaTeX workspace (editor, compile queue, collaboration server, workers).
+Monorepo for a web LaTeX workspace: Next.js editor, BullMQ compile worker (TeX Live in Docker), and Convex-backed collaboration.
 
 ## Prerequisites
 
-- Node 20+ (repo tested on Node 24)
-- [pnpm](https://pnpm.io) 9+
-- Docker (for TeX Live compiles by default)
-- Optional: local TeX Live if you set `COMPILE_USE_DOCKER=false` on the worker
+| Tool | Notes |
+|------|--------|
+| **Node.js** | 20 or newer (CI uses 22) |
+| **pnpm** | 9.x — repo pins `pnpm@9.15.4` via `packageManager` in root `package.json` |
+| **Docker** | Docker Engine + Compose v2 (for Redis, Postgres, and TeX compiles) |
+| **Git** | SSH recommended for GitHub |
+| **Clerk** | [Sign up](https://dashboard.clerk.com), create an application |
+| **Convex** | [Sign up](https://dashboard.convex.dev), create a project |
 
-## Quick start
-
-1. Start backing services:
+Enable pnpm with Corepack (ships with Node):
 
 ```bash
-docker compose up -d
+corepack enable
+corepack prepare pnpm@9.15.4 --activate
 ```
 
-2. Install dependencies:
+## Clone the repository
+
+```bash
+git clone git@github.com:Luseefor/alove.git
+cd alove
+```
+
+## Step 1 — Install dependencies
 
 ```bash
 pnpm install
 ```
 
-3. Pull the TeX image once (large):
+## Step 2 — Start Redis and Postgres
+
+```bash
+docker compose up -d
+```
+
+This exposes **Redis** on `6379` and **Postgres** on `5432` (defaults used by the stack; Postgres is reserved for future persistence).
+
+## Step 3 — Pull the TeX Live image (compile worker)
+
+Compiles run `latexmk` inside Docker by default. Pull the image once (large download):
 
 ```bash
 docker pull ghcr.io/xu-cheng/texlive-full:latest
 ```
 
-4. Copy `apps/web/.env.example` to `apps/web/.env.local` and set **Clerk** keys plus **Convex** (`NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN` — see [Convex + Clerk](https://docs.convex.dev/auth/clerk)).
+Optional: set `COMPILE_USE_DOCKER=false` and use a host-installed TeX Live instead; see **Environment variables** below.
 
-5. Run **web** and **compile worker**:
+## Step 4 — Configure environment
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Edit `apps/web/.env.local`:
+
+1. **Clerk** — set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` from the Clerk dashboard. For local dev you can omit `CLERK_SECRET_KEY`; for production-like auth on middleware and `/api/compile`, set it.
+2. **Convex** — after Step 5, Convex CLI will write `NEXT_PUBLIC_CONVEX_URL` into `.env.local` (or copy it from the Convex dashboard).
+3. **Clerk JWT for Convex** — set `CLERK_JWT_ISSUER_DOMAIN` to your Clerk Frontend API / issuer (often `https://<instance>.clerk.accounts.dev`). In Clerk, add a JWT template named **`convex`** as described in [Convex + Clerk](https://docs.convex.dev/auth/clerk).
+4. **Redis** — defaults `REDIS_HOST=127.0.0.1` and `REDIS_PORT=6379` match `docker compose`; change if you use a remote Redis.
+
+The compile worker reads `REDIS_*` from the process environment (defaults match Docker). Next.js loads `apps/web/.env.local` automatically for the web app.
+
+## Step 5 — Link Convex (first time only)
+
+From the repo root:
+
+```bash
+cd apps/web
+pnpm exec convex dev
+```
+
+Log in when prompted, select or create a Convex project, and let the CLI sync functions from `convex/`. Keep this process running while developing, **or** use the combined script in Step 6.
+
+Return to the repo root for the next steps (`cd ../..` from `apps/web`).
+
+## Step 6 — Run the app
+
+You need **Next.js**, the **compile worker**, and **Convex** in some combination.
+
+### Option A — Two terminals (common)
+
+**Terminal 1** — web + compile worker (Turbo runs both):
 
 ```bash
 pnpm dev
 ```
 
-6. In a second terminal, sync the Convex backend (schema, queries, mutations) to your dev deployment:
+**Terminal 2** — Convex dev server (push schema/functions on save):
 
 ```bash
-pnpm --filter web run convex:dev
+pnpm --filter web exec convex dev
 ```
 
-   Alternatively, from `apps/web` you can run `pnpm run dev:with-convex` to run **Convex + Next together** in one terminal (still start `pnpm dev` or `pnpm --filter compile-worker dev` elsewhere if you need the compile worker).
+### Option B — Convex + Next in one terminal
 
-7. Open [http://localhost:3000/editor](http://localhost:3000/editor), sign in with Clerk, and optionally open a second profile or incognito window to confirm shared edits and presence.
+**Terminal 1:**
 
-**Production:** set `CLERK_SECRET_KEY` so middleware and `/api/compile` enforce sign-in. Leaving it unset only skips those checks for local experiments.
+```bash
+pnpm --filter web run dev:with-convex
+```
 
-### Ports
+**Terminal 2** — worker still required for compiles:
 
-- `3000` — Next.js (`apps/web`)
-- `6379` — Redis (BullMQ)
-- `5432` — Postgres (reserved for persistence / accounts)
-- `3210` — Convex dev (CLI default when using `convex dev`)
+```bash
+pnpm --filter compile-worker dev
+```
 
-### Environment
+### Open the editor
 
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` — Clerk (see `apps/web/.env.example`)
-- `NEXT_PUBLIC_CONVEX_URL` / `CLERK_JWT_ISSUER_DOMAIN` — Convex deployment + Clerk JWT issuer for `convex` auth
-- `REDIS_HOST` / `REDIS_PORT` — Redis connection (defaults to `127.0.0.1:6379`)
-- `COMPILE_USE_DOCKER` — `true` (default) runs `latexmk` inside Docker; set `false` to use host `latexmk` (enables `timeoutMs` kill path)
-- `COMPILE_DOCKER_IMAGE` — override TeX image (default `ghcr.io/xu-cheng/texlive-full:latest`)
-- Legacy Hocuspocus env vars (optional): commented in `apps/web/.env.example`; use `pnpm --filter realtime dev:legacy` if you still need that server
+1. Open [http://localhost:3000/editor](http://localhost:3000/editor).
+2. Sign in with Clerk.
+3. Optional: open a second browser or incognito window to verify shared edits and presence.
 
-## Feature coverage (vs Overleaf-class roadmap)
+**Ports:** `3000` — Next.js; `6379` — Redis; `5432` — Postgres; Convex dev uses the URL in `NEXT_PUBLIC_CONVEX_URL` (not necessarily a fixed local port in hosted dev).
 
-| Area | In repo now | Still roadmap |
-|------|-------------|----------------|
-| Editing | CM6 LaTeX (stex), folding (`\\begin`/`\\end`), brackets, multi-cursor, search (Mod+F), go-to-line (Mod+G), snippets/autocomplete, optional **Vim**, word count | Emacs mode, richer cite/ref intel, spellcheck |
-| Build | `latexmk` via Docker or host, **pdfLaTeX / XeLaTeX / LuaLaTeX**, optional **clean aux**, extra `latexmk` args, structured log parse, **host compile timeout** | Docker-side hard kill, SyncTeX, custom TeX Live lockfile UX |
-| PDF | iframe preview, **zoom**, download | PDF.js in worker, in-PDF search, presentation mode |
-| Multi-file | File tree, **templates** (article / article+bib), **\\input / \\include** navigator | ZIP/Git import, Git sync |
-| Diagnostics | **Problems panel** + **lint gutter** from compile output | ChkTeX inline, fix-its |
-| Collaboration | **Convex** + **Clerk**: shared project files, presence, **design mode** toggle (multi-file when on) | Roles, comments, track changes, chat |
-| Versioning | **IndexedDB** compile snapshots (local) | Server history, diff, restore, Git export |
-| Account / quotas | **Clerk** sign-in | Quotas, org billing |
+## Other useful commands
 
-## Packages
+| Command | Purpose |
+|---------|---------|
+| `pnpm build` | Production build (Turbo) |
+| `pnpm typecheck` | Typecheck all packages |
+| `pnpm lint` | Lint |
+| `pnpm test` | Run tests |
+| `pnpm format` | Prettier write |
 
-- `apps/web` — Next.js UI + `/api/compile` + editor workbench
-- `apps/compile-worker` — BullMQ consumer (`latexmk` in Docker or host)
-- `apps/realtime` — optional legacy Hocuspocus server (`pnpm --filter realtime dev:legacy`); collaboration in `web` uses Convex
-- `packages/protocol` — shared compile types
-- `packages/queue` — BullMQ helpers
-- `packages/editor` — CodeMirror 6 surface (outline, input refs, keymaps, Vim option)
+Legacy optional Hocuspocus server: `pnpm --filter realtime dev:legacy` (see commented vars in `apps/web/.env.example`).
 
-## Scripts
+## Environment variables (reference)
 
-- `pnpm dev` — turbo dev (web + compile-worker; Convex is a separate process)
-- `pnpm --filter web run convex:dev` — push Convex functions from `apps/web`
-- `pnpm --filter web run dev:with-convex` — Next + Convex in one terminal
-- `pnpm build` — production build
-- `pnpm lint` / `pnpm typecheck` — quality gates
+| Variable | Where | Purpose |
+|----------|--------|---------|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk auth |
+| `NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN` | `apps/web/.env.local` | Convex deployment + Clerk JWT validation |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | env / `.env.local` for Next; export for worker | BullMQ |
+| `COMPILE_USE_DOCKER` | worker process env | `true` (default) uses Docker; `false` / `0` uses host `latexmk` |
+| `COMPILE_DOCKER_IMAGE` | worker | Override image (default `ghcr.io/xu-cheng/texlive-full:latest`) |
+| `WORKER_CONCURRENCY` | worker | BullMQ concurrency (default `2`) |
+
+## Packages and apps
+
+- `apps/web` — Next.js UI, `/api/compile`, editor workbench, Convex client
+- `apps/compile-worker` — BullMQ consumer for `latexmk`
+- `apps/realtime` — optional legacy collaboration server
+- `packages/protocol` — shared compile job types
+- `packages/queue` — BullMQ queue name + Redis connection helpers
+- `packages/editor` — CodeMirror 6 LaTeX surface
+
+## Feature coverage (high level)
+
+| Area | In repo | Roadmap-style gaps |
+|------|---------|---------------------|
+| Editing | CM6 LaTeX, folding, brackets, search, Vim option, autocomplete | Richer cite/ref, spellcheck |
+| Build | `latexmk` via Docker or host, multiple engines, log parse, timeout | Docker-side hard kill, SyncTeX |
+| Collaboration | Convex + Clerk: files, presence, design mode | Roles, comments, track changes |
+| Versioning | IndexedDB compile snapshots | Server history, Git |
+
+---
+
+Repository: [https://github.com/Luseefor/alove](https://github.com/Luseefor/alove)
