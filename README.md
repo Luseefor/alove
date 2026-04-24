@@ -2,7 +2,7 @@
 
 Monorepo for a web LaTeX workspace: Next.js editor, BullMQ compile worker (TeX Live in Docker), and optional Convex-backed collaboration. **Dependencies and scripts use [Bun](https://bun.sh)** (`bun install`, `bun run`, workspaces, and the Bun runtime for the compile worker and legacy realtime server).
 
-**Default `bun run dev`** runs the web app in **local standalone** mode: **no Clerk or Convex**, editor + PDF + multi-file on disk-backed browser history only, **no live collaboration**, Next.js on **[http://localhost:3001](http://localhost:3001)**. Use **`bun run --filter web dev:cloud`** plus Convex when you want the full authenticated stack (port **3000**).
+**Default `bun run dev`** runs the web app in **local standalone** mode: **no Clerk or Convex**, editor + PDF + multi-file on disk-backed browser history only, **no live collaboration**, Next.js on **[http://localhost:6000](http://localhost:6000)**. Use **`bun run --filter web dev:cloud`** plus Convex when you want the full authenticated stack (port **3000**).
 
 ## Prerequisites
 
@@ -82,7 +82,7 @@ This runs `convex dev` in the `web` workspace (`apps/web`). Log in when prompted
 
 ### Default — local editor + compile (no auth, no collab)
 
-**Terminal 1** — Next.js (port **3001**) + compile worker via Turbo:
+**Terminal 1** — Next.js (port **6000**) + compile worker via Turbo:
 
 ```bash
 bun run dev
@@ -90,7 +90,7 @@ bun run dev
 
 Ensure **Redis** is up (`docker compose`). No Convex terminal is required in this mode.
 
-Open [http://localhost:3001/editor](http://localhost:3001/editor).
+Open [http://localhost:6000/editor](http://localhost:6000/editor).
 
 ### Cloud — Clerk + Convex + collaboration
 
@@ -127,7 +127,7 @@ bun run --filter compile-worker dev
 2. Sign in with Clerk.
 3. Optional: second browser or incognito to verify collaboration.
 
-**Ports:** `3001` — Next.js default dev (local standalone); `3000` — Next.js cloud dev; `6379` — Redis; `5432` — Postgres; Convex URL comes from `NEXT_PUBLIC_CONVEX_URL` when enabled.
+**Ports:** `6000` — Next.js default dev (local standalone); `3000` — Next.js cloud dev; `6379` — Redis; `5432` — Postgres; Convex URL comes from `NEXT_PUBLIC_CONVEX_URL` when enabled.
 
 ## Other useful commands
 

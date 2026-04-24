@@ -8,6 +8,6 @@ Setup and run instructions live in the [repository root README](../../README.md)
 # from monorepo root
 bun install
 bun run dev
-# editor: http://localhost:3001/editor (local, no Clerk/Convex)
+# editor: http://localhost:6000/editor (local, no Clerk/Convex)
 # cloud stack: see repository README (dev:cloud + convex:dev)
 ```
