@@ -2,7 +2,7 @@
 
 Monorepo for a web LaTeX workspace: Next.js editor, BullMQ compile worker (TeX Live in Docker), and optional Convex-backed collaboration. **Dependencies and scripts use [Bun](https://bun.sh)** (`bun install`, `bun run`, workspaces, and the Bun runtime for the compile worker and legacy realtime server).
 
-**Default `bun run dev`** runs the web app in **local standalone** mode: **no Clerk or Convex**, editor + PDF + multi-file on disk-backed browser history only, **no live collaboration**, Next.js on **[http://localhost:4287](http://localhost:4287)** (port **4287** avoids Next.js reserved ports such as **6000** / X11 and typical **3000**–**3010** stacks). Use **`bun run --filter web dev:cloud`** plus Convex when you want the full authenticated stack (port **3000**).
+**Default `bun run dev`** runs the web app in **local standalone** mode: **no Clerk or Convex**, editor + PDF + multi-file on disk-backed browser history only, **no live collaboration**. Next.js binds the **first free TCP port** from **`ALOVE_WEB_PORT`** (default **30127**) upward (skips common services and Next‑blocked ports such as **6000** / X11); the chosen URL is **printed when dev starts**. Use **`bun run --filter web dev:cloud`** plus Convex when you want the full authenticated stack (port **3000**).
 
 ## Prerequisites
 
@@ -82,7 +82,7 @@ This runs `convex dev` in the `web` workspace (`apps/web`). Log in when prompted
 
 ### Default — local editor + compile (no auth, no collab)
 
-**Terminal 1** — Next.js (port **4287**) + compile worker via Turbo:
+**Terminal 1** — Next.js (dynamic port, see terminal output) + compile worker via Turbo:
 
 ```bash
 bun run dev
@@ -90,10 +90,10 @@ bun run dev
 
 Ensure **Redis** is up (`docker compose`). No Convex terminal is required in this mode.
 
-Open [http://localhost:4287/editor](http://localhost:4287/editor).
+Open **`/editor`** on the URL printed in the web dev logs (by default the first free port from **30127**).
 
-To use another port, from `apps/web`:  
-`NEXT_PUBLIC_LOCAL_STANDALONE=true bunx next dev --turbopack -p <port>` (keep the compile worker running from the repo root as usual).
+Set **`ALOVE_WEB_PORT`** (integer) to prefer a different starting port, e.g. `ALOVE_WEB_PORT=38400 bun run dev` from the repo root. You can still run manually from `apps/web`:  
+`NEXT_PUBLIC_LOCAL_STANDALONE=true bunx next dev --turbopack -p <port>`.
 
 ### Cloud — Clerk + Convex + collaboration
 
@@ -130,7 +130,7 @@ bun run --filter compile-worker dev
 2. Sign in with Clerk.
 3. Optional: second browser or incognito to verify collaboration.
 
-**Ports:** `4287` — Next.js default dev (local standalone); `3000` — Next.js cloud dev; `6379` — Redis; `5432` — Postgres; Convex URL comes from `NEXT_PUBLIC_CONVEX_URL` when enabled.
+**Ports:** local standalone — first free port from `ALOVE_WEB_PORT` (default **30127**); cloud dev — **3000**; **6379** — Redis; **5432** — Postgres; Convex URL comes from `NEXT_PUBLIC_CONVEX_URL` when enabled.
 
 ## Other useful commands
 
@@ -154,7 +154,8 @@ bun run --filter realtime dev:legacy
 
 | Variable | Where | Purpose |
 |----------|--------|---------|
-| `NEXT_PUBLIC_LOCAL_STANDALONE` | build / `.env.local` | `true` / `1` disables Clerk, Convex UI, and collaboration (also set by default `apps/web` `dev` script) |
+| `NEXT_PUBLIC_LOCAL_STANDALONE` | build / `.env.local` | `true` / `1` disables Clerk, Convex UI, and collaboration (set by the default `apps/web` `dev` launcher) |
+| `ALOVE_WEB_PORT` | dev only | Starting port for local Next scan (default **30127**); increase if that range is busy |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk |
 | `NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN` | `apps/web/.env.local` | Convex + Clerk JWT |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | env / `.env.local` for Next; export for worker | BullMQ |

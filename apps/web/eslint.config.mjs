@@ -20,6 +20,7 @@ const eslintConfig = [
       "next-env.d.ts",
       "vitest.config.ts",
       "convex/_generated/**",
+      "scripts/dev-standalone.ts",
     ],
   },
 ];
