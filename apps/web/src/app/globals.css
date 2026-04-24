@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Defaults match `SITE_PALETTES[emerald]` — inline boot script + ThemeProvider overwrite. */
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+  --alove-accent: #059669;
+  --alove-accent-hover: #047857;
+  --alove-accent-active: #065f46;
+  --alove-on-accent: #ffffff;
+  --alove-surface-soft: #ecfdf5;
+  --alove-surface-soft-border: #a7f3d0;
+  --alove-fg-strong: #065f46;
+  --alove-fg-muted: #047857;
+  --alove-focus-ring: #10b981;
+  --alove-resize-hover: #34d399;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --alove-accent: #34d399;
+  --alove-accent-hover: #6ee7b7;
+  --alove-accent-active: #a7f3d0;
+  --alove-on-accent: #022c22;
+  --alove-surface-soft: #064e3b;
+  --alove-surface-soft-border: #047857;
+  --alove-fg-strong: #d1fae5;
+  --alove-fg-muted: #a7f3d0;
+  --alove-focus-ring: #6ee7b7;
+  --alove-resize-hover: #34d399;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-alove-accent: var(--alove-accent);
+  --color-alove-accent-hover: var(--alove-accent-hover);
+  --color-alove-accent-active: var(--alove-accent-active);
+  --color-alove-on-accent: var(--alove-on-accent);
+  --color-alove-surface-soft: var(--alove-surface-soft);
+  --color-alove-surface-soft-border: var(--alove-surface-soft-border);
+  --color-alove-fg-strong: var(--alove-fg-strong);
+  --color-alove-fg-muted: var(--alove-fg-muted);
+  --color-alove-focus-ring: var(--alove-focus-ring);
+  --color-alove-resize-hover: var(--alove-resize-hover);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+input[type="range"] {
+  accent-color: var(--alove-accent);
+}
