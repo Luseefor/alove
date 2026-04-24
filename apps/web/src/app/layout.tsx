@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConvexClerkProvider } from "@/components/ConvexClerkProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { isLocalStandalone } from "@/lib/localStandalone";
 import { buildBootInlineScript } from "@/theme";
 import "./globals.css";
 
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "alove — LaTeX workspace",
-  description: "Premium LaTeX editor with Convex realtime and Clerk auth.",
+  description: "Premium LaTeX editor with live sync, auth, and fast PDF builds.",
 };
 
 export default function RootLayout({
@@ -24,6 +25,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const local = isLocalStandalone();
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -31,7 +33,11 @@ export default function RootLayout({
       >
         <script dangerouslySetInnerHTML={{ __html: buildBootInlineScript() }} />
         <ThemeProvider>
-          <ConvexClerkProvider>{children}</ConvexClerkProvider>
+          {local ? (
+            children
+          ) : (
+            <ConvexClerkProvider>{children}</ConvexClerkProvider>
+          )}
         </ThemeProvider>
       </body>
     </html>

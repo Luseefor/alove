@@ -3,7 +3,6 @@ import { setDiagnostics as cmSetDiagnostics } from "@codemirror/lint";
 import type { EditorView } from "@codemirror/view";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useRef } from "react";
-import type { Id } from "../../convex/_generated/dataModel";
 import { toCmDiagnostics } from "@/lib/editorDiagnostics";
 import { pollCompileJob } from "@/lib/compilePoll";
 import {
@@ -13,7 +12,8 @@ import {
 import type { BuildUiState, Engine } from "@/types/editor-workbench";
 
 type Params = {
-  projectId: Id<"projects"> | null;
+  /** Convex project id, or `null` for local IndexedDB namespace `"local"`. */
+  projectId: string | null;
   activeFile: string;
   engine: Engine;
   cleanAux: boolean;

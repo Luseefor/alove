@@ -37,6 +37,8 @@ type EditorHeaderProps = {
   onCompile: () => void;
   statusText: string;
   buildKind: string;
+  /** No Clerk UI; design mode chip locked on (multi-file always). */
+  localStandalone?: boolean;
 };
 
 function initials(name: string) {
@@ -69,8 +71,9 @@ export function EditorHeader({
   onCompile,
   statusText,
   buildKind,
+  localStandalone = false,
 }: EditorHeaderProps) {
-  const showPeers = (peers?.length ?? 0) > 0;
+  const showPeers = !localStandalone && (peers?.length ?? 0) > 0;
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200/90 bg-white/90 px-3 py-2 text-sm shadow-sm backdrop-blur-md dark:border-zinc-800/90 dark:bg-zinc-950/85">
@@ -163,8 +166,12 @@ export function EditorHeader({
           <ToggleChip
             checked={designMode}
             onChange={onDesignMode}
-            disabled={designModeDisabled}
-            title="Allow multi-file project editing"
+            disabled={localStandalone || designModeDisabled}
+            title={
+              localStandalone
+                ? "Multi-file editing is always on in local mode"
+                : "Allow multi-file project editing"
+            }
           >
             Design
           </ToggleChip>
@@ -179,7 +186,13 @@ export function EditorHeader({
           <Button variant="ghost" size="sm" type="button" onClick={onOpenPalette}>
             Commands
           </Button>
-          <UserButton />
+          {localStandalone ? (
+            <span className="rounded-md border border-zinc-200 bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+              Local
+            </span>
+          ) : (
+            <UserButton />
+          )}
           <span
             className={`max-w-[140px] truncate rounded-full px-2 py-0.5 text-center text-[11px] font-medium sm:max-w-[180px] ${
               buildKind === "ready"

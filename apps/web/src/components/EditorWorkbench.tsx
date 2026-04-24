@@ -31,6 +31,7 @@ import { Kbd } from "@/components/ui/primitives";
 import { useCompileRun, useEditorWorkbenchShortcuts } from "@/hooks";
 import { toCmDiagnostics } from "@/lib/editorDiagnostics";
 import { listCompileSnapshots } from "@/lib/compileHistory";
+import { isLocalStandalone } from "@/lib/localStandalone";
 import type { BuildUiState, Engine } from "@/types/editor-workbench";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -70,7 +71,7 @@ function colorForId(id: string) {
   return `hsl(${hue} 70% 42%)`;
 }
 
-export function EditorWorkbench() {
+function EditorWorkbenchConvex() {
   const { user } = useUser();
   const { resolved: themeResolved, cyclePreference, cyclePaletteId } =
     useTheme();
@@ -524,4 +525,343 @@ export function EditorWorkbench() {
       </PanelGroup>
     </div>
   );
+}
+
+/** Editor + compile + PDF without Clerk, Convex, or collaboration (IndexedDB history only). */
+function EditorWorkbenchLocal() {
+  const { resolved: themeResolved, cyclePreference, cyclePaletteId } =
+    useTheme();
+  const theme = themeResolved;
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const filesRef = useRef<Record<string, string>>({ "main.tex": SEED });
+  const [files, setFiles] = useState<Record<string, string>>(() => ({
+    "main.tex": SEED,
+  }));
+  const [activeFile, setActiveFile] = useState("main.tex");
+  const [outline, setOutline] = useState<OutlineHeading[]>([]);
+  const [inputRefs, setInputRefs] = useState(parseInputRefs(SEED));
+  const [build, setBuild] = useState<BuildUiState>({ kind: "idle" });
+  const [logTail, setLogTail] = useState("");
+  const [diagnostics, setDiagnosticRows] = useState<ProtoDiagnostic[]>([]);
+  const [engine, setEngine] = useState<Engine>("pdflatex");
+  const [cleanAux, setCleanAux] = useState(false);
+  const [vim, setVim] = useState(false);
+  const [zen, setZen] = useState(false);
+  const [autoCompile, setAutoCompile] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [wordCount, setWordCount] = useState(countWords(SEED));
+  const [pdfZoom, setPdfZoom] = useState(100);
+  const [history, setHistory] = useState<
+    Awaited<ReturnType<typeof listCompileSnapshots>>
+  >([]);
+
+  useEffect(() => {
+    void listCompileSnapshots("local").then(setHistory);
+  }, []);
+
+  const flushActiveToFiles = useCallback(() => {
+    const v = viewRef.current;
+    if (!v) return;
+    const text = v.state.doc.toString();
+    filesRef.current = { ...filesRef.current, [activeFile]: text };
+    setFiles({ ...filesRef.current });
+  }, [activeFile]);
+
+  const openFile = useCallback(
+    (path: string) => {
+      flushActiveToFiles();
+      setActiveFile(path);
+    },
+    [flushActiveToFiles],
+  );
+
+  const jumpToOutline = useCallback((from: number) => {
+    const v = viewRef.current;
+    if (!v) return;
+    v.dispatch({
+      selection: { anchor: from },
+      effects: EditorView.scrollIntoView(from, { y: "center" }),
+    });
+    v.focus();
+  }, []);
+
+  const { runCompile, runCompileRef } = useCompileRun({
+    projectId: null,
+    activeFile,
+    engine,
+    cleanAux,
+    viewRef,
+    flushActiveToFiles,
+    filesRef,
+    setBuild,
+    setLogTail,
+    setDiagnosticRows,
+    setHistory,
+  });
+
+  useEditorWorkbenchShortcuts({
+    onToggleCommandPalette: () => setPalette((p) => !p),
+    cyclePreference,
+    cyclePaletteId,
+  });
+
+  const queueSave = useCallback(() => {}, []);
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+
+    let compileDebounce: ReturnType<typeof setTimeout> | undefined;
+
+    const listener = EditorView.updateListener.of((u: ViewUpdate) => {
+      if (u.docChanged) {
+        const t = u.state.doc.toString();
+        filesRef.current = { ...filesRef.current, [activeFile]: t };
+        setFiles({ ...filesRef.current });
+        setOutline(parseLatexOutline(t));
+        setInputRefs(parseInputRefs(t));
+        setWordCount(countWords(t));
+        queueSave();
+        if (autoCompile) {
+          if (compileDebounce) clearTimeout(compileDebounce);
+          compileDebounce = setTimeout(() => runCompileRef.current(), 900);
+        }
+      }
+    });
+
+    const initialDoc = filesRef.current[activeFile] ?? "";
+
+    const state = createLatexEditorState(initialDoc, theme, [listener], {
+      vim,
+    });
+    const view = createLatexEditorView(el, state);
+    viewRef.current = view;
+    setOutline(parseLatexOutline(view.state.doc.toString()));
+    setInputRefs(parseInputRefs(view.state.doc.toString()));
+    setWordCount(countWords(view.state.doc.toString()));
+
+    return () => {
+      if (compileDebounce) clearTimeout(compileDebounce);
+      flushActiveToFiles();
+      view.destroy();
+      viewRef.current = null;
+    };
+  }, [
+    activeFile,
+    autoCompile,
+    flushActiveToFiles,
+    queueSave,
+    theme,
+    vim,
+    runCompileRef,
+  ]);
+
+  useEffect(() => {
+    const v = viewRef.current;
+    if (!v || !diagnostics.length) return;
+    v.dispatch(
+      cmSetDiagnostics(v.state, toCmDiagnostics(v.state.doc, diagnostics)),
+    );
+  }, [diagnostics]);
+
+  const statusText = useMemo(() => {
+    if (build.kind === "idle") return "Idle";
+    if (build.kind === "queued") return "Queued…";
+    if (build.kind === "running") return "Compiling…";
+    if (build.kind === "ready") return "Ready";
+    return `Failed — ${build.message}`;
+  }, [build]);
+
+  const applyTemplate = useCallback((id: TemplateId) => {
+    const t = TEMPLATES[id];
+    const next = { ...filesRef.current };
+    for (const [path, content] of Object.entries(t.files)) {
+      next[path] = content;
+    }
+    filesRef.current = next;
+    setFiles(next);
+    setActiveFile(t.mainFile);
+  }, []);
+
+  const addTextFile = useCallback(() => {
+    flushActiveToFiles();
+    let i = 2;
+    let name = `extra-${i}.tex`;
+    while (filesRef.current[name]) {
+      i += 1;
+      name = `extra-${i}.tex`;
+    }
+    const next = { ...filesRef.current, [name]: "% new file\n" };
+    filesRef.current = next;
+    setFiles(next);
+    setActiveFile(name);
+  }, [flushActiveToFiles]);
+
+  const paletteActions = useMemo((): CommandPaletteAction[] => {
+    return [
+      {
+        id: "compile",
+        group: "Build",
+        label: "Compile project",
+        hint: "Run LaTeX and refresh the PDF preview",
+        run: () => void runCompile(),
+      },
+      {
+        id: "toggle-auto",
+        group: "Build",
+        label: autoCompile ? "Disable auto-compile" : "Enable auto-compile",
+        run: () => setAutoCompile((a) => !a),
+      },
+      {
+        id: "toggle-clean",
+        group: "Build",
+        label: cleanAux ? "Disable clean aux" : "Enable clean aux",
+        run: () => setCleanAux((c) => !c),
+      },
+      {
+        id: "toggle-vim",
+        group: "Editor",
+        label: vim ? "Disable Vim bindings" : "Enable Vim bindings",
+        run: () => setVim((v) => !v),
+      },
+      {
+        id: "focus-editor",
+        group: "Editor",
+        label: "Focus code editor",
+        run: () => {
+          viewRef.current?.focus();
+        },
+      },
+      {
+        id: "toggle-zen",
+        group: "View",
+        label: zen ? "Show side panels" : "Zen mode (hide side panels)",
+        run: () => setZen((z) => !z),
+      },
+      {
+        id: "new-tex",
+        group: "Project",
+        label: "New .tex file",
+        run: () => void addTextFile(),
+      },
+    ];
+  }, [runCompile, autoCompile, cleanAux, vim, zen, addTextFile]);
+
+  return (
+    <div className="flex h-[100dvh] flex-col bg-gradient-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-900 dark:text-zinc-50">
+      <EditorHeader
+        activeFile={activeFile}
+        wordCount={wordCount}
+        peers={undefined}
+        currentUserId={undefined}
+        engine={engine}
+        onEngineChange={setEngine}
+        cleanAux={cleanAux}
+        onCleanAux={setCleanAux}
+        vim={vim}
+        onVim={setVim}
+        autoCompile={autoCompile}
+        onAutoCompile={setAutoCompile}
+        designMode
+        designModeDisabled
+        onDesignMode={() => {}}
+        zen={zen}
+        onZen={() => setZen((z) => !z)}
+        onOpenPalette={() => setPalette(true)}
+        onCompile={() => void runCompile()}
+        statusText={statusText}
+        buildKind={build.kind}
+        localStandalone
+      />
+
+      <CommandPalette
+        open={palette}
+        onClose={() => setPalette(false)}
+        actions={paletteActions}
+      />
+
+      <PanelGroup direction="horizontal" className="min-h-0 flex-1">
+        <Panel
+          defaultSize={zen ? 0 : 20}
+          minSize={zen ? 0 : 14}
+          className={`left-rail min-w-0 ${zen ? "hidden" : ""}`}
+        >
+          <EditorLeftRail
+            zen={zen}
+            designMode
+            files={files}
+            activeFile={activeFile}
+            onOpenFile={openFile}
+            onApplyTemplate={applyTemplate}
+            onNewTexFile={addTextFile}
+            outline={outline}
+            onOutlineJump={jumpToOutline}
+            inputRefs={inputRefs}
+            history={history}
+          />
+        </Panel>
+        <PanelResizeHandle
+          className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}
+        >
+          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
+        </PanelResizeHandle>
+        <Panel defaultSize={zen ? 100 : 45} minSize={24} className="min-w-0">
+          <div className="flex h-full min-h-0 flex-col bg-white/40 dark:bg-zinc-950/40">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-zinc-200/90 px-3 py-1.5 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+              <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                Editor
+              </span>
+              <span className="hidden sm:inline">·</span>
+              <span className="flex flex-wrap items-center gap-1">
+                <Kbd>⌘F</Kbd> search
+              </span>
+              <span className="flex flex-wrap items-center gap-1">
+                <Kbd>⌘G</Kbd> line
+              </span>
+              <span className="flex flex-wrap items-center gap-1">
+                <Kbd>⌘K</Kbd> commands
+              </span>
+              <span className="flex flex-wrap items-center gap-1">
+                <Kbd>⇧T</Kbd> theme
+              </span>
+              <span className="flex flex-wrap items-center gap-1">
+                <Kbd>⇧P</Kbd> accent
+              </span>
+              <span className="text-zinc-400">· Alt-drag multi-cursor</span>
+            </div>
+            <div
+              key={`${activeFile}-${vim}-${theme}`}
+              ref={hostRef}
+              className="min-h-0 flex-1 overflow-hidden"
+            />
+          </div>
+        </Panel>
+        <PanelResizeHandle
+          className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}
+        >
+          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
+        </PanelResizeHandle>
+        <Panel
+          defaultSize={zen ? 0 : 35}
+          minSize={zen ? 0 : 22}
+          className={`right-rail min-w-0 ${zen ? "hidden" : ""}`}
+        >
+          <EditorRightRail
+            zen={zen}
+            build={build}
+            pdfZoom={pdfZoom}
+            onPdfZoom={setPdfZoom}
+            diagnostics={diagnostics}
+            logTail={logTail}
+          />
+        </Panel>
+      </PanelGroup>
+    </div>
+  );
+}
+
+export function EditorWorkbench() {
+  if (isLocalStandalone()) return <EditorWorkbenchLocal />;
+  return <EditorWorkbenchConvex />;
 }

@@ -2,13 +2,14 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { CompileJobResult } from "@alove/protocol";
 import { getCompileQueue } from "@/lib/compileQueue";
+import { isLocalStandalone } from "@/lib/localStandalone";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ jobId: string }> };
 
 export async function GET(_req: Request, context: RouteContext) {
-  if (process.env.CLERK_SECRET_KEY) {
+  if (process.env.CLERK_SECRET_KEY && !isLocalStandalone()) {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

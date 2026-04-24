@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { isLocalStandalone } from "@/lib/localStandalone";
 
 const isPublic = createRouteMatcher([
   "/",
@@ -9,6 +10,9 @@ const isPublic = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  if (isLocalStandalone()) {
+    return NextResponse.next();
+  }
   if (!process.env.CLERK_SECRET_KEY) {
     return NextResponse.next();
   }
