@@ -1,0 +1,24 @@
+{
+  "name": "compile-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --import tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo noop",
+    "build": "echo skip"
+  },
+  "dependencies": {
+    "@alove/protocol": "workspace:*",
+    "@alove/queue": "workspace:*",
+    "bullmq": "^5.47.1",
+    "ioredis": "^5.6.0"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

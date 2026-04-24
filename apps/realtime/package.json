@@ -1,0 +1,22 @@
+{
+  "name": "realtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:legacy": "tsx watch src/index.ts",
+    "start": "node --import tsx src/index.ts",
+    "build": "echo skip",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo noop"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^4.0.0",
+    "yjs": "^13.6.30"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
