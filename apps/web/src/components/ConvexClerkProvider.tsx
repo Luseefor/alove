@@ -42,7 +42,7 @@ export function ConvexClerkProvider({ children }: { children: ReactNode }) {
               <code className="rounded bg-amber-100 px-1 dark:bg-amber-900">
                 NEXT_PUBLIC_CONVEX_URL
               </code>{" "}
-              (run <code className="rounded px-1">pnpm --filter web run convex:dev</code>).
+              (run <code className="rounded px-1">bun run convex:dev</code> from the repo root).
             </span>
           )}
         </div>

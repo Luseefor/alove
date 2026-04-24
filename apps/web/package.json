@@ -8,7 +8,7 @@
     "convex:dev": "convex dev",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint . && node ./scripts/check-design-tokens.mjs",
+    "lint": "eslint . && bun ./scripts/check-design-tokens.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -31,6 +31,9 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@next/eslint-plugin-next": "15.5.15",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

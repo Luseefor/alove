@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:legacy": "tsx watch src/index.ts",
-    "start": "node --import tsx src/index.ts",
+    "dev:legacy": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
     "build": "echo skip",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo noop"
@@ -16,7 +16,6 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
 }

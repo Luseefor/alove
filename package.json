@@ -1,14 +1,17 @@
 {
   "name": "alove",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "bun@1.3.10",
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "convex:dev": "bun run --filter web convex:dev",
+    "dev:with-convex": "bun run --filter web dev:with-convex"
   },
   "devDependencies": {
     "prettier": "^3.8.3",
