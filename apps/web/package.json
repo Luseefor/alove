@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NEXT_PUBLIC_LOCAL_STANDALONE=true next dev --turbopack -p 6000",
+    "dev": "NEXT_PUBLIC_LOCAL_STANDALONE=true next dev --turbopack -p 4287",
     "dev:cloud": "next dev --turbopack -p 3000",
     "dev:with-convex": "concurrently -n convex,next -c blue,green \"convex dev\" \"next dev --turbopack -p 3000\"",
     "convex:dev": "convex dev",
