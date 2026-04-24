@@ -92,6 +92,9 @@ Ensure **Redis** is up (`docker compose`). No Convex terminal is required in thi
 
 Open [http://localhost:4287/editor](http://localhost:4287/editor).
 
+To use another port, from `apps/web`:  
+`NEXT_PUBLIC_LOCAL_STANDALONE=true bunx next dev --turbopack -p <port>` (keep the compile worker running from the repo root as usual).
+
 ### Cloud — Clerk + Convex + collaboration
 
 **Terminal 1** — Next on port **3000** + compile worker:
