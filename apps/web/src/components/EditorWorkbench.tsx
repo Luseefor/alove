@@ -27,7 +27,6 @@ import {
   EditorRightRail,
 } from "@/components/editor";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { Kbd } from "@/components/ui/primitives";
 import { useCompileRun, useEditorWorkbenchShortcuts } from "@/hooks";
 import { toCmDiagnostics } from "@/lib/editorDiagnostics";
 import { listCompileSnapshots } from "@/lib/compileHistory";
@@ -413,7 +412,7 @@ function EditorWorkbenchConvex() {
   ]);
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-gradient-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-900 dark:text-zinc-50">
+    <div className="flex h-[100dvh] flex-col bg-background text-foreground">
       <EditorHeader
         activeFile={activeFile}
         wordCount={wordCount}
@@ -473,35 +472,11 @@ function EditorWorkbenchConvex() {
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
         </PanelResizeHandle>
         <Panel defaultSize={zen ? 100 : 45} minSize={24} className="min-w-0">
-          <div className="flex h-full min-h-0 flex-col bg-white/40 dark:bg-zinc-950/40">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-zinc-200/90 px-3 py-1.5 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-              <span className="font-medium text-zinc-600 dark:text-zinc-300">
-                Editor
-              </span>
-              <span className="hidden sm:inline">·</span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⌘F</Kbd> search
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⌘G</Kbd> line
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⌘K</Kbd> commands
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⇧T</Kbd> theme
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⇧P</Kbd> accent
-              </span>
-              <span className="text-zinc-400">· Alt-drag multi-cursor</span>
-            </div>
-            <div
-              key={`${activeFile}-${vim}-${theme}-${remoteTick}-${rows ? 1 : 0}`}
-              ref={hostRef}
-              className="min-h-0 flex-1 overflow-hidden"
-            />
-          </div>
+          <div
+            key={`${activeFile}-${vim}-${theme}-${remoteTick}-${rows ? 1 : 0}`}
+            ref={hostRef}
+            className="h-full min-h-0 overflow-hidden bg-background"
+          />
         </Panel>
         <PanelResizeHandle
           className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}
@@ -749,7 +724,7 @@ function EditorWorkbenchLocal() {
   }, [runCompile, autoCompile, cleanAux, vim, zen, addTextFile]);
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-gradient-to-b from-zinc-50 to-zinc-100 text-zinc-900 dark:from-zinc-950 dark:to-zinc-900 dark:text-zinc-50">
+    <div className="flex h-[100dvh] flex-col bg-background text-foreground">
       <EditorHeader
         activeFile={activeFile}
         wordCount={wordCount}
@@ -807,35 +782,11 @@ function EditorWorkbenchLocal() {
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
         </PanelResizeHandle>
         <Panel defaultSize={zen ? 100 : 45} minSize={24} className="min-w-0">
-          <div className="flex h-full min-h-0 flex-col bg-white/40 dark:bg-zinc-950/40">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-zinc-200/90 px-3 py-1.5 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-              <span className="font-medium text-zinc-600 dark:text-zinc-300">
-                Editor
-              </span>
-              <span className="hidden sm:inline">·</span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⌘F</Kbd> search
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⌘G</Kbd> line
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⌘K</Kbd> commands
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⇧T</Kbd> theme
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <Kbd>⇧P</Kbd> accent
-              </span>
-              <span className="text-zinc-400">· Alt-drag multi-cursor</span>
-            </div>
-            <div
-              key={`${activeFile}-${vim}-${theme}`}
-              ref={hostRef}
-              className="min-h-0 flex-1 overflow-hidden"
-            />
-          </div>
+          <div
+            key={`${activeFile}-${vim}-${theme}`}
+            ref={hostRef}
+            className="h-full min-h-0 overflow-hidden bg-background"
+          />
         </Panel>
         <PanelResizeHandle
           className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}

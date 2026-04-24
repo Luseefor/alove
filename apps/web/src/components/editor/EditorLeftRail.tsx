@@ -35,14 +35,14 @@ export function EditorLeftRail({
   if (zen) return null;
 
   return (
-    <aside className="flex h-full flex-col border-r border-zinc-200/90 bg-zinc-50/80 dark:border-zinc-800 dark:bg-zinc-950/50">
+    <aside className="flex h-full flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
       <RailSectionTitle>Templates</RailSectionTitle>
-      <div className="flex flex-col gap-1.5 px-2 py-2">
+      <div className="flex flex-col px-2 py-1.5">
         {(Object.keys(TEMPLATES) as TemplateId[]).map((id) => (
           <button
             key={id}
             type="button"
-            className="rounded-lg border border-zinc-200/90 bg-white px-3 py-2 text-left text-xs font-medium text-zinc-800 shadow-sm transition hover:border-alove-surface-soft-border hover:bg-alove-surface-soft/80 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-alove-surface-soft-border dark:hover:bg-alove-surface-soft/50"
+            className="border-b border-transparent py-1.5 text-left text-xs text-zinc-700 hover:border-zinc-300 hover:text-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-50"
             onClick={() => void onApplyTemplate(id)}
           >
             {TEMPLATES[id].label}
@@ -51,29 +51,29 @@ export function EditorLeftRail({
         {designMode ? (
           <button
             type="button"
-            className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-left text-xs font-medium text-zinc-600 transition hover:border-alove-accent hover:bg-alove-surface-soft/50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-alove-accent"
+            className="mt-0.5 py-1.5 text-left text-xs text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-800 dark:text-zinc-500 dark:decoration-zinc-600 dark:hover:text-zinc-300"
             onClick={() => void onNewTexFile()}
           >
-            + New .tex file
+            New .tex file
           </button>
         ) : (
-          <p className="rounded-lg bg-zinc-100/80 px-2 py-2 text-[11px] leading-snug text-zinc-500 dark:bg-zinc-900/60">
-            Enable <strong className="text-zinc-700 dark:text-zinc-300">Design</strong> in the
-            header to add files beyond <code className="font-mono text-zinc-600">main.tex</code>.
+          <p className="py-2 text-[11px] leading-snug text-zinc-500 dark:text-zinc-500">
+            Turn on <span className="font-medium text-zinc-700 dark:text-zinc-300">Design</span>{" "}
+            in the header for multi-file.
           </p>
         )}
       </div>
 
       <RailSectionTitle>Files</RailSectionTitle>
-      <div className="max-h-44 overflow-auto px-2 py-2">
+      <div className="max-h-44 overflow-auto px-1 py-1">
         {Object.keys(files).map((path) => (
           <button
             key={path}
             type="button"
-            className={`mb-1 flex w-full items-center rounded-lg px-2 py-1.5 text-left font-mono text-xs transition ${
+            className={`flex w-full items-center px-2 py-1 text-left font-mono text-xs ${
               path === activeFile
-                ? "bg-alove-surface-soft font-medium text-alove-fg-strong dark:bg-alove-surface-soft/90 dark:text-alove-fg-strong"
-                : "text-zinc-700 hover:bg-zinc-200/70 dark:text-zinc-200 dark:hover:bg-zinc-800/80"
+                ? "border-l-2 border-l-zinc-900 bg-zinc-200/60 font-medium text-zinc-950 dark:border-l-zinc-100 dark:bg-zinc-800/80 dark:text-zinc-50"
+                : "border-l-2 border-l-transparent text-zinc-700 hover:bg-zinc-200/50 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
             }`}
             onClick={() => onOpenFile(path)}
           >
@@ -93,7 +93,7 @@ export function EditorLeftRail({
             <button
               type="button"
               key={`${h.title}-${i}`}
-              className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-200 dark:hover:bg-zinc-800/70"
+              className="block w-full truncate px-2 py-1 text-left text-sm text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-200 dark:hover:bg-zinc-800/70"
               style={{ paddingLeft: 8 + (h.level - 1) * 12 }}
               onClick={() => onOutlineJump(h.from)}
             >
@@ -113,7 +113,7 @@ export function EditorLeftRail({
               key={`${r.path}-${i}`}
               type="button"
               disabled={!files[r.path] && !files[`${r.path}.tex`]}
-              className="mb-1 block w-full truncate rounded-lg px-2 py-1 text-left font-mono text-xs text-zinc-700 hover:bg-zinc-200/60 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-200 dark:hover:bg-zinc-800/70"
+              className="mb-0.5 block w-full truncate px-2 py-1 text-left font-mono text-xs text-zinc-700 hover:bg-zinc-200/60 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-200 dark:hover:bg-zinc-800/70"
               onClick={() => {
                 const p = files[r.path] ? r.path : `${r.path}.tex`;
                 if (files[p]) onOpenFile(p);

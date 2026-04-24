@@ -22,7 +22,7 @@ export function ThemeToggle({ size = "md", className = "" }: ThemeToggleProps) {
     <div
       role="group"
       aria-label="Light or dark appearance"
-      className={`inline-flex rounded-lg border border-zinc-200 bg-zinc-100/80 p-0.5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900/80 ${sm ? "text-[11px]" : "text-xs"} ${className}`}
+      className={`inline-flex rounded border border-zinc-300 p-px dark:border-zinc-600 ${sm ? "text-[11px]" : "text-xs"} ${className}`}
     >
       {segments.map(({ value, label, title }) => (
         <button
@@ -30,12 +30,12 @@ export function ThemeToggle({ size = "md", className = "" }: ThemeToggleProps) {
           type="button"
           title={title}
           onClick={() => setPreference(value)}
-          className={`rounded-md px-2 font-medium transition-colors ${
+          className={`px-2 font-medium transition-colors ${
             sm ? "py-0.5" : "py-1"
           } ${
             preference === value
-              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-              : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+              ? "bg-zinc-200 text-zinc-950 dark:bg-zinc-700 dark:text-zinc-50"
+              : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800/80"
           }`}
         >
           {label}

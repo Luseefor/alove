@@ -12,7 +12,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const btnBase =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg font-medium transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-alove-focus-ring/80 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45";
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-alove-focus-ring/80 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
@@ -70,7 +70,7 @@ export function Kbd({ children }: { children: ReactNode }) {
 
 export function RailSectionTitle({ children }: { children: ReactNode }) {
   return (
-    <div className="border-b border-zinc-200/90 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+    <div className="border-b border-zinc-200 px-3 py-1.5 text-[10px] font-medium text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
       {children}
     </div>
   );
@@ -94,10 +94,10 @@ export function ToggleChip({
   return (
     <label
       title={title}
-      className={`inline-flex cursor-pointer select-none items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
+      className={`inline-flex cursor-pointer select-none items-center gap-1.5 border-b-2 px-1.5 py-0.5 text-xs font-medium transition-colors ${
         checked
-          ? "border-alove-surface-soft-border bg-alove-surface-soft text-alove-fg-strong dark:border-alove-surface-soft-border dark:bg-alove-surface-soft dark:text-alove-fg-strong"
-          : "border-transparent bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200/80 dark:bg-zinc-900/50 dark:text-zinc-400 dark:hover:bg-zinc-800/80"
+          ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
+          : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
       } ${disabled ? "pointer-events-none opacity-45" : ""}`}
     >
       <input
@@ -106,10 +106,6 @@ export function ToggleChip({
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-      />
-      <span
-        className={`h-2 w-2 rounded-full ${checked ? "bg-alove-accent" : "bg-zinc-300 dark:bg-zinc-600"}`}
-        aria-hidden
       />
       {children}
     </label>

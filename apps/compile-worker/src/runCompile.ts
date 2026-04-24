@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, writeFile, readFile, rm, access } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { arch, platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CompileJobPayload, CompileJobResult } from "@alove/protocol";
 import { parseLatexLog } from "./logParse.js";
@@ -89,9 +89,20 @@ export async function runCompileJob(
     let timedOut = false;
 
     if (useDocker) {
-      const args = [
-        "run",
-        "--rm",
+      const isDarwinArm64 = platform() === "darwin" && arch() === "arm64";
+      const envPlatform = process.env.COMPILE_DOCKER_PLATFORM?.trim();
+      const dockerPlatform =
+        envPlatform && envPlatform.length > 0
+          ? envPlatform
+          : isDarwinArm64
+            ? "linux/amd64"
+            : "";
+
+      const args = ["run", "--rm"];
+      if (dockerPlatform) {
+        args.push("--platform", dockerPlatform);
+      }
+      args.push(
         "-v",
         `${work}:/work`,
         "-w",
@@ -100,7 +111,7 @@ export async function runCompileJob(
         "sh",
         "-lc",
         inner,
-      ];
+      );
       const r = await runCmd("docker", args, work);
       combined = `${r.stdout}\n${r.stderr}`;
       exit = r.code;

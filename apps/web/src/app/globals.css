@@ -2,35 +2,35 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Defaults match `SITE_PALETTES[emerald]` — inline boot script + ThemeProvider overwrite. */
+/* Defaults match `SITE_PALETTES[ocean]` before the boot script + ThemeProvider run. */
 :root {
   --background: #fafafa;
   --foreground: #18181b;
-  --alove-accent: #059669;
-  --alove-accent-hover: #047857;
-  --alove-accent-active: #065f46;
+  --alove-accent: #0284c7;
+  --alove-accent-hover: #0369a1;
+  --alove-accent-active: #075985;
   --alove-on-accent: #ffffff;
-  --alove-surface-soft: #ecfdf5;
-  --alove-surface-soft-border: #a7f3d0;
-  --alove-fg-strong: #065f46;
-  --alove-fg-muted: #047857;
-  --alove-focus-ring: #10b981;
-  --alove-resize-hover: #34d399;
+  --alove-surface-soft: #e0f2fe;
+  --alove-surface-soft-border: #7dd3fc;
+  --alove-fg-strong: #0c4a6e;
+  --alove-fg-muted: #0369a1;
+  --alove-focus-ring: #0ea5e9;
+  --alove-resize-hover: #38bdf8;
 }
 
 .dark {
   --background: #09090b;
   --foreground: #fafafa;
-  --alove-accent: #34d399;
-  --alove-accent-hover: #6ee7b7;
-  --alove-accent-active: #a7f3d0;
-  --alove-on-accent: #022c22;
-  --alove-surface-soft: #064e3b;
-  --alove-surface-soft-border: #047857;
-  --alove-fg-strong: #d1fae5;
-  --alove-fg-muted: #a7f3d0;
-  --alove-focus-ring: #6ee7b7;
-  --alove-resize-hover: #34d399;
+  --alove-accent: #38bdf8;
+  --alove-accent-hover: #7dd3fc;
+  --alove-accent-active: #bae6fd;
+  --alove-on-accent: #082f49;
+  --alove-surface-soft: #0c4a6e;
+  --alove-surface-soft-border: #0369a1;
+  --alove-fg-strong: #e0f2fe;
+  --alove-fg-muted: #bae6fd;
+  --alove-focus-ring: #7dd3fc;
+  --alove-resize-hover: #38bdf8;
 }
 
 @theme inline {

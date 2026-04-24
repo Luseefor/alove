@@ -26,6 +26,6 @@ describe("applyPaletteVars", () => {
 
   it("falls back to default id for unknown palette", () => {
     applyPaletteVars("not-a-real-palette", "light");
-    expect(document.documentElement.dataset.alovePalette).toBe("emerald");
+    expect(document.documentElement.dataset.alovePalette).toBe("ocean");
   });
 });

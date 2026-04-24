@@ -1,6 +1,8 @@
 "use client";
 
 import { useTheme } from "./ThemeProvider";
+import type { SitePaletteId } from "@/theme";
+
 type PaletteSwitcherProps = {
   size?: "sm" | "md";
   className?: string;
@@ -14,35 +16,22 @@ export function PaletteSwitcher({
   const sm = size === "sm";
 
   return (
-    <div
-      role="listbox"
-      aria-label="Accent color"
-      className={`inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-100/80 p-0.5 dark:border-zinc-700 dark:bg-zinc-900/80 ${sm ? "gap-0.5" : "gap-1"} ${className}`}
+    <label
+      className={`inline-flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 ${sm ? "text-[11px]" : "text-xs"} ${className}`}
     >
-      {paletteOptions.map((p) => {
-        const selected = paletteId === p.id;
-        return (
-          <button
-            key={p.id}
-            type="button"
-            role="option"
-            aria-selected={selected}
-            title={p.label}
-            onClick={() => setPaletteId(p.id)}
-            className={`rounded-md outline-none transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100 dark:focus-visible:ring-offset-zinc-900 ${
-              sm ? "p-0.5" : "p-1"
-            } ${selected ? "ring-2 ring-zinc-400 dark:ring-zinc-500" : ""}`}
-          >
-            <span
-              className={`block rounded-full border border-black/10 shadow-inner dark:border-white/10 ${
-                sm ? "h-5 w-5" : "h-6 w-6"
-              }`}
-              style={{ backgroundColor: p.swatch }}
-            />
-            <span className="sr-only">{p.label}</span>
-          </button>
-        );
-      })}
-    </div>
+      <span className="sr-only sm:not-sr-only sm:inline">Accent</span>
+      <select
+        aria-label="Accent color"
+        value={paletteId}
+        onChange={(e) => setPaletteId(e.target.value as SitePaletteId)}
+        className={`max-w-[9.5rem] rounded border border-zinc-300 bg-white font-medium text-zinc-900 shadow-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 ${sm ? "py-0.5 pl-1.5 pr-2 text-[11px]" : "py-1 pl-2 pr-2 text-xs"}`}
+      >
+        {paletteOptions.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

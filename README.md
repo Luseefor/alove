@@ -161,6 +161,7 @@ bun run --filter realtime dev:legacy
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | env / `.env.local` for Next; export for worker | BullMQ |
 | `COMPILE_USE_DOCKER` | worker | `true` (default) Docker; `false` / `0` host `latexmk` |
 | `COMPILE_DOCKER_IMAGE` | worker | TeX image override |
+| `COMPILE_DOCKER_PLATFORM` | worker | `docker run --platform` value; on **macOS + arm64** defaults to **`linux/amd64`** so common TeX images run under emulation |
 | `WORKER_CONCURRENCY` | worker | BullMQ concurrency (default `2`) |
 
 ## Packages and apps
