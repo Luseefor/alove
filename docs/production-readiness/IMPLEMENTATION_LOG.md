@@ -140,3 +140,43 @@
   - `bun run build`: pass
 - **Remaining risk**
   - CodeMirror path is not default yet; command/selection parity is still in migration.
+
+## 2026-05-07 — Phase 6.5: CodeMirror parity validation
+
+- **Files changed**
+  - `apps/web/src/components/latex-ide/EditorPane.test.tsx`
+  - `apps/web/.env.example`
+  - `docs/architecture/editor-surface-strategy.md`
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+- **What was fixed**
+  - Added focused `EditorPane` integration-contract tests for the CodeMirror-enabled path:
+    - renders CodeMirror branch under feature flag,
+    - initial content propagation,
+    - shared update path / dirty state behavior,
+    - file switching behavior,
+    - selection/find wiring behavior,
+    - compile trigger and editor command wiring.
+  - Documented `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR` in `.env.example`.
+  - Recorded decision to keep CodeMirror flag-gated pending non-mocked/manual parity QA.
+- **Commands run (default mode)**
+  - `bun run typecheck`
+  - `bun run lint`
+  - `bun run test`
+  - `bun run build`
+- **Commands run (CodeMirror-enabled mode)**
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build`
+- **Result**
+  - `bun run typecheck`: pass
+  - `bun run lint`: pass
+  - `bun run test`: pass
+  - `bun run build`: pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`: pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`: pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`: pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build`: pass
+- **Remaining risk**
+  - Integration tests rely on a mocked `LatexCodeEditor` contract in jsdom.
+  - Browser-level/manual parity verification remains required before enabling CodeMirror by default.

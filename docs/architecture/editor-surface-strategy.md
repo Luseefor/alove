@@ -32,6 +32,15 @@
 - Default behavior remains textarea-backed to preserve all existing editing interactions while migration completes.
 - Compile/store wiring is preserved because both surfaces write through `updateActiveFileContent`.
 
+## Phase 6.5 Validation Status
+
+- `EditorPane` now has focused parity tests for the CodeMirror-enabled integration path (render, file switching, content updates, selection/find wiring, compile trigger wiring).
+- Validation was run in both default mode and `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true` mode.
+- Decision: keep CodeMirror flag-gated for now.
+- Rationale:
+  - parity tests currently use a mocked adapter contract in jsdom rather than full browser-level behavior;
+  - manual QA for cursor/selection/find/snippet parity and PDF-side workflows has not been completed yet.
+
 ## Current Inventory
 
 ### Active surface files
@@ -65,5 +74,5 @@
 ## Remaining Editor Migration Work
 
 - Make CodeMirror mode default after parity checks for find/search, clipboard commands, and diagnostics navigation.
-- Add richer adapter-level integration tests for command and selection flows.
+- Add one browser-level (non-mocked) QA pass for editor command and selection behavior before default flip.
 - Remove textarea path once parity and regression coverage are complete.
