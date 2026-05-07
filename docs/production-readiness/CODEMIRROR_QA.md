@@ -86,7 +86,7 @@ The `env` block in `next.config.ts` **does forward `NEXT_PUBLIC_*` values in Tur
 
 **Rule:** For client-exposed build flags, always access via direct member access on `process.env` (e.g. `process.env.NEXT_PUBLIC_*`), never through an intermediate variable. See `localStandalone.ts` for the canonical pattern.
 
-## Decision (unchanged)
+## Decision at Phase 6.8 (historical)
 
 - **Keep CodeMirror flag-gated.**
 - **Unblock default flip** is still conditional on:
@@ -96,3 +96,48 @@ The `env` block in `next.config.ts` **does forward `NEXT_PUBLIC_*` values in Tur
   - full keyboard command parity.
 - **All existing parity tests** (jsdom-based, `EditorPane.test.tsx` + `LatexCodeEditor.test.tsx`) and browser-level E2E tests pass in both modes.
 - Production-build parity is now verified: both webpack and Turbopack artifacts pass all 12 E2E tests.
+
+## Phase 7.2 — Snippet + PDF safety parity (2026-05-07)
+
+- **Scope:** Add focused browser-level parity coverage for snippet insertion and PDF preview safety in both textarea-default and CodeMirror-enabled modes.
+- **Builds covered:** webpack (`next build`) and Turbopack (`next build --turbopack`) via existing script matrix.
+- **Commands used:**
+  - `bun run typecheck`
+  - `bun run lint`
+  - `bun run test`
+  - `bun run build`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build`
+  - `bun run e2e:default`
+  - `bun run e2e:cm`
+  - `bun run e2e:prod-default`
+  - `bun run e2e:prod-cm`
+
+### Result: **all 54 tests passed**
+
+| Mode | Build | Tests | Result |
+|---|---|---|---|
+| Default | webpack | 12 | **PASS** |
+| CodeMirror | webpack | 15 | **PASS** |
+| Default | Turbopack | 12 | **PASS** |
+| CodeMirror | Turbopack | 15 | **PASS** |
+
+### New parity coverage added
+
+- Snippet insertion via real toolbar interactions:
+  - template section snippet insertion
+  - equation snippet insertion at cursor fallback
+  - equation snippet insertion wrapping current selection
+- PDF preview safety:
+  - preview pane remains mounted after compile trigger
+  - editor remains mounted after compile trigger
+  - compile lifecycle exposes explicit state (`queued`/`running`/`failed`/`ready`) without UI crash
+- Compile path in this QA pass is validated as **safe behavior**, not guaranteed successful TeX output (worker/backend may be unavailable in e2e runtime).
+
+## Decision update
+
+- **CodeMirror remains flag-gated in this phase.**
+- Snippet insertion parity and PDF preview safety parity are now covered by browser e2e tests in both editor modes.
+- A default flip should still be performed in a separate follow-up phase/commit.

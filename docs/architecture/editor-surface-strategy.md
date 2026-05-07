@@ -64,15 +64,17 @@
 - `env` config in `next.config.ts` correctly forwards `NEXT_PUBLIC_*` values in Turbopack builds.
 - Decision remains unchanged: keep CodeMirror flag-gated (see Phase 6.8 criteria below).
 
-## Decision Criteria (Phase 6.8)
+## Decision Criteria (Phase 7.2 status)
 
 CodeMirror remains flag-gated because:
-- selection/cursor parity across both surfaces is not covered by current E2E tests
-- snippet insertion parity is not tested
-- PDF preview integration with CodeMirror is not tested
-- Textarea fallback is preserved and working
+- default flip is intentionally deferred to a dedicated follow-up phase/commit
+- compile success-path behavior is environment-dependent (queue/worker availability) and this phase validates compile safety/non-crash behavior
+- textarea fallback is preserved and must remain available during rollout
 
-All production-build parity checks pass, which unblocks the eventual default flip once remaining items are addressed.
+Covered in browser e2e across both modes/builds:
+- editing + cursor/selection + keyboard interaction parity
+- snippet insertion parity (template + equation insert/wrap paths)
+- compile trigger safety + PDF preview pane stability parity
 
 ## Current Inventory
 
@@ -106,6 +108,6 @@ All production-build parity checks pass, which unblocks the eventual default fli
 
 ## Remaining Editor Migration Work
 
-- Make CodeMirror mode default after parity checks for find/search, clipboard commands, and diagnostics navigation.
-- Add one browser-level (non-mocked) QA pass for editor command and selection behavior before default flip.
-- Remove textarea path once parity and regression coverage are complete.
+- Execute a dedicated Phase 8 commit to flip CodeMirror default (keep fallback path available for rollback window).
+- Run one queue/worker-provisioned compile-success browser pass to complement the safe-failure coverage.
+- Remove textarea path only after default rollout is stable and regression coverage remains green.

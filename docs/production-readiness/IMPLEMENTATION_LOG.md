@@ -293,3 +293,48 @@
   - CodeMirror snippet insertion not tested.
   - PDF preview integration with CodeMirror not tested.
   - Textarea fallback preserved but not tested for parity degradation.
+
+## 2026-05-07 — Phase 7.2: snippet insertion + PDF preview safety parity
+
+- **Files changed**
+  - `apps/web/e2e/editor.spec.ts`
+  - `apps/web/src/components/latex-ide/ActionToolbar.tsx`
+  - `apps/web/src/components/latex-ide/LatexCodeEditor.tsx`
+  - `apps/web/src/components/latex-ide/PdfPreviewPane.tsx`
+  - `docs/production-readiness/CODEMIRROR_QA.md`
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+  - `docs/architecture/editor-surface-strategy.md`
+- **What was fixed**
+  - Added browser e2e snippet parity coverage for both modes using real toolbar interactions:
+    - template section snippet insertion,
+    - equation insertion at cursor fallback,
+    - equation wrapping for selected text.
+  - Added browser e2e PDF preview safety coverage for both modes:
+    - preview pane and editor remain mounted after compile trigger,
+    - explicit compile lifecycle state is visible (`queued` / `running` / `failed` / `ready`),
+    - safe failure is accepted when compile backend is unavailable.
+  - Added narrow, test-focused selectors:
+    - snippet controls in `ActionToolbar`,
+    - CodeMirror content selector in `LatexCodeEditor`,
+    - PDF preview pane/status/error selectors in `PdfPreviewPane`.
+- **Commands run (default mode)**
+  - `bun run typecheck`
+  - `bun run lint`
+  - `bun run test`
+  - `bun run build`
+- **Commands run (CodeMirror-enabled mode)**
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build`
+- **Commands run (browser e2e)**
+  - `bun run e2e:default` → 12/12 pass
+  - `bun run e2e:cm` → 15/15 pass
+  - `bun run e2e:prod-default` → 12/12 pass
+  - `bun run e2e:prod-cm` → 15/15 pass
+- **Result**
+  - Default quality gates: pass
+  - CodeMirror-enabled quality gates: pass
+  - Browser e2e total: **54/54 pass**
+- **Remaining risk**
+  - Compile-success parity with a fully provisioned queue/worker backend is not asserted in this phase; this phase validates compile-trigger safety and non-crashing PDF/editor behavior.

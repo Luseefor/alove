@@ -65,21 +65,30 @@ export function PdfPreviewPane() {
     setPageInput(String(pdfPage));
   }, [pdfPage]);
   return (
-    <div className="h-full flex flex-col bg-[#525659] dark:bg-muted/10 overflow-hidden relative">
+    <div data-testid="pdf-preview-pane" className="h-full flex flex-col bg-[#525659] dark:bg-muted/10 overflow-hidden relative">
       <div className="h-9 bg-background border-b flex items-center justify-between px-2 shrink-0 z-40 select-none">
         <div className="flex items-center gap-1">
            <button
              onClick={() => void runCompile()}
              className="flex items-center gap-1.5 px-3 py-1 bg-primary text-primary-foreground rounded text-[11px] font-bold hover:opacity-90 transition-all"
-           >
-             {buildStatus === "running" ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-             <span>Recompile</span>
-             <ChevronDown size={12} className="opacity-60 border-l border-primary-foreground/20 pl-1" />
-           </button>
-           
-           <div className="w-px h-4 bg-border mx-1" />
-           
-           <button className="p-1.5 hover:bg-muted rounded text-muted-foreground"><Layers size={14} /></button>
+            >
+              {buildStatus === "running" ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              <span>Recompile</span>
+              <ChevronDown size={12} className="opacity-60 border-l border-primary-foreground/20 pl-1" />
+            </button>
+            <span
+              data-testid="compile-status"
+              data-status={buildStatus}
+              className="sr-only"
+              aria-live="polite"
+            >
+              {buildStatus}
+              {buildMessage ? `: ${buildMessage}` : ""}
+            </span>
+
+            <div className="w-px h-4 bg-border mx-1" />
+
+            <button className="p-1.5 hover:bg-muted rounded text-muted-foreground"><Layers size={14} /></button>
            <a
              href={pdfDataUrl ?? undefined}
              download="output.pdf"
@@ -167,11 +176,18 @@ export function PdfPreviewPane() {
             style={{ transform: `scale(${pdfZoom / 100})`, transformOrigin: "top center" }}
           />
         ) : (
-          <div className="w-[min(700px,100%)] min-h-[420px] border border-dashed border-white/30 rounded-lg grid place-items-center text-white/80 text-sm px-8 text-center">
+          <div
+            data-testid="pdf-preview-empty"
+            className="w-[min(700px,100%)] min-h-[420px] border border-dashed border-white/30 rounded-lg grid place-items-center text-white/80 text-sm px-8 text-center"
+          >
             <div className="space-y-2">
               <FileWarning className="mx-auto" size={22} />
               <p>No compiled PDF yet. Click Recompile to build your document.</p>
-              {buildMessage && <p className="text-xs text-white/60">{buildMessage}</p>}
+              {buildMessage && (
+                <p data-testid="pdf-preview-error" className="text-xs text-white/60">
+                  {buildMessage}
+                </p>
+              )}
             </div>
           </div>
         )}

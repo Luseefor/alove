@@ -146,7 +146,10 @@ export function ActionToolbar() {
                 {tpl.label}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuItem onClick={() => appendToActiveFile("\n\\section{New Section}\n")}>
+            <DropdownMenuItem
+              data-testid="snippet-button-section"
+              onClick={() => appendToActiveFile("\n\\section{New Section}\n")}
+            >
               Insert section snippet
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -162,7 +165,10 @@ export function ActionToolbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="max-h-72 overflow-auto">
             {bibEntries.length === 0 ? (
-              <DropdownMenuItem onClick={() => appendToActiveFile("\\cite{your_reference_key}")}>
+              <DropdownMenuItem
+                data-testid="snippet-button-cite"
+                onClick={() => appendToActiveFile("\\cite{your_reference_key}")}
+              >
                 Insert cite placeholder
               </DropdownMenuItem>
             ) : (
@@ -180,7 +186,7 @@ export function ActionToolbar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div>
-              <ToolButton icon={FunctionSquare} label="Snippets" hasDropdown />
+              <ToolButton icon={FunctionSquare} label="Snippets" hasDropdown dataTestId="snippet-button" />
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
@@ -190,6 +196,7 @@ export function ActionToolbar() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuItem
+              data-testid="snippet-button-equation"
               onClick={() => wrapSelectionOrInsert("\\begin{equation}\n", "\n\\end{equation}", "\\begin{equation}\nE = mc^2\n\\end{equation}")}
             >
               Equation from selection
@@ -345,6 +352,7 @@ type ToolButtonProps = {
   hasDropdown?: boolean;
   variant?: "ghost" | "primary";
   shortcut?: string;
+  dataTestId?: string;
   onClick?: () => void;
 };
 
@@ -354,10 +362,12 @@ function ToolButton({
   hasDropdown,
   variant = "ghost",
   shortcut,
+  dataTestId,
   onClick,
 }: ToolButtonProps) {
   return (
     <button
+      data-testid={dataTestId}
       onClick={onClick}
       className={cn(
         "flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-all group relative",

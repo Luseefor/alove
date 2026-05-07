@@ -101,6 +101,7 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
           EditorView.contentAttributes.of({
             "aria-label": ariaLabel,
             spellcheck: String(spellCheck),
+            "data-testid": "latex-editor-codemirror-content",
           }),
           EditorView.domEventHandlers({
             focus() {
