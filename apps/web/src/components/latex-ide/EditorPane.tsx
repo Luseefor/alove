@@ -300,14 +300,14 @@ export function EditorPane() {
 
   if (!activeFileId) {
     return (
-      <div className="h-full bg-background flex items-center justify-center text-sm text-muted-foreground">
+      <div className="h-full bg-background flex items-center justify-center text-sm text-muted-foreground" data-testid="latex-editor">
         Open a `.tex` file from the project sidebar to start editing.
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background" data-testid="latex-editor">
       <div className="h-9 border-b flex items-center gap-1 px-1 bg-background shrink-0 overflow-x-auto">
         {openFiles.map((path) => {
           const isActive = path === activeFileId;
@@ -362,6 +362,7 @@ export function EditorPane() {
             </span>
           </button>
           <button
+            data-testid="compile-button"
             className="px-2 h-7 rounded text-xs border bg-primary text-primary-foreground hover:opacity-90"
             onClick={() => void runCompile()}
           >
@@ -370,13 +371,14 @@ export function EditorPane() {
               Compile
             </span>
           </button>
-          <ToolbarAction icon={Search} onClick={() => setFindOpen((v) => !v)} />
+          <ToolbarAction icon={Search} ariaLabel="Toggle find bar" onClick={() => setFindOpen((v) => !v)} />
           <ToolbarAction icon={Maximize2} />
         </div>
       </div>
       {findOpen && (
         <div className="h-10 border-b px-2 flex items-center gap-2 bg-muted/20">
           <input
+            data-testid="find-input"
             value={findQuery}
             onChange={(e) => setFindQuery(e.target.value)}
             placeholder="Find in current file..."
@@ -457,6 +459,7 @@ export function EditorPane() {
             />
           ) : (
             <textarea
+              data-testid="latex-editor-textarea"
               ref={textareaRef}
               value={content}
               onChange={(e) => updateActiveFileContent(e.target.value)}
@@ -517,13 +520,15 @@ export function EditorPane() {
 
 function ToolbarAction({
   icon: Icon,
+  ariaLabel,
   onClick,
 }: {
   icon: LucideIcon;
+  ariaLabel?: string;
   onClick?: () => void;
 }) {
   return (
-    <button onClick={onClick} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors">
+    <button aria-label={ariaLabel} onClick={onClick} className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors">
       <Icon size={14} />
     </button>
   );

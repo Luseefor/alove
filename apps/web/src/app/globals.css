@@ -4,58 +4,83 @@
 
 /* Defaults match `SITE_PALETTES[ocean]` before the boot script + ThemeProvider run. */
 :root {
-  --background: #fafafa;
-  --foreground: #18181b;
-  --alove-accent: #0284c7;
-  --alove-accent-hover: #0369a1;
-  --alove-accent-active: #075985;
-  --alove-on-accent: #ffffff;
-  --alove-surface-soft: #e0f2fe;
-  --alove-surface-soft-border: #7dd3fc;
-  --alove-fg-strong: #0c4a6e;
-  --alove-fg-muted: #0369a1;
-  --alove-focus-ring: #0ea5e9;
-  --alove-resize-hover: #38bdf8;
+  --background: #ffffff;
+  --foreground: #09090b;
+  --border: #e2e8f0;
+  --primary: #248039; /* Green accent from screenshot */
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
 }
 
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --alove-accent: #38bdf8;
-  --alove-accent-hover: #7dd3fc;
-  --alove-accent-active: #bae6fd;
-  --alove-on-accent: #082f49;
-  --alove-surface-soft: #0c4a6e;
-  --alove-surface-soft-border: #0369a1;
-  --alove-fg-strong: #e0f2fe;
-  --alove-fg-muted: #bae6fd;
-  --alove-focus-ring: #7dd3fc;
-  --alove-resize-hover: #38bdf8;
+  --background: #1a1a1a; /* Base dark grey */
+  --foreground: #d1d1d1;
+  --border: #333333;
+  --primary: #248039;
+  --primary-foreground: #ffffff;
+  --secondary: #1e1e1e;
+  --secondary-foreground: #d1d1d1;
+  --muted: #2d2d2d;
+  --muted-foreground: #8b8b8b;
+  --accent: #333333;
+  --accent-foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-alove-accent: var(--alove-accent);
-  --color-alove-accent-hover: var(--alove-accent-hover);
-  --color-alove-accent-active: var(--alove-accent-active);
-  --color-alove-on-accent: var(--alove-on-accent);
-  --color-alove-surface-soft: var(--alove-surface-soft);
-  --color-alove-surface-soft-border: var(--alove-surface-soft-border);
-  --color-alove-fg-strong: var(--alove-fg-strong);
-  --color-alove-fg-muted: var(--alove-fg-muted);
-  --color-alove-focus-ring: var(--alove-focus-ring);
-  --color-alove-resize-hover: var(--alove-resize-hover);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre {
+  font-family: var(--font-geist-mono), monospace;
+}
+
+/* Scrollbar styling for that clean IDE look */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border: 2px solid var(--background);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
 }
 
 input[type="range"] {
   accent-color: var(--alove-accent);
+}
+
+/* Steadier caret where supported (Chrome 129+). */
+@supports (caret-animation: manual) {
+  .ide-caret-noblink {
+    caret-animation: manual;
+  }
 }

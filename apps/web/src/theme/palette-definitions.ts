@@ -1,5 +1,33 @@
 export const SITE_PALETTES = [
   {
+    id: "slate",
+    label: "Slate",
+    light: {
+      "--alove-accent": "#0f172a",
+      "--alove-accent-hover": "#1e293b",
+      "--alove-accent-active": "#334155",
+      "--alove-on-accent": "#f8fafc",
+      "--alove-surface-soft": "#f1f5f9",
+      "--alove-surface-soft-border": "#e2e8f0",
+      "--alove-fg-strong": "#0f172a",
+      "--alove-fg-muted": "#475569",
+      "--alove-focus-ring": "#334155",
+      "--alove-resize-hover": "#94a3b8",
+    },
+    dark: {
+      "--alove-accent": "#f8fafc",
+      "--alove-accent-hover": "#f1f5f9",
+      "--alove-accent-active": "#e2e8f0",
+      "--alove-on-accent": "#020617",
+      "--alove-surface-soft": "#0f172a",
+      "--alove-surface-soft-border": "#1e293b",
+      "--alove-fg-strong": "#f8fafc",
+      "--alove-fg-muted": "#94a3b8",
+      "--alove-focus-ring": "#cbd5e1",
+      "--alove-resize-hover": "#64748b",
+    },
+  },
+  {
     id: "emerald",
     label: "Emerald",
     light: {

@@ -1,113 +1,26 @@
 "use client";
 
-import {
-  createLatexEditorState,
-  createLatexEditorView,
-  parseInputRefs,
-  parseLatexOutline,
-  type OutlineHeading,
-} from "@alove/editor";
-import type { Diagnostic as ProtoDiagnostic } from "@alove/protocol";
-import { EditorView, type ViewUpdate } from "@codemirror/view";
-import { setDiagnostics as cmSetDiagnostics } from "@codemirror/lint";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  CommandPalette,
-  type CommandPaletteAction,
-  EditorHeader,
-  EditorLeftRail,
-  EditorRightRail,
-} from "@/components/editor";
-import { useTheme } from "@/components/theme/ThemeProvider";
-import { useCompileRun, useEditorWorkbenchShortcuts } from "@/hooks";
-import { toCmDiagnostics } from "@/lib/editorDiagnostics";
-import { listCompileSnapshots } from "@/lib/compileHistory";
+import { LatexEditorApp } from "./latex-ide";
 import { isLocalStandalone } from "@/lib/localStandalone";
-import type { BuildUiState, Engine } from "@/types/editor-workbench";
+import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import {
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-} from "react-resizable-panels";
-import { TEMPLATES, type TemplateId } from "@/lib/templates";
-
-const SEED = `\\documentclass{article}
-\\begin{document}
-\\section{Introduction}
-Hello from \\textbf{alove}.
-
-\\section{Related work}
-Short paragraph.
-
-\\subsection{Details}
-Body.
-\\end{document}
-`;
-
-function countWords(s: string) {
-  return s
-    .trim()
-    .split(/\s+/u)
-    .filter(Boolean).length;
-}
-
-function colorForId(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  const hue = h % 360;
-  return `hsl(${hue} 70% 42%)`;
-}
+import { DEMO_FILES } from "@/demo/demoProject";
 
 function EditorWorkbenchConvex() {
-  const { user } = useUser();
-  const { resolved: themeResolved, cyclePreference, cyclePaletteId } =
-    useTheme();
-  const theme = themeResolved;
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const viewRef = useRef<EditorView | null>(null);
-  const filesRef = useRef<Record<string, string>>({ "main.tex": SEED });
-  const [files, setFiles] = useState<Record<string, string>>(() => ({
-    "main.tex": SEED,
-  }));
-  const [activeFile, setActiveFile] = useState("main.tex");
-  const [outline, setOutline] = useState<OutlineHeading[]>([]);
-  const [inputRefs, setInputRefs] = useState(parseInputRefs(SEED));
-  const [build, setBuild] = useState<BuildUiState>({ kind: "idle" });
-  const [logTail, setLogTail] = useState("");
-  const [diagnostics, setDiagnosticRows] = useState<ProtoDiagnostic[]>([]);
-  const [engine, setEngine] = useState<Engine>("pdflatex");
-  const [cleanAux, setCleanAux] = useState(false);
-  const [vim, setVim] = useState(false);
-  const [zen, setZen] = useState(false);
-  const [autoCompile, setAutoCompile] = useState(false);
-  const [palette, setPalette] = useState(false);
-  const [wordCount, setWordCount] = useState(countWords(SEED));
-  const [pdfZoom, setPdfZoom] = useState(100);
-  const [history, setHistory] = useState<
-    Awaited<ReturnType<typeof listCompileSnapshots>>
-  >([]);
-  const [remoteTick, setRemoteTick] = useState(0);
-  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
+  useUser();
   const ensureDefault = useMutation(api.projects.ensureDefault);
   const saveFile = useMutation(api.files.save);
-  const heartbeat = useMutation(api.presence.heartbeat);
-  const setDesignModeMutation = useMutation(api.projects.setDesignMode);
-
+  const deleteFile = useMutation(api.files.deleteFile);
+  const renameFileMutation = useMutation(api.files.renameFile);
   const [projectId, setProjectId] = useState<Id<"projects"> | null>(null);
 
+  const initializeProject = useWorkbenchStore((s) => s.initializeProject);
+  const setPersistenceHandlers = useWorkbenchStore((s) => s.setPersistenceHandlers);
+  
   useEffect(() => {
     void ensureDefault().then(setProjectId);
   }, [ensureDefault]);
@@ -120,696 +33,62 @@ function EditorWorkbenchConvex() {
     api.projects.get,
     projectId ? { projectId } : "skip",
   );
-  const peers = useQuery(
-    api.presence.list,
-    projectId ? { projectId } : "skip",
-  );
-
-  const rowsRef = useRef<typeof rows>(undefined);
-  rowsRef.current = rows;
 
   useEffect(() => {
-    if (!rows) return;
-    const next: Record<string, string> = {};
-    for (const r of rows) {
-      next[r.path] = r.content;
+    if (rows) {
+      initializeProject({
+        projectId: projectId ?? null,
+        title: project?.name,
+        files: rows.map((r) => ({
+          path: r.path,
+          content: r.content,
+          version: r.version,
+        })),
+      });
     }
-    filesRef.current = next;
-    setFiles(next);
-    const mine = user?.id;
-    const row = rows.find((r) => r.path === activeFile);
-    if (row && mine && row.updatedBy !== mine) {
-      setRemoteTick((t) => t + 1);
-    }
-  }, [rows, activeFile, user?.id]);
-
-  useEffect(() => {
-    if (!projectId || !user?.id) return;
-    const name =
-      user.firstName ??
-      user.username ??
-      user.primaryEmailAddress?.emailAddress ??
-      "You";
-    const color = colorForId(user.id);
-    const tick = () => {
-      const v = viewRef.current;
-      const line = v
-        ? v.state.doc.lineAt(v.state.selection.main.head).number
-        : undefined;
-      void heartbeat({ projectId, name, color, cursorLine: line });
-    };
-    tick();
-    const id = window.setInterval(tick, 4000);
-    return () => window.clearInterval(id);
-  }, [heartbeat, projectId, user]);
-
-  const flushActiveToFiles = useCallback(() => {
-    const v = viewRef.current;
-    if (!v) return;
-    const text = v.state.doc.toString();
-    filesRef.current = { ...filesRef.current, [activeFile]: text };
-    setFiles({ ...filesRef.current });
-  }, [activeFile]);
-
-  const openFile = useCallback(
-    (path: string) => {
-      if (project && !project.designMode && path !== "main.tex") return;
-      flushActiveToFiles();
-      setActiveFile(path);
-    },
-    [flushActiveToFiles, project],
-  );
-
-  const jumpToOutline = useCallback((from: number) => {
-    const v = viewRef.current;
-    if (!v) return;
-    v.dispatch({
-      selection: { anchor: from },
-      effects: EditorView.scrollIntoView(from, { y: "center" }),
-    });
-    v.focus();
-  }, []);
-
-  const { runCompile, runCompileRef } = useCompileRun({
-    projectId,
-    activeFile,
-    engine,
-    cleanAux,
-    viewRef,
-    flushActiveToFiles,
-    filesRef,
-    setBuild,
-    setLogTail,
-    setDiagnosticRows,
-    setHistory,
-  });
+  }, [rows, projectId, project?.name, initializeProject]);
 
   useEffect(() => {
     if (!projectId) return;
-    void listCompileSnapshots(String(projectId)).then(setHistory);
-  }, [projectId]);
-
-  useEditorWorkbenchShortcuts({
-    onToggleCommandPalette: () => setPalette((p) => !p),
-    cyclePreference,
-    cyclePaletteId,
-  });
-
-  const queueSave = useCallback(
-    (path: string, content: string) => {
-      if (!projectId) return;
-      const prev = saveTimers.current[path];
-      if (prev) clearTimeout(prev);
-      saveTimers.current[path] = setTimeout(() => {
-        const expected = rowsRef.current?.find((r) => r.path === path)?.version;
-        void saveFile({
+    setPersistenceHandlers({
+      save: async (path, content, expectedVersion) => {
+        const result = await saveFile({
           projectId,
           path,
           content,
-          expectedVersion: expected,
-        }).then((res) => {
-          if (res.conflict) {
-            setDiagnosticRows([
-              {
-                severity: "warning",
-                message:
-                  "File changed on server — refresh or pick the server copy from history.",
-              },
-            ]);
-          }
+          expectedVersion,
         });
-      }, 550);
-    },
-    [projectId, saveFile],
-  );
-
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-
-    let compileDebounce: ReturnType<typeof setTimeout> | undefined;
-
-    const listener = EditorView.updateListener.of((u: ViewUpdate) => {
-      if (u.docChanged) {
-        const t = u.state.doc.toString();
-        filesRef.current = { ...filesRef.current, [activeFile]: t };
-        setFiles({ ...filesRef.current });
-        setOutline(parseLatexOutline(t));
-        setInputRefs(parseInputRefs(t));
-        setWordCount(countWords(t));
-        queueSave(activeFile, t);
-        if (autoCompile) {
-          if (compileDebounce) clearTimeout(compileDebounce);
-          compileDebounce = setTimeout(() => runCompileRef.current(), 900);
-        }
-      }
+        if ("version" in result) return { version: result.version };
+      },
+      delete: async (path) => {
+        await deleteFile({ projectId, path });
+      },
+      rename: async (oldPath, newPath) => {
+        await renameFileMutation({ projectId, oldPath, newPath });
+      },
     });
+  }, [projectId, saveFile, deleteFile, renameFileMutation, setPersistenceHandlers]);
 
-    const initialDoc = filesRef.current[activeFile] ?? "";
-
-    const state = createLatexEditorState(initialDoc, theme, [listener], {
-      vim,
-    });
-    const view = createLatexEditorView(el, state);
-    viewRef.current = view;
-    setOutline(parseLatexOutline(view.state.doc.toString()));
-    setInputRefs(parseInputRefs(view.state.doc.toString()));
-    setWordCount(countWords(view.state.doc.toString()));
-
-    return () => {
-      if (compileDebounce) clearTimeout(compileDebounce);
-      flushActiveToFiles();
-      view.destroy();
-      viewRef.current = null;
-    };
-  }, [
-    activeFile,
-    autoCompile,
-    flushActiveToFiles,
-    queueSave,
-    remoteTick,
-    theme,
-    vim,
-    runCompileRef,
-  ]);
-
-  useEffect(() => {
-    const v = viewRef.current;
-    if (!v || !diagnostics.length) return;
-    v.dispatch(
-      cmSetDiagnostics(v.state, toCmDiagnostics(v.state.doc, diagnostics)),
-    );
-  }, [diagnostics]);
-
-  const statusText = useMemo(() => {
-    if (build.kind === "idle") return "Idle";
-    if (build.kind === "queued") return "Queued…";
-    if (build.kind === "running") return "Compiling…";
-    if (build.kind === "ready") return "Ready";
-    return `Failed — ${build.message}`;
-  }, [build]);
-
-  const applyTemplate = useCallback(
-    async (id: TemplateId) => {
-      if (!projectId) return;
-      const t = TEMPLATES[id];
-      for (const [path, content] of Object.entries(t.files)) {
-        await saveFile({ projectId, path, content });
-      }
-      setActiveFile(t.mainFile);
-    },
-    [projectId, saveFile],
-  );
-
-  const addTextFile = useCallback(async () => {
-    if (!projectId) return;
-    if (project && !project.designMode) return;
-    flushActiveToFiles();
-    let i = 2;
-    let name = `extra-${i}.tex`;
-    while (filesRef.current[name]) {
-      i += 1;
-      name = `extra-${i}.tex`;
-    }
-    await saveFile({ projectId, path: name, content: "% new file\n" });
-    setActiveFile(name);
-  }, [projectId, project, flushActiveToFiles, saveFile]);
-
-  const paletteActions = useMemo((): CommandPaletteAction[] => {
-    const canNewFile = Boolean(projectId && project?.designMode);
-    return [
-      {
-        id: "compile",
-        group: "Build",
-        label: "Compile project",
-        hint: "Run LaTeX and refresh the PDF preview",
-        run: () => void runCompile(),
-      },
-      {
-        id: "toggle-auto",
-        group: "Build",
-        label: autoCompile ? "Disable auto-compile" : "Enable auto-compile",
-        run: () => setAutoCompile((a) => !a),
-      },
-      {
-        id: "toggle-clean",
-        group: "Build",
-        label: cleanAux ? "Disable clean aux" : "Enable clean aux",
-        run: () => setCleanAux((c) => !c),
-      },
-      {
-        id: "toggle-vim",
-        group: "Editor",
-        label: vim ? "Disable Vim bindings" : "Enable Vim bindings",
-        run: () => setVim((v) => !v),
-      },
-      {
-        id: "focus-editor",
-        group: "Editor",
-        label: "Focus code editor",
-        run: () => {
-          viewRef.current?.focus();
-        },
-      },
-      {
-        id: "toggle-zen",
-        group: "View",
-        label: zen ? "Show side panels" : "Zen mode (hide side panels)",
-        run: () => setZen((z) => !z),
-      },
-      {
-        id: "toggle-design",
-        group: "Project",
-        label: project?.designMode ? "Exit design mode" : "Enter design mode",
-        hint: "Unlock multi-file editing",
-        disabled: !projectId,
-        run: () => {
-          if (!projectId) return;
-          void setDesignModeMutation({
-            projectId,
-            designMode: !(project?.designMode ?? false),
-          });
-        },
-      },
-      {
-        id: "new-tex",
-        group: "Project",
-        label: "New .tex file",
-        disabled: !canNewFile,
-        run: () => void addTextFile(),
-      },
-    ];
-  }, [
-    runCompile,
-    autoCompile,
-    cleanAux,
-    vim,
-    zen,
-    project?.designMode,
-    projectId,
-    setDesignModeMutation,
-    addTextFile,
-  ]);
-
-  return (
-    <div className="flex h-[100dvh] flex-col bg-background text-foreground">
-      <EditorHeader
-        activeFile={activeFile}
-        wordCount={wordCount}
-        peers={peers}
-        currentUserId={user?.id}
-        engine={engine}
-        onEngineChange={setEngine}
-        cleanAux={cleanAux}
-        onCleanAux={setCleanAux}
-        vim={vim}
-        onVim={setVim}
-        autoCompile={autoCompile}
-        onAutoCompile={setAutoCompile}
-        designMode={project?.designMode ?? false}
-        designModeDisabled={!projectId}
-        onDesignMode={(v) => {
-          if (!projectId) return;
-          void setDesignModeMutation({ projectId, designMode: v });
-        }}
-        zen={zen}
-        onZen={() => setZen((z) => !z)}
-        onOpenPalette={() => setPalette(true)}
-        onCompile={() => void runCompile()}
-        statusText={statusText}
-        buildKind={build.kind}
-      />
-
-      <CommandPalette
-        open={palette}
-        onClose={() => setPalette(false)}
-        actions={paletteActions}
-      />
-
-      <PanelGroup direction="horizontal" className="min-h-0 flex-1">
-        <Panel
-          defaultSize={zen ? 0 : 20}
-          minSize={zen ? 0 : 14}
-          className={`left-rail min-w-0 ${zen ? "hidden" : ""}`}
-        >
-          <EditorLeftRail
-            zen={zen}
-            designMode={Boolean(project?.designMode)}
-            files={files}
-            activeFile={activeFile}
-            onOpenFile={openFile}
-            onApplyTemplate={applyTemplate}
-            onNewTexFile={addTextFile}
-            outline={outline}
-            onOutlineJump={jumpToOutline}
-            inputRefs={inputRefs}
-            history={history}
-          />
-        </Panel>
-        <PanelResizeHandle
-          className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}
-        >
-          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
-        </PanelResizeHandle>
-        <Panel defaultSize={zen ? 100 : 45} minSize={24} className="min-w-0">
-          <div
-            key={`${activeFile}-${vim}-${theme}-${remoteTick}-${rows ? 1 : 0}`}
-            ref={hostRef}
-            className="h-full min-h-0 overflow-hidden bg-background"
-          />
-        </Panel>
-        <PanelResizeHandle
-          className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}
-        >
-          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
-        </PanelResizeHandle>
-        <Panel
-          defaultSize={zen ? 0 : 35}
-          minSize={zen ? 0 : 22}
-          className={`right-rail min-w-0 ${zen ? "hidden" : ""}`}
-        >
-          <EditorRightRail
-            zen={zen}
-            build={build}
-            pdfZoom={pdfZoom}
-            onPdfZoom={setPdfZoom}
-            diagnostics={diagnostics}
-            logTail={logTail}
-          />
-        </Panel>
-      </PanelGroup>
-    </div>
-  );
+  return <LatexEditorApp />;
 }
 
-/** Editor + compile + PDF without Clerk, Convex, or collaboration (IndexedDB history only). */
 function EditorWorkbenchLocal() {
-  const { resolved: themeResolved, cyclePreference, cyclePaletteId } =
-    useTheme();
-  const theme = themeResolved;
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const viewRef = useRef<EditorView | null>(null);
-  const filesRef = useRef<Record<string, string>>({ "main.tex": SEED });
-  const [files, setFiles] = useState<Record<string, string>>(() => ({
-    "main.tex": SEED,
-  }));
-  const [activeFile, setActiveFile] = useState("main.tex");
-  const [outline, setOutline] = useState<OutlineHeading[]>([]);
-  const [inputRefs, setInputRefs] = useState(parseInputRefs(SEED));
-  const [build, setBuild] = useState<BuildUiState>({ kind: "idle" });
-  const [logTail, setLogTail] = useState("");
-  const [diagnostics, setDiagnosticRows] = useState<ProtoDiagnostic[]>([]);
-  const [engine, setEngine] = useState<Engine>("pdflatex");
-  const [cleanAux, setCleanAux] = useState(false);
-  const [vim, setVim] = useState(false);
-  const [zen, setZen] = useState(false);
-  const [autoCompile, setAutoCompile] = useState(false);
-  const [palette, setPalette] = useState(false);
-  const [wordCount, setWordCount] = useState(countWords(SEED));
-  const [pdfZoom, setPdfZoom] = useState(100);
-  const [history, setHistory] = useState<
-    Awaited<ReturnType<typeof listCompileSnapshots>>
-  >([]);
+  const initializeProject = useWorkbenchStore((s) => s.initializeProject);
+  const setPersistenceHandlers = useWorkbenchStore((s) => s.setPersistenceHandlers);
 
   useEffect(() => {
-    void listCompileSnapshots("local").then(setHistory);
-  }, []);
-
-  const flushActiveToFiles = useCallback(() => {
-    const v = viewRef.current;
-    if (!v) return;
-    const text = v.state.doc.toString();
-    filesRef.current = { ...filesRef.current, [activeFile]: text };
-    setFiles({ ...filesRef.current });
-  }, [activeFile]);
-
-  const openFile = useCallback(
-    (path: string) => {
-      flushActiveToFiles();
-      setActiveFile(path);
-    },
-    [flushActiveToFiles],
-  );
-
-  const jumpToOutline = useCallback((from: number) => {
-    const v = viewRef.current;
-    if (!v) return;
-    v.dispatch({
-      selection: { anchor: from },
-      effects: EditorView.scrollIntoView(from, { y: "center" }),
+    initializeProject({
+      projectId: null,
+      title: "Deep Learning Survey",
+      files: DEMO_FILES.filter((f) => f.type !== "folder").map((f) => ({
+        path: f.path,
+        content: f.content ?? "",
+      })),
     });
-    v.focus();
-  }, []);
+    setPersistenceHandlers({});
+  }, [initializeProject, setPersistenceHandlers]);
 
-  const { runCompile, runCompileRef } = useCompileRun({
-    projectId: null,
-    activeFile,
-    engine,
-    cleanAux,
-    viewRef,
-    flushActiveToFiles,
-    filesRef,
-    setBuild,
-    setLogTail,
-    setDiagnosticRows,
-    setHistory,
-  });
-
-  useEditorWorkbenchShortcuts({
-    onToggleCommandPalette: () => setPalette((p) => !p),
-    cyclePreference,
-    cyclePaletteId,
-  });
-
-  const queueSave = useCallback(() => {}, []);
-
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-
-    let compileDebounce: ReturnType<typeof setTimeout> | undefined;
-
-    const listener = EditorView.updateListener.of((u: ViewUpdate) => {
-      if (u.docChanged) {
-        const t = u.state.doc.toString();
-        filesRef.current = { ...filesRef.current, [activeFile]: t };
-        setFiles({ ...filesRef.current });
-        setOutline(parseLatexOutline(t));
-        setInputRefs(parseInputRefs(t));
-        setWordCount(countWords(t));
-        queueSave();
-        if (autoCompile) {
-          if (compileDebounce) clearTimeout(compileDebounce);
-          compileDebounce = setTimeout(() => runCompileRef.current(), 900);
-        }
-      }
-    });
-
-    const initialDoc = filesRef.current[activeFile] ?? "";
-
-    const state = createLatexEditorState(initialDoc, theme, [listener], {
-      vim,
-    });
-    const view = createLatexEditorView(el, state);
-    viewRef.current = view;
-    setOutline(parseLatexOutline(view.state.doc.toString()));
-    setInputRefs(parseInputRefs(view.state.doc.toString()));
-    setWordCount(countWords(view.state.doc.toString()));
-
-    return () => {
-      if (compileDebounce) clearTimeout(compileDebounce);
-      flushActiveToFiles();
-      view.destroy();
-      viewRef.current = null;
-    };
-  }, [
-    activeFile,
-    autoCompile,
-    flushActiveToFiles,
-    queueSave,
-    theme,
-    vim,
-    runCompileRef,
-  ]);
-
-  useEffect(() => {
-    const v = viewRef.current;
-    if (!v || !diagnostics.length) return;
-    v.dispatch(
-      cmSetDiagnostics(v.state, toCmDiagnostics(v.state.doc, diagnostics)),
-    );
-  }, [diagnostics]);
-
-  const statusText = useMemo(() => {
-    if (build.kind === "idle") return "Idle";
-    if (build.kind === "queued") return "Queued…";
-    if (build.kind === "running") return "Compiling…";
-    if (build.kind === "ready") return "Ready";
-    return `Failed — ${build.message}`;
-  }, [build]);
-
-  const applyTemplate = useCallback((id: TemplateId) => {
-    const t = TEMPLATES[id];
-    const next = { ...filesRef.current };
-    for (const [path, content] of Object.entries(t.files)) {
-      next[path] = content;
-    }
-    filesRef.current = next;
-    setFiles(next);
-    setActiveFile(t.mainFile);
-  }, []);
-
-  const addTextFile = useCallback(() => {
-    flushActiveToFiles();
-    let i = 2;
-    let name = `extra-${i}.tex`;
-    while (filesRef.current[name]) {
-      i += 1;
-      name = `extra-${i}.tex`;
-    }
-    const next = { ...filesRef.current, [name]: "% new file\n" };
-    filesRef.current = next;
-    setFiles(next);
-    setActiveFile(name);
-  }, [flushActiveToFiles]);
-
-  const paletteActions = useMemo((): CommandPaletteAction[] => {
-    return [
-      {
-        id: "compile",
-        group: "Build",
-        label: "Compile project",
-        hint: "Run LaTeX and refresh the PDF preview",
-        run: () => void runCompile(),
-      },
-      {
-        id: "toggle-auto",
-        group: "Build",
-        label: autoCompile ? "Disable auto-compile" : "Enable auto-compile",
-        run: () => setAutoCompile((a) => !a),
-      },
-      {
-        id: "toggle-clean",
-        group: "Build",
-        label: cleanAux ? "Disable clean aux" : "Enable clean aux",
-        run: () => setCleanAux((c) => !c),
-      },
-      {
-        id: "toggle-vim",
-        group: "Editor",
-        label: vim ? "Disable Vim bindings" : "Enable Vim bindings",
-        run: () => setVim((v) => !v),
-      },
-      {
-        id: "focus-editor",
-        group: "Editor",
-        label: "Focus code editor",
-        run: () => {
-          viewRef.current?.focus();
-        },
-      },
-      {
-        id: "toggle-zen",
-        group: "View",
-        label: zen ? "Show side panels" : "Zen mode (hide side panels)",
-        run: () => setZen((z) => !z),
-      },
-      {
-        id: "new-tex",
-        group: "Project",
-        label: "New .tex file",
-        run: () => void addTextFile(),
-      },
-    ];
-  }, [runCompile, autoCompile, cleanAux, vim, zen, addTextFile]);
-
-  return (
-    <div className="flex h-[100dvh] flex-col bg-background text-foreground">
-      <EditorHeader
-        activeFile={activeFile}
-        wordCount={wordCount}
-        peers={undefined}
-        currentUserId={undefined}
-        engine={engine}
-        onEngineChange={setEngine}
-        cleanAux={cleanAux}
-        onCleanAux={setCleanAux}
-        vim={vim}
-        onVim={setVim}
-        autoCompile={autoCompile}
-        onAutoCompile={setAutoCompile}
-        designMode
-        designModeDisabled
-        onDesignMode={() => {}}
-        zen={zen}
-        onZen={() => setZen((z) => !z)}
-        onOpenPalette={() => setPalette(true)}
-        onCompile={() => void runCompile()}
-        statusText={statusText}
-        buildKind={build.kind}
-        localStandalone
-      />
-
-      <CommandPalette
-        open={palette}
-        onClose={() => setPalette(false)}
-        actions={paletteActions}
-      />
-
-      <PanelGroup direction="horizontal" className="min-h-0 flex-1">
-        <Panel
-          defaultSize={zen ? 0 : 20}
-          minSize={zen ? 0 : 14}
-          className={`left-rail min-w-0 ${zen ? "hidden" : ""}`}
-        >
-          <EditorLeftRail
-            zen={zen}
-            designMode
-            files={files}
-            activeFile={activeFile}
-            onOpenFile={openFile}
-            onApplyTemplate={applyTemplate}
-            onNewTexFile={addTextFile}
-            outline={outline}
-            onOutlineJump={jumpToOutline}
-            inputRefs={inputRefs}
-            history={history}
-          />
-        </Panel>
-        <PanelResizeHandle
-          className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}
-        >
-          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
-        </PanelResizeHandle>
-        <Panel defaultSize={zen ? 100 : 45} minSize={24} className="min-w-0">
-          <div
-            key={`${activeFile}-${vim}-${theme}`}
-            ref={hostRef}
-            className="h-full min-h-0 overflow-hidden bg-background"
-          />
-        </Panel>
-        <PanelResizeHandle
-          className={`group relative w-2 shrink-0 bg-transparent ${zen ? "hidden" : ""}`}
-        >
-          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-zinc-200 group-hover:bg-alove-resize-hover/90 dark:bg-zinc-700 dark:group-hover:bg-alove-resize-hover/80" />
-        </PanelResizeHandle>
-        <Panel
-          defaultSize={zen ? 0 : 35}
-          minSize={zen ? 0 : 22}
-          className={`right-rail min-w-0 ${zen ? "hidden" : ""}`}
-        >
-          <EditorRightRail
-            zen={zen}
-            build={build}
-            pdfZoom={pdfZoom}
-            onPdfZoom={setPdfZoom}
-            diagnostics={diagnostics}
-            logTail={logTail}
-          />
-        </Panel>
-      </PanelGroup>
-    </div>
-  );
+  return <LatexEditorApp />;
 }
 
 export function EditorWorkbench() {

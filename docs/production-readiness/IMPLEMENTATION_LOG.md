@@ -214,3 +214,82 @@
   - Browser-level QA execution: blocked (tooling unavailable in environment)
 - **Remaining risk**
   - CodeMirror browser interaction parity (editing/selection/snippets/find/compile/preview) remains unverified in a real browser session.
+
+## 2026-05-07 — Phase 6.7: Playwright browser QA for /editor
+
+- **Files changed**
+  - `apps/web/playwright.config.ts`
+  - `apps/web/e2e/editor.spec.ts`
+  - `apps/web/package.json` (e2e scripts)
+  - `apps/web/middleware.ts` (dynamic Clerk import + eslint-disable)
+  - `apps/web/src/lib/localStandalone.ts` (direct `process.env.NEXT_PUBLIC_*` access for DefinePlugin)
+  - `apps/web/src/components/latex-ide/EditorPane.tsx` (aria-label on find toggle)
+  - `apps/web/next.config.ts` (env forwarding)
+  - `apps/web/.env.example` (e2e port reservation)
+  - `docs/production-readiness/CODEMIRROR_QA.md`
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+  - `docs/architecture/editor-surface-strategy.md`
+- **What was fixed**
+  - Added Playwright 1.59.1 as dev dependency and installed Chromium browser binary.
+  - Created `playwright.config.ts` with per-mode port selection and webServer integration.
+  - Created `e2e/editor.spec.ts` with 6 tests per mode (12 total): editor surface mount, initial content, typing, absent alternate surface check, compile button, find bar.
+  - Added `data-testid` attributes to key elements in `EditorPane.tsx` and `LatexCodeEditor.tsx`.
+  - **Fixed env-var propagation** to browser: refactored `isLocalStandalone()` to access `process.env.NEXT_PUBLIC_LOCAL_STANDALONE` directly so webpack's DefinePlugin inlines the value at build time.
+  - **Fixed Clerk module crash** in middleware: dynamically import `@clerk/nextjs/server` only when not in local-standalone mode.
+  - **Fixed e2e build approach:** use `next build` (webpack) instead of `next build --turbopack` since Turbopack does not inline `NEXT_PUBLIC_*` vars.
+- **Key technical insight**
+  - `process.env.NEXT_PUBLIC_LOCAL_STANDALONE` must be a *direct member access on `process.env`* in source code for Next.js's DefinePlugin to replace it. The previous code used `env = process.env` (default parameter) + `env.NEXT_PUBLIC_*`, which the DefinePlugin cannot statically match.
+- **Commands run**
+  - `bun run typecheck`: pass
+  - `bun run lint`: pass (0 errors, pre-existing warnings only)
+  - `bun run test`: pass
+  - `bun run build` (default mode, webpack): pass
+  - `bun run build` (CodeMirror mode, webpack): pass
+  - `E2E_CODEMIRROR=0 bunx playwright test e2e/editor.spec.ts`: **6/6 pass** (1.6s)
+  - `E2E_CODEMIRROR=1 bunx playwright test e2e/editor.spec.ts`: **6/6 pass** (1.7s)
+- **Result**
+  - All quality gates pass in both modes.
+  - 12 Playwright E2E tests pass across both modes.
+  - Browser QA is no longer blocked.
+- **Remaining risk**
+  - `NEXT_PUBLIC_*` env vars only work in webpack builds (`next build` without `--turbopack`), not in Turbopack dev/build mode. The production build uses turbopack by default. For e2e, we specifically build with webpack.
+  - E2E tests only cover basic editing presence, not cursor/selection/snippet/preview parity.
+  - Lint warnings in `LatexEditorApp.tsx`, `ProjectSidebar.tsx`, and `workbenchStore.tsx` remain pre-existing.
+
+## 2026-05-07 — Phase 6.8: Production-build parity verification
+
+- **Files changed**
+  - `apps/web/package.json` (prod e2e scripts added)
+  - `apps/web/src/lib/localStandalone.ts` (direct-access rule comment)
+  - `docs/production-readiness/CODEMIRROR_QA.md`
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+  - `docs/architecture/editor-surface-strategy.md`
+- **What was fixed**
+  - Added production-build parity e2e scripts (`e2e:build:prod-default`, `e2e:build:prod-cm`, `e2e:prod-default`, `e2e:prod-cm`) that build with `next build --turbopack` (same as normal production build).
+  - Verified that the `env` config in `next.config.ts` correctly forwards `NEXT_PUBLIC_*` values in Turbopack production builds — contradicting the earlier assumption that Turbopack cannot serve these values.
+  - Documented the direct-access rule for client-exposed build flags with a comment in `localStandalone.ts`.
+  - Updated all three docs with production-build parity results.
+- **Corrected assumption from Phase 6.7**
+  - Phase 6.7 stated "Turbopack does not inline NEXT_PUBLIC_* vars" and "not available on client". This is accurate for *automatic* NEXT_PUBLIC_* injection, but **inaccurate when the `env` config block is used**. With `env: { NEXT_PUBLIC_LOCAL_STANDALONE: process.env.NEXT_PUBLIC_LOCAL_STANDALONE ?? "false" }` in `next.config.ts`, Turbopack does bake these values into the production artifact.
+- **Decision:** Keep CodeMirror flag-gated. Production-build parity is verified, but selection/cursor/snippet/preview parity remain unverified.
+- **Commands run**
+  - `bun run typecheck`: pass
+  - `bun run lint`: pass
+  - `bun run test`: pass
+  - `bun run build` (Turbopack): pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`: pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`: pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`: pass
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build` (Turbopack): pass
+  - `bun run e2e:default` (webpack): 6/6 pass
+  - `bun run e2e:cm` (webpack): 6/6 pass
+  - `bun run e2e:prod-default` (Turbopack): 6/6 pass
+  - `bun run e2e:prod-cm` (Turbopack): 6/6 pass
+- **Result**
+  - All 24 E2E tests pass across both webpack and Turbopack builds.
+  - Production-build parity is proven: the same build path used by production (`next build --turbopack`) produces a fully functional artifact.
+- **Remaining risk**
+  - CodeMirror selection/cursor parity not covered by E2E tests.
+  - CodeMirror snippet insertion not tested.
+  - PDF preview integration with CodeMirror not tested.
+  - Textarea fallback preserved but not tested for parity degradation.

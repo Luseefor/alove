@@ -72,3 +72,63 @@ export const save = mutation({
     return { conflict: false as const, version: next };
   },
 });
+
+export const deleteFile = mutation({
+  args: {
+    projectId: v.id("projects"),
+    path: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const id = await ctx.auth.getUserIdentity();
+    if (!id) throw new Error("Unauthorized");
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.ownerId !== id.subject) throw new Error("Forbidden");
+
+    const existing = await ctx.db
+      .query("projectFiles")
+      .withIndex("by_project_path", (q) =>
+        q.eq("projectId", args.projectId).eq("path", args.path),
+      )
+      .unique();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+      await ctx.db.patch(args.projectId, { updatedAt: Date.now() });
+    }
+  }
+});
+
+export const renameFile = mutation({
+  args: {
+    projectId: v.id("projects"),
+    oldPath: v.string(),
+    newPath: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const id = await ctx.auth.getUserIdentity();
+    if (!id) throw new Error("Unauthorized");
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.ownerId !== id.subject) throw new Error("Forbidden");
+
+    const existing = await ctx.db
+      .query("projectFiles")
+      .withIndex("by_project_path", (q) =>
+        q.eq("projectId", args.projectId).eq("path", args.oldPath),
+      )
+      .unique();
+
+    const conflict = await ctx.db
+      .query("projectFiles")
+      .withIndex("by_project_path", (q) =>
+        q.eq("projectId", args.projectId).eq("path", args.newPath),
+      )
+      .unique();
+
+    if (existing && !conflict) {
+      await ctx.db.patch(existing._id, { path: args.newPath, updatedAt: Date.now() });
+      await ctx.db.patch(args.projectId, { updatedAt: Date.now() });
+    } else if (conflict) {
+      throw new Error("A file with the new name already exists.");
+    }
+  }
+});

@@ -1,39 +1,98 @@
 # CodeMirror Browser QA
 
-- Date: 2026-05-07
-- Branch: `feature/latex-ide-redesign`
-- Commit: `7585e8b`
-- Mode: CodeMirror (`NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true`) and default textarea mode
-- Command used:
-  - `cd apps/web && NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run dev`
-  - `curl http://127.0.0.1:30127/editor`
-  - `cd apps/web && bun run dev`
-  - `curl http://127.0.0.1:30127/editor`
-- Browser/tool used: **No browser automation available in this environment** (`playwright`/`puppeteer` not installed; no interactive browser runner in CLI)
-- Result: **blocked**
+## Phase 6.7 — Playwright E2E Tests (2026-05-07)
+
+- **Branch:** `feature/latex-ide-redesign` (current working tree)
+- **Mode:** Default (textarea) and CodeMirror-enabled (`NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true`)
+- **Tool:** Playwright 1.59.1 (Chromium headless)
+- **Build:** Next.js webpack (`next build` without `--turbopack`)
+- **Ports:** 30129 (default), 30130 (CodeMirror)
+- **Commands used:**
+
+### Default mode
+```sh
+cd apps/web
+rm -rf .next
+NEXT_PUBLIC_LOCAL_STANDALONE=true next build
+NEXT_PUBLIC_LOCAL_STANDALONE=true next start -p 30129 &
+E2E_CODEMIRROR=0 playwright test --reporter=line e2e/editor.spec.ts
+```
+
+### CodeMirror-enabled mode
+```sh
+cd apps/web
+rm -rf .next
+NEXT_PUBLIC_LOCAL_STANDALONE=true NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true next build
+NEXT_PUBLIC_LOCAL_STANDALONE=true NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true next start -p 30130 &
+E2E_CODEMIRROR=1 playwright test --reporter=line e2e/editor.spec.ts
+```
+
+### Result: **all 12 tests passed** (6 per mode)
+
+| Mode | Tests | Result |
+|---|---|---|
+| Default (textarea) | 6 | **PASS** (1.6s) |
+| CodeMirror-enabled | 6 | **PASS** (1.7s) |
 
 ## Checklist
 
-| Area | Result | Notes |
+| Area | Default | CodeMirror | Test coverage |
+|---|---|---|---|
+| Page load / editor surface mounted | ✅ | ✅ | `data-testid="latex-editor"` |
+| Initial document content | ✅ | ✅ | `textarea.inputValue()` / `.cm-content innerText` |
+| Basic editing (typing) | ✅ | ✅ | `textarea.fill()` / `cm-content fill` |
+| CodeMirror host absent in default mode | ✅ | N/A | `.cm-content` not rendered |
+| Textarea fallback absent in CodeMirror mode | N/A | ✅ | `latex-editor-textarea` not rendered |
+| Find/search open and input | ✅ | ✅ | aria-label="Toggle find bar" click + `find-input` fill |
+| Compile button present and enabled | ✅ | ✅ | `compile-button` visible and enabled |
+
+## Key technical findings
+
+1. **Turbopack does not inline `NEXT_PUBLIC_*` env vars** at build time — the compiled `isLocalStandalone()` reads from a Turbopack-internal process polyfill module (`ed.default.env`), not from `process.env`, so `process.env.NEXT_PUBLIC_LOCAL_STANDALONE` is never replaced.
+2. **Webpack (`next build` without `--turbopack`) properly inlines** `process.env.NEXT_PUBLIC_*` via its DefinePlugin — but only when the source code accesses the var as a **direct member** of `process.env` (not through a helper variable).
+3. **Fix applied:** `isLocalStandalone()` was refactored from `(env = process.env) => flagEnabled(env.NEXT_PUBLIC_LOCAL_STANDALONE)` to `(env?) => env !== undefined ? … : flagEnabled(process.env.NEXT_PUBLIC_LOCAL_STANDALONE)` so that the DefinePlugin can match and replace `process.env.NEXT_PUBLIC_LOCAL_STANDALONE` directly.
+4. **E2E builds must use webpack.** The `package.json` scripts `e2e:default` and `e2e:cm` first run `rm -rf .next && … next build` (no `--turbopack`) and then invoke Playwright.
+5. **Dynamic Clerk middleware import** avoids module-level `require("@clerk/nextjs/server")` crash when Clerk env vars are absent (`middleware.ts`).
+
+## Phase 6.8 — Production-build parity (2026-05-07)
+
+- **Build tool used by production:** Turbopack (`next build --turbopack`)
+- **Build tool used by e2e:** webpack (`next build` without `--turbopack`)
+- **New scripts added:**
+  - `e2e:build:prod-default` — `NEXT_PUBLIC_LOCAL_STANDALONE=true next build --turbopack`
+  - `e2e:build:prod-cm` — same plus `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true`
+  - `e2e:prod-default` — Turbopack build + default mode Playwright
+  - `e2e:prod-cm` — Turbopack build + CodeMirror mode Playwright
+
+### Result: **all 24 tests passed** (12 webpack + 12 Turbopack)
+
+| Mode | Build | Tests | Result |
+|---|---|---|---|
+| Default | webpack | 6 | **PASS** (2.4s) |
+| CodeMirror | webpack | 6 | **PASS** (2.6s) |
+| Default | Turbopack | 6 | **PASS** (2.5s) |
+| CodeMirror | Turbopack | 6 | **PASS** (2.7s) |
+
+### Updated env-var findings
+
+The `env` block in `next.config.ts` **does forward `NEXT_PUBLIC_*` values in Turbopack production builds**. The earlier Phase 6.7 note that "Turbopack does not inline NEXT_PUBLIC_* vars" referred to the automatic per-env-var injection (which webpack does via DefinePlugin). When the env vars are explicitly listed in the `env` config block, Turbopack correctly bakes them into the production artifact.
+
+## Environment var propagation (summary)
+
+| Build mode | `NEXT_PUBLIC_LOCAL_STANDALONE` | `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR` |
 |---|---|---|
-| Page load | blocked | `/editor` returned HTTP 200 in both modes, but browser runtime/hydration checks were not executable without browser automation. |
-| Initial document | blocked | Could not verify visible editor content in a real browser session. |
-| Basic editing | blocked | Could not perform typing/delete/paste interactions without browser automation. |
-| Dirty state | blocked | Could not verify UI dirty indicators via browser interaction. |
-| File switching | blocked | Could not verify tab switching behavior in browser. |
-| Cursor/selection | blocked | Could not verify real cursor/selection behavior in browser. |
-| Snippet insertion | blocked | Could not execute toolbar/snippet flow in browser. |
-| Find/search | blocked | Could not execute interactive find UI flow in browser. |
-| Compile trigger | blocked | Could not click Compile in browser; compile UI behavior not exercised here. |
-| PDF preview | blocked | Could not verify preview behavior without browser execution. |
-| Textarea fallback | blocked | Default mode server responded HTTP 200, but browser editing behavior was not exercised. |
+| Turbopack (`next build --turbopack`) with `env` config | ✅ available on client | ✅ available on client |
+| Webpack (`next build` without `--turbopack`) | ✅ inlined at build time | ✅ inlined at build time |
 
-## Issues Found
+**Rule:** For client-exposed build flags, always access via direct member access on `process.env` (e.g. `process.env.NEXT_PUBLIC_*`), never through an intermediate variable. See `localStandalone.ts` for the canonical pattern.
 
-- No CodeMirror runtime defect was observed in this phase because browser-level QA could not be executed in the current tool environment.
-- QA blocker: missing browser automation capability for end-to-end UI interaction.
-
-## Decision
+## Decision (unchanged)
 
 - **Keep CodeMirror flag-gated.**
-- **Block default flip pending browser-level QA execution** (interactive/manual or automated E2E run) for editing, selection, snippets, find, compile, and preview flows.
+- **Unblock default flip** is still conditional on:
+  - cursor/selection parity,
+  - snippet insertion parity,
+  - PDF preview integration parity,
+  - full keyboard command parity.
+- **All existing parity tests** (jsdom-based, `EditorPane.test.tsx` + `LatexCodeEditor.test.tsx`) and browser-level E2E tests pass in both modes.
+- Production-build parity is now verified: both webpack and Turbopack artifacts pass all 12 E2E tests.

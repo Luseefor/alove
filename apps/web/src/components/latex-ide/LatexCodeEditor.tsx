@@ -191,6 +191,7 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
     return (
       <div
         ref={hostRef}
+        data-testid="latex-editor-codemirror"
         className={cn("h-full w-full overflow-hidden", className)}
       />
     );

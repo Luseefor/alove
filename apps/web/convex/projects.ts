@@ -1,18 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-
-const defaultMainTex = `\\documentclass{article}
-\\begin{document}
-\\section{Introduction}
-Welcome to alove — collaborative design mode syncs through Convex.
-
-\\section{Related work}
-Write here.
-
-\\subsection{Details}
-Body text.
-\\end{document}
-`;
+import { DEMO_FILES } from "../src/demo/demoProject";
 
 export const listMine = query({
   args: {},
@@ -38,19 +26,26 @@ export const ensureDefault = mutation({
     if (existing) return existing._id;
     const now = Date.now();
     const pid = await ctx.db.insert("projects", {
-      name: "My project",
+      name: "Deep Learning Survey",
       ownerId: id.subject,
       designMode: true,
       updatedAt: now,
     });
-    await ctx.db.insert("projectFiles", {
-      projectId: pid,
-      path: "main.tex",
-      content: defaultMainTex,
-      version: 1,
-      updatedAt: now,
-      updatedBy: id.subject,
-    });
+    
+    // Seed with demo files
+    for (const file of DEMO_FILES) {
+      if (file.type !== "folder") {
+        await ctx.db.insert("projectFiles", {
+          projectId: pid,
+          path: file.path,
+          content: file.content,
+          version: 1,
+          updatedAt: now,
+          updatedBy: id.subject,
+        });
+      }
+    }
+    
     return pid;
   },
 });

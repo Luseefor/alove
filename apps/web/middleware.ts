@@ -1,25 +1,33 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { isLocalStandalone } from "@/lib/localStandalone";
 
-const isPublic = createRouteMatcher([
-  "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/webhooks(.*)",
-]);
+export default async function middleware(req: NextRequest) {
+  if (isLocalStandalone()) return NextResponse.next();
 
-export default clerkMiddleware(async (auth, req) => {
-  if (isLocalStandalone()) {
+  try {
+    const clerk = await import("@clerk/nextjs/server");
+    const isPublic = clerk.createRouteMatcher([
+      "/",
+      "/sign-in(.*)",
+      "/sign-up(.*)",
+      "/api/webhooks(.*)",
+    ]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler: any = clerk.clerkMiddleware(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async (auth: any, cReq: any) => {
+        if (!process.env.CLERK_SECRET_KEY) return NextResponse.next();
+        if (!isPublic(cReq)) await auth.protect();
+      },
+    );
+
+    return await handler(req, undefined);
+  } catch {
     return NextResponse.next();
   }
-  if (!process.env.CLERK_SECRET_KEY) {
-    return NextResponse.next();
-  }
-  if (!isPublic(req)) {
-    await auth.protect();
-  }
-});
+}
 
 export const config = {
   matcher: [

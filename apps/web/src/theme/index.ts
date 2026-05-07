@@ -6,8 +6,17 @@ export {
   DEFAULT_PALETTE_ID,
   PALETTE_STORAGE_KEY,
   THEME_STORAGE_KEY,
+  DENSITY_STORAGE_KEY,
+  FONT_SIZE_STORAGE_KEY,
+  PREVIEW_BG_STORAGE_KEY,
 } from "./constants";
-export type { ResolvedTheme } from "./types";
+export type { 
+  ResolvedTheme,
+  AppearancePreference,
+  DensityPreference,
+  EditorFontSizePreference,
+  PreviewBackgroundPreference
+} from "./types";
 export type { AccentVarName, PaletteModeVars } from "./palette-vars";
 export {
   SITE_PALETTES,
