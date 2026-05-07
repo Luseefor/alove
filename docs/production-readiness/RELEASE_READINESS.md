@@ -33,6 +33,21 @@ If CodeMirror experiences a production-blocking regression:
 ## Final E2E Totals
 - 84 / 84 passing across default, fallback, webpack, and turbopack builds.
 
+## Production Environment Validation Checklist
+- Clerk publishable key configured.
+- Clerk secret key configured.
+- Convex URL configured.
+- Convex auth issuer configured.
+- Redis host/port/password configured where required.
+- Compile worker deployed and connected to the same Redis queue.
+- Docker/TeX image access validated.
+- Compile timeout and cleanup settings configured.
+- `NEXT_PUBLIC_EDITOR_MODE` intentionally set or intentionally unset.
+- Textarea rollback tested with `NEXT_PUBLIC_EDITOR_MODE=textarea`.
+- `/editor` smoke tested after deploy.
+- Compile button smoke tested after deploy.
+- PDF preview smoke tested after deploy.
+
 ## Merge Summary
 - Auth/config fail-closed hardening
 - Compile worker hardening
@@ -42,3 +57,6 @@ If CodeMirror experiences a production-blocking regression:
 - CodeMirror made default
 - Textarea fallback preserved
 - Repository hygiene improved (generated outputs cleaned and ignored)
+
+**Ready for PR and production-deploy candidate.**
+Final production deploy requires environment validation for Clerk, Convex, Redis, compile worker, Docker/TeX image access, and deployment secrets.
