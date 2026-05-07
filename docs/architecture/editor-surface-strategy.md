@@ -41,6 +41,12 @@
   - parity tests currently use a mocked adapter contract in jsdom rather than full browser-level behavior;
   - manual QA for cursor/selection/find/snippet parity and PDF-side workflows has not been completed yet.
 
+## Phase 6.6 Browser QA Status
+
+- Browser-level QA was attempted with `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true`, but this CLI environment has no installed browser automation toolchain (`playwright`/`puppeteer`) and no interactive browser runner.
+- HTTP reachability for `/editor` was verified in both CodeMirror-enabled and default textarea modes (HTTP 200), but that is not equivalent to browser interaction parity.
+- Decision remains unchanged: keep CodeMirror flag-gated until real browser QA is executed and recorded in `docs/production-readiness/CODEMIRROR_QA.md`.
+
 ## Current Inventory
 
 ### Active surface files

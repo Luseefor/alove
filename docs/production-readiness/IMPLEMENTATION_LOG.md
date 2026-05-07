@@ -180,3 +180,37 @@
 - **Remaining risk**
   - Integration tests rely on a mocked `LatexCodeEditor` contract in jsdom.
   - Browser-level/manual parity verification remains required before enabling CodeMirror by default.
+
+## 2026-05-07 — Phase 6.6: CodeMirror browser QA attempt
+
+- **Files changed**
+  - `docs/production-readiness/CODEMIRROR_QA.md`
+  - `docs/architecture/editor-surface-strategy.md`
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+  - `apps/web/.env.example`
+- **What was fixed**
+  - Documented browser-QA attempt scope and hard blocker (no browser automation capability in current CLI environment).
+  - Recorded concrete evidence from running the app in CodeMirror-enabled and default modes (`/editor` HTTP 200 in both).
+  - Clarified env flag behavior in `.env.example` (restart required when toggling `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR`).
+  - Kept CodeMirror flag-gated pending actual browser interaction QA.
+- **Commands run**
+  - `bun run typecheck`
+  - `bun run lint`
+  - `bun run test`
+  - `bun run build`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build`
+  - `cd apps/web && NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run dev`
+  - `curl http://127.0.0.1:30127/editor`
+  - `cd apps/web && bun run dev`
+  - `curl http://127.0.0.1:30127/editor`
+  - `which playwright`
+  - `node -e "require.resolve('playwright')"`
+- **Result**
+  - Default quality gates: pass
+  - CodeMirror-enabled quality gates: pass
+  - Browser-level QA execution: blocked (tooling unavailable in environment)
+- **Remaining risk**
+  - CodeMirror browser interaction parity (editing/selection/snippets/find/compile/preview) remains unverified in a real browser session.
