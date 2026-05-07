@@ -192,3 +192,10 @@ The `env` block in `next.config.ts` **does forward `NEXT_PUBLIC_*` values in Tur
 
 - **CodeMirror default is enabled.**
 - **Textarea fallback is retained** and explicitly selectable for rollback.
+
+## Phase 9 Final Release Readiness (2026-05-07)
+
+- E2E tests maintain 84/84 success rate.
+- Textarea fallback and CodeMirror default have been verified across both standard Webpack (`next build`) and production Turbopack (`next build --turbopack`) artifacts.
+- Generated artifacts cleaned and ignored.
+- Rollback procedure documented and ready for production deployment.

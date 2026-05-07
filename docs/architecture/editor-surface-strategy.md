@@ -113,3 +113,10 @@ Covered in browser e2e across both modes/builds:
 - Keep textarea fallback available for at least one release cycle after default flip.
 - Run one queue/worker-provisioned compile-success browser pass to complement the safe-failure coverage.
 - Remove textarea path only after default rollout is stable and regression coverage remains green.
+
+## Phase 9 Release Readiness Status
+
+- Repository hygiene confirmed. Generated playwright artifacts (`test-results/` and `playwright-report/`) are ignored.
+- CodeMirror default and fallback functionality have passed exhaustive validation (Typecheck, Lint, Test, Build, and 84/84 E2E).
+- Rollback mechanisms are explicitly documented in `RELEASE_READINESS.md`.
+- The branch is deemed stable and prepared for merging into the main branch.

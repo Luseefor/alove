@@ -392,3 +392,25 @@
   - Browser e2e total across Phase 8 suites: **84/84 pass**.
 - **Remaining risk**
   - Compile-success behavior in queue/worker-provisioned environments is still tracked separately from compile-trigger safety coverage.
+
+## 2026-05-07 — Phase 9: Release Readiness
+
+- **Scope:** Prepare the branch for merge/release readiness. Clean generated artifacts, verify repo hygiene, run final validation, update final readiness docs, and prepare a PR/merge summary.
+- **Files changed:**
+  - `apps/web/.gitignore`
+  - `docs/production-readiness/RELEASE_READINESS.md` (created)
+  - `docs/production-readiness/PR_SUMMARY.md` (created)
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+  - `docs/architecture/editor-surface-strategy.md`
+  - `docs/production-readiness/CODEMIRROR_QA.md`
+- **What was fixed:**
+  - Classified remaining untracked files (`local_changes_backup.patch`, `pixel-perfect-latex-ide-redesign-plan-alove.md`) as local artifacts and kept them untracked.
+  - Removed generated `apps/web/test-results` folder and added `test-results/` and `playwright-report/` to `apps/web/.gitignore`.
+  - Created `RELEASE_READINESS.md` outlining the rollback procedure, editor state, and untracked file statuses.
+  - Created `PR_SUMMARY.md` formatted for GitHub merge context.
+  - Updated existing tracking docs to finalize Phase 9.
+- **Result:**
+  - All validation gates passed for CodeMirror default, textarea fallback, and legacy flag backward compatibility.
+  - 84/84 E2E tests passing.
+  - Repository hygiene is clean.
+- **Decision:** Ready for PR and merge to main.
