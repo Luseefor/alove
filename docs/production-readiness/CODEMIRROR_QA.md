@@ -141,3 +141,54 @@ The `env` block in `next.config.ts` **does forward `NEXT_PUBLIC_*` values in Tur
 - **CodeMirror remains flag-gated in this phase.**
 - Snippet insertion parity and PDF preview safety parity are now covered by browser e2e tests in both editor modes.
 - A default flip should still be performed in a separate follow-up phase/commit.
+
+## Phase 8 — CodeMirror default with textarea rollback (2026-05-07)
+
+- **Scope:** Promote CodeMirror as default editor mode while preserving explicit textarea fallback and legacy flag compatibility.
+- **Editor mode semantics:**
+  - unset env vars → `codemirror` (default)
+  - `NEXT_PUBLIC_EDITOR_MODE=codemirror` → `codemirror`
+  - `NEXT_PUBLIC_EDITOR_MODE=textarea` → `textarea`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true` (legacy) → `codemirror`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=false` (legacy) → `textarea`
+  - unknown `NEXT_PUBLIC_EDITOR_MODE` value → `codemirror`
+- **Rollback procedure:** set `NEXT_PUBLIC_EDITOR_MODE=textarea`, then rebuild/restart Next.js app.
+
+### Validation commands
+
+- `bun run typecheck`
+- `bun run lint`
+- `bun run test`
+- `bun run build`
+- `NEXT_PUBLIC_EDITOR_MODE=textarea bun run typecheck`
+- `NEXT_PUBLIC_EDITOR_MODE=textarea bun run lint`
+- `NEXT_PUBLIC_EDITOR_MODE=textarea bun run test`
+- `NEXT_PUBLIC_EDITOR_MODE=textarea bun run build`
+- `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`
+- `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`
+- `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`
+- `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build`
+- `bun run e2e:default`
+- `bun run e2e:textarea`
+- `bun run e2e:prod-default`
+- `bun run e2e:prod-textarea`
+- `bun run e2e:cm` (compat alias)
+- `bun run e2e:prod-cm` (compat alias)
+
+### Result
+
+| Suite | Tests | Result |
+|---|---|---|
+| `e2e:default` (default CodeMirror) | 15 | PASS |
+| `e2e:textarea` (explicit fallback) | 12 | PASS |
+| `e2e:prod-default` (Turbopack default CodeMirror) | 15 | PASS |
+| `e2e:prod-textarea` (Turbopack fallback) | 12 | PASS |
+| `e2e:cm` (compat alias) | 15 | PASS |
+| `e2e:prod-cm` (compat alias) | 15 | PASS |
+
+**Total browser e2e:** 84 passed, 0 failed.
+
+## Decision (Phase 8)
+
+- **CodeMirror default is enabled.**
+- **Textarea fallback is retained** and explicitly selectable for rollback.

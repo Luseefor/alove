@@ -64,8 +64,8 @@ vi.mock("./LatexCodeEditor", async () => {
 describe("EditorPane", () => {
   let container: HTMLDivElement;
   let root: Root;
-  const originalCodeMirrorFlag =
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR;
+  const originalCodeMirrorFlag = process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR;
+  const originalEditorMode = process.env.NEXT_PUBLIC_EDITOR_MODE;
 
   function seedStore(overrides: Partial<ReturnType<typeof useWorkbenchStore.getState>> = {}) {
     useWorkbenchStore.setState(useWorkbenchStore.getInitialState(), true);
@@ -102,7 +102,8 @@ describe("EditorPane", () => {
     codeEditorRuntime.replaceRange.mockReset();
     codeEditorRuntime.runCommand.mockReset();
     codeEditorRuntime.scrollToLine.mockReset();
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = undefined;
+    delete process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR;
+    delete process.env.NEXT_PUBLIC_EDITOR_MODE;
   });
 
   afterEach(() => {
@@ -110,7 +111,16 @@ describe("EditorPane", () => {
       root.unmount();
     });
     container.remove();
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = originalCodeMirrorFlag;
+    if (originalCodeMirrorFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR;
+    } else {
+      process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = originalCodeMirrorFlag;
+    }
+    if (originalEditorMode === undefined) {
+      delete process.env.NEXT_PUBLIC_EDITOR_MODE;
+    } else {
+      process.env.NEXT_PUBLIC_EDITOR_MODE = originalEditorMode;
+    }
   });
 
   it("renders the empty editor hint when no file is active", () => {
@@ -130,9 +140,7 @@ describe("EditorPane", () => {
     );
   });
 
-  it("renders CodeMirror path with initial active file content when flag is enabled", () => {
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = "true";
-
+  it("renders CodeMirror path with initial active file content by default", () => {
     act(() => {
       root.render(<EditorPane />);
     });
@@ -145,9 +153,20 @@ describe("EditorPane", () => {
     expect(codeEditorRuntime.latestProps?.value).toBe("Initial content");
   });
 
-  it("updates active file content and dirty state through shared update path", () => {
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = "true";
+  it("renders textarea fallback when NEXT_PUBLIC_EDITOR_MODE=textarea", () => {
+    process.env.NEXT_PUBLIC_EDITOR_MODE = "textarea";
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    expect(container.querySelector('[data-testid="mock-codemirror-editor"]')).toBeNull();
+    const textarea = container.querySelector(
+      '[data-testid="latex-editor-textarea"]',
+    ) as HTMLTextAreaElement | null;
+    expect(textarea).toBeTruthy();
+    expect(textarea?.value).toContain("Initial content");
+  });
 
+  it("updates active file content and dirty state through shared update path", () => {
     act(() => {
       root.render(<EditorPane />);
     });
@@ -163,7 +182,6 @@ describe("EditorPane", () => {
   });
 
   it("switches files correctly in CodeMirror mode", () => {
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = "true";
     seedStore({
       activeFileId: "main.tex",
       openFiles: ["main.tex", "chapter.tex"],
@@ -192,7 +210,6 @@ describe("EditorPane", () => {
   });
 
   it("preserves selection and find/search integration in CodeMirror mode", () => {
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = "true";
     seedStore({
       filesByPath: {
         "main.tex": "alpha beta alpha",
@@ -228,7 +245,6 @@ describe("EditorPane", () => {
   });
 
   it("keeps compile trigger and editor command wiring intact in CodeMirror mode", () => {
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR = "true";
     const runCompile = vi.fn(async () => {});
     seedStore({ runCompile });
 

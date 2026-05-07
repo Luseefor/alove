@@ -28,8 +28,8 @@
 
 - **Mode:** fallback-backed migration
 - `LatexCodeEditor` adapter exists at `apps/web/src/components/latex-ide/LatexCodeEditor.tsx`.
-- `EditorPane` can render the adapter when `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true`.
-- Default behavior remains textarea-backed to preserve all existing editing interactions while migration completes.
+- `EditorPane` can render either surface and now defaults to CodeMirror.
+- Textarea fallback remains available via `NEXT_PUBLIC_EDITOR_MODE=textarea` (rollback path).
 - Compile/store wiring is preserved because both surfaces write through `updateActiveFileContent`.
 
 ## Phase 6.5 Validation Status
@@ -64,12 +64,14 @@
 - `env` config in `next.config.ts` correctly forwards `NEXT_PUBLIC_*` values in Turbopack builds.
 - Decision remains unchanged: keep CodeMirror flag-gated (see Phase 6.8 criteria below).
 
-## Decision Criteria (Phase 7.2 status)
+## Decision Criteria (Phase 8 status)
 
-CodeMirror remains flag-gated because:
-- default flip is intentionally deferred to a dedicated follow-up phase/commit
-- compile success-path behavior is environment-dependent (queue/worker availability) and this phase validates compile safety/non-crash behavior
-- textarea fallback is preserved and must remain available during rollout
+CodeMirror default is enabled with explicit fallback controls:
+- unset flags default to CodeMirror
+- `NEXT_PUBLIC_EDITOR_MODE=textarea` forces textarea fallback
+- legacy `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true/false` remains supported for compatibility
+- compile success-path behavior is still environment-dependent; browser parity coverage validates compile-trigger safety/non-crash behavior
+- textarea fallback remains available and is retained for rollout safety
 
 Covered in browser e2e across both modes/builds:
 - editing + cursor/selection + keyboard interaction parity
@@ -108,6 +110,6 @@ Covered in browser e2e across both modes/builds:
 
 ## Remaining Editor Migration Work
 
-- Execute a dedicated Phase 8 commit to flip CodeMirror default (keep fallback path available for rollback window).
+- Keep textarea fallback available for at least one release cycle after default flip.
 - Run one queue/worker-provisioned compile-success browser pass to complement the safe-failure coverage.
 - Remove textarea path only after default rollout is stable and regression coverage remains green.

@@ -1,7 +1,14 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-const isCodeMirror = process.env.E2E_CODEMIRROR === "1";
+const explicitEditorMode = process.env.E2E_EDITOR_MODE;
+const editorMode =
+  explicitEditorMode === "codemirror" || explicitEditorMode === "textarea"
+    ? explicitEditorMode
+    : process.env.E2E_CODEMIRROR === "0"
+      ? "textarea"
+      : "codemirror";
+const isCodeMirror = editorMode === "codemirror";
 const codeMirrorContentSelector =
   '[data-testid="latex-editor-codemirror-content"], .cm-content';
 
@@ -35,7 +42,9 @@ async function setEditorText(
   await editorContentLocator(page).fill(value);
 }
 
-test.describe(isCodeMirror ? "editor / CodeMirror mode" : "editor / textarea (default) mode", () => {
+test.describe(
+  isCodeMirror ? "editor / CodeMirror mode" : "editor / textarea fallback mode",
+  () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/editor");
     if (isCodeMirror) {
@@ -63,7 +72,7 @@ test.describe(isCodeMirror ? "editor / CodeMirror mode" : "editor / textarea (de
       await expect(textarea).toHaveValue("\\section{Playwright Test}");
     });
 
-    test("CodeMirror host is absent in default mode", async ({ page }) => {
+    test("CodeMirror host is absent in textarea fallback mode", async ({ page }) => {
       await expect(page.locator('[data-testid="latex-editor-codemirror"]')).toHaveCount(0);
     });
   }
@@ -259,4 +268,5 @@ test.describe(isCodeMirror ? "editor / CodeMirror mode" : "editor / textarea (de
 
     expect(buildStatus === "queued" || buildStatus === "running").toBe(true);
   });
-});
+  },
+);

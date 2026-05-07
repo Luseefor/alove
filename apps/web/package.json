@@ -15,13 +15,17 @@
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:build:default": "rm -rf .next && NEXT_PUBLIC_LOCAL_STANDALONE=true next build",
-    "e2e:build:cm": "rm -rf .next && NEXT_PUBLIC_LOCAL_STANDALONE=true NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true next build",
-    "e2e:default": "bun run e2e:build:default && E2E_CODEMIRROR=0 playwright test",
-    "e2e:cm": "bun run e2e:build:cm && E2E_CODEMIRROR=1 playwright test",
+    "e2e:build:textarea": "rm -rf .next && NEXT_PUBLIC_LOCAL_STANDALONE=true NEXT_PUBLIC_EDITOR_MODE=textarea next build",
+    "e2e:build:cm": "bun run e2e:build:default",
+    "e2e:default": "bun run e2e:build:default && playwright test",
+    "e2e:textarea": "bun run e2e:build:textarea && E2E_EDITOR_MODE=textarea playwright test",
+    "e2e:cm": "bun run e2e:build:default && E2E_EDITOR_MODE=codemirror playwright test",
     "e2e:build:prod-default": "rm -rf .next && NEXT_PUBLIC_LOCAL_STANDALONE=true next build --turbopack",
-    "e2e:build:prod-cm": "rm -rf .next && NEXT_PUBLIC_LOCAL_STANDALONE=true NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true next build --turbopack",
-    "e2e:prod-default": "bun run e2e:build:prod-default && E2E_CODEMIRROR=0 playwright test",
-    "e2e:prod-cm": "bun run e2e:build:prod-cm && E2E_CODEMIRROR=1 playwright test"
+    "e2e:build:prod-textarea": "rm -rf .next && NEXT_PUBLIC_LOCAL_STANDALONE=true NEXT_PUBLIC_EDITOR_MODE=textarea next build --turbopack",
+    "e2e:build:prod-cm": "bun run e2e:build:prod-default",
+    "e2e:prod-default": "bun run e2e:build:prod-default && playwright test",
+    "e2e:prod-textarea": "bun run e2e:build:prod-textarea && E2E_EDITOR_MODE=textarea playwright test",
+    "e2e:prod-cm": "bun run e2e:build:prod-default && E2E_EDITOR_MODE=codemirror playwright test"
   },
   "dependencies": {
     "@alove/editor": "workspace:*",

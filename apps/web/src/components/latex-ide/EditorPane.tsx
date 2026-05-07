@@ -14,6 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { getEditorMode } from "@/lib/editorMode";
 import {
   LatexCodeEditor,
   type LatexCodeEditorHandle,
@@ -60,8 +61,7 @@ export function EditorPane() {
     const words = content.trim().match(/\S+/g);
     return words ? words.length : 0;
   }, [content]);
-  const codeMirrorEnabled =
-    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR === "true";
+  const codeMirrorEnabled = getEditorMode() === "codemirror";
 
   const focusEditor = useCallback(() => {
     if (codeMirrorEnabled) {

@@ -338,3 +338,57 @@
   - Browser e2e total: **54/54 pass**
 - **Remaining risk**
   - Compile-success parity with a fully provisioned queue/worker backend is not asserted in this phase; this phase validates compile-trigger safety and non-crashing PDF/editor behavior.
+
+## 2026-05-07 — Phase 8: promote CodeMirror as default editor mode
+
+- **Files changed**
+  - `apps/web/src/lib/editorMode.ts`
+  - `apps/web/src/lib/editorMode.test.ts`
+  - `apps/web/src/components/latex-ide/EditorPane.tsx`
+  - `apps/web/src/components/latex-ide/EditorPane.test.tsx`
+  - `apps/web/playwright.config.ts`
+  - `apps/web/e2e/editor.spec.ts`
+  - `apps/web/package.json`
+  - `apps/web/.env.example`
+  - `apps/web/next.config.ts`
+  - `docs/architecture/editor-surface-strategy.md`
+  - `docs/production-readiness/CODEMIRROR_QA.md`
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+- **What was fixed**
+  - Added typed `getEditorMode()` helper with explicit precedence and CodeMirror default fallback.
+  - Switched `EditorPane` mode selection to helper-driven semantics; textarea path remains intact.
+  - Added helper tests for explicit mode values, legacy flag compatibility, and unknown-value fallback.
+  - Updated browser e2e scripts/config:
+    - default suites now validate default CodeMirror behavior,
+    - added explicit textarea fallback suites,
+    - retained `e2e:cm` / `e2e:prod-cm` compatibility aliases.
+  - Updated env/documentation to define rollback:
+    - `NEXT_PUBLIC_EDITOR_MODE=textarea` + rebuild/restart.
+- **Commands run (default mode)**
+  - `bun run typecheck`
+  - `bun run lint`
+  - `bun run test`
+  - `bun run build`
+- **Commands run (explicit textarea fallback mode)**
+  - `NEXT_PUBLIC_EDITOR_MODE=textarea bun run typecheck`
+  - `NEXT_PUBLIC_EDITOR_MODE=textarea bun run lint`
+  - `NEXT_PUBLIC_EDITOR_MODE=textarea bun run test`
+  - `NEXT_PUBLIC_EDITOR_MODE=textarea bun run build`
+- **Commands run (legacy CodeMirror flag mode)**
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run typecheck`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run lint`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run test`
+  - `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true bun run build`
+- **Commands run (browser e2e)**
+  - `bun run e2e:default` → 15/15 pass
+  - `bun run e2e:textarea` → 12/12 pass
+  - `bun run e2e:prod-default` → 15/15 pass
+  - `bun run e2e:prod-textarea` → 12/12 pass
+  - `bun run e2e:cm` → 15/15 pass (compat alias)
+  - `bun run e2e:prod-cm` → 15/15 pass (compat alias)
+- **Result**
+  - CodeMirror is now default editor mode.
+  - Textarea fallback remains available via `NEXT_PUBLIC_EDITOR_MODE=textarea`.
+  - Browser e2e total across Phase 8 suites: **84/84 pass**.
+- **Remaining risk**
+  - Compile-success behavior in queue/worker-provisioned environments is still tracked separately from compile-trigger safety coverage.
