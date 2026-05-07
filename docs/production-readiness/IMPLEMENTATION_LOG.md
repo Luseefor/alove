@@ -111,3 +111,32 @@
   - All four quality gates passed.
 - **Remaining risk**
   - Phase 6 CodeMirror migration for active `latex-ide` `EditorPane` is not implemented yet.
+
+## 2026-05-07 — Phase 6: CodeMirror adapter groundwork
+
+- **Files changed**
+  - `packages/editor/src/index.ts`
+  - `apps/web/src/components/latex-ide/LatexCodeEditor.tsx`
+  - `apps/web/src/components/latex-ide/EditorPane.tsx`
+  - `apps/web/src/components/latex-ide/LatexCodeEditor.test.tsx`
+  - `apps/web/src/components/latex-ide/EditorPane.test.tsx`
+  - `apps/web/vitest.config.ts`
+  - `docs/architecture/editor-surface-strategy.md`
+  - `docs/production-readiness/IMPLEMENTATION_LOG.md`
+- **What was fixed**
+  - Added a typed CodeMirror adapter (`LatexCodeEditor`) based on `@alove/editor`.
+  - Added fallback-backed integration in `EditorPane`; CodeMirror activates via `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true`, with textarea path preserved by default for safety.
+  - Preserved compile/store state flow by keeping `updateActiveFileContent` as the canonical write path.
+  - Added tests for adapter contract and `EditorPane` empty-state render.
+- **Commands run**
+  - `bun run typecheck`
+  - `bun run lint`
+  - `bun run test`
+  - `bun run build`
+- **Result**
+  - `bun run typecheck`: pass
+  - `bun run lint`: pass
+  - `bun run test`: pass
+  - `bun run build`: pass
+- **Remaining risk**
+  - CodeMirror path is not default yet; command/selection parity is still in migration.

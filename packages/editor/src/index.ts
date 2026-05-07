@@ -14,6 +14,9 @@ import {
   history,
   historyKeymap,
   indentWithTab,
+  redo,
+  selectAll,
+  undo,
 } from "@codemirror/commands";
 import {
   bracketMatching,
@@ -46,7 +49,12 @@ export type EditorTheme = "light" | "dark";
 
 export type LatexEditorOptions = {
   vim?: boolean;
+  lineNumbers?: boolean;
+  closeBrackets?: boolean;
+  wordWrap?: boolean;
 };
+
+export type LatexEditorCommand = "undo" | "redo" | "selectAll";
 
 const latexHighlightLight = HighlightStyle.define([
   { tag: [t.keyword, t.controlKeyword], color: "#0c4a6e", fontWeight: "600" },
@@ -78,10 +86,13 @@ export function createLatexEditorExtensions(
   theme: EditorTheme,
   options: LatexEditorOptions = {},
 ): Extension[] {
+  const shouldShowLineNumbers = options.lineNumbers !== false;
+  const shouldCloseBrackets = options.closeBrackets !== false;
   return [
     EditorState.allowMultipleSelections.of(true),
     indentOnInput(),
-    lineNumbers(),
+    ...(shouldShowLineNumbers ? [lineNumbers()] : []),
+    ...(options.wordWrap ? [EditorView.lineWrapping] : []),
     highlightActiveLine(),
     highlightSpecialChars(),
     drawSelection(),
@@ -92,12 +103,12 @@ export function createLatexEditorExtensions(
     codeFolding(),
     latexBeginEndFold,
     bracketMatching(),
-    closeBrackets(),
+    ...(shouldCloseBrackets ? [closeBrackets()] : []),
     StreamLanguage.define(stex),
     latexAutocomplete,
     lintGutter(),
     keymap.of([
-      ...closeBracketsKeymap,
+      ...(shouldCloseBrackets ? closeBracketsKeymap : []),
       ...defaultKeymap,
       ...historyKeymap,
       ...searchKeymap,
@@ -127,4 +138,17 @@ export function createLatexEditorView(
   extra: Extension[] = [],
 ) {
   return new EditorView({ state, parent, extensions: extra });
+}
+
+export function runLatexEditorCommand(
+  view: EditorView,
+  command: LatexEditorCommand,
+) {
+  if (command === "undo") {
+    return undo(view);
+  }
+  if (command === "redo") {
+    return redo(view);
+  }
+  return selectAll(view);
 }

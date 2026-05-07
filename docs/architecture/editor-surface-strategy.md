@@ -24,6 +24,14 @@
    - build/lint break fixes
 3. Do not add new product features to the legacy surface.
 
+## Phase 6 Status (CodeMirror)
+
+- **Mode:** fallback-backed migration
+- `LatexCodeEditor` adapter exists at `apps/web/src/components/latex-ide/LatexCodeEditor.tsx`.
+- `EditorPane` can render the adapter when `NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR=true`.
+- Default behavior remains textarea-backed to preserve all existing editing interactions while migration completes.
+- Compile/store wiring is preserved because both surfaces write through `updateActiveFileContent`.
+
 ## Current Inventory
 
 ### Active surface files
@@ -53,3 +61,9 @@
 - `/editor` depends only on `latex-ide` components.
 - Equivalent behavior exists on the active surface.
 - Compile/workbench behavior remains covered by automated tests.
+
+## Remaining Editor Migration Work
+
+- Make CodeMirror mode default after parity checks for find/search, clipboard commands, and diagnostics navigation.
+- Add richer adapter-level integration tests for command and selection flows.
+- Remove textarea path once parity and regression coverage are complete.

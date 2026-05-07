@@ -11,8 +11,13 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  LatexCodeEditor,
+  type LatexCodeEditorHandle,
+} from "./LatexCodeEditor";
 
 export function EditorPane() {
   const {
@@ -36,7 +41,9 @@ export function EditorPane() {
   const spellcheckEnabled = useIdeSettingsStore((s) => s.spellcheckEnabled);
   const editorAutoCloseBrackets = useIdeSettingsStore((s) => s.editorAutoCloseBrackets);
   const editorNonBlinkingCursor = useIdeSettingsStore((s) => s.editorNonBlinkingCursor);
+  const editorKeybindings = useIdeSettingsStore((s) => s.editorKeybindings);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const codeEditorRef = useRef<LatexCodeEditorHandle | null>(null);
   const [findOpen, setFindOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
   const [findRegex, setFindRegex] = useState(false);
@@ -53,53 +60,107 @@ export function EditorPane() {
     const words = content.trim().match(/\S+/g);
     return words ? words.length : 0;
   }, [content]);
+  const codeMirrorEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR === "true";
+
+  const focusEditor = useCallback(() => {
+    if (codeMirrorEnabled) {
+      codeEditorRef.current?.focus();
+      return;
+    }
+    textareaRef.current?.focus();
+  }, [codeMirrorEnabled]);
+
+  const readSelection = useCallback((): { start: number; end: number } => {
+    if (codeMirrorEnabled) {
+      return codeEditorRef.current?.getSelection() ?? { start: 0, end: 0 };
+    }
+    const el = textareaRef.current;
+    if (!el) return { start: 0, end: 0 };
+    return { start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 };
+  }, [codeMirrorEnabled]);
+
+  const readEditorValue = useCallback((): string => {
+    if (codeMirrorEnabled) {
+      return codeEditorRef.current?.getValue() ?? content;
+    }
+    return textareaRef.current?.value ?? content;
+  }, [codeMirrorEnabled, content]);
+
+  const setEditorSelection = useCallback((start: number, end: number) => {
+    if (codeMirrorEnabled) {
+      codeEditorRef.current?.setSelection(start, end);
+      return;
+    }
+    textareaRef.current?.setSelectionRange(start, end);
+  }, [codeMirrorEnabled]);
 
   useEffect(() => {
-    if (!focusedLine || !textareaRef.current) return;
+    if (!focusedLine) return;
+    if (codeMirrorEnabled) {
+      codeEditorRef.current?.scrollToLine(focusedLine);
+      codeEditorRef.current?.focus();
+      return;
+    }
+    if (!textareaRef.current) return;
     const rowHeight = 22;
     textareaRef.current.scrollTop = Math.max(0, (focusedLine - 3) * rowHeight);
     textareaRef.current.focus();
-  }, [focusedLine, activeFileId]);
+  }, [activeFileId, codeMirrorEnabled, focusedLine]);
 
   useEffect(() => {
-    if (!nextSelection || !textareaRef.current) return;
-    const el = textareaRef.current;
-    el.focus();
-    el.setSelectionRange(nextSelection.start, nextSelection.end);
+    if (!nextSelection) return;
+    focusEditor();
+    setEditorSelection(nextSelection.start, nextSelection.end);
     useWorkbenchStore.setState({ nextSelection: null, activeSelection: nextSelection });
-  }, [nextSelection]);
+  }, [focusEditor, nextSelection, setEditorSelection]);
 
   useEffect(() => {
     if (findBarRequestId > 0) setFindOpen(true);
   }, [findBarRequestId]);
 
   useEffect(() => {
-    if (!editorCommand || !textareaRef.current) return;
-    const el = textareaRef.current;
-    el.focus();
+    if (!editorCommand) return;
+    focusEditor();
     const clear = () => useWorkbenchStore.setState({ editorCommand: null });
     const kind = editorCommand.kind;
 
     if (kind === "undo") {
-      document.execCommand("undo");
+      if (codeMirrorEnabled) {
+        codeEditorRef.current?.runCommand("undo");
+      } else {
+        document.execCommand("undo");
+      }
       clear();
       return;
     }
     if (kind === "redo") {
-      document.execCommand("redo");
+      if (codeMirrorEnabled) {
+        codeEditorRef.current?.runCommand("redo");
+      } else {
+        document.execCommand("redo");
+      }
       clear();
       return;
     }
     if (kind === "selectAll") {
-      el.setSelectionRange(0, el.value.length);
-      setActiveSelection({ start: 0, end: el.value.length });
+      if (codeMirrorEnabled) {
+        codeEditorRef.current?.runCommand("selectAll");
+        const nextSelection = readSelection();
+        setActiveSelection(nextSelection);
+      } else if (textareaRef.current) {
+        textareaRef.current.setSelectionRange(0, textareaRef.current.value.length);
+        setActiveSelection({
+          start: 0,
+          end: textareaRef.current.value.length,
+        });
+      }
       clear();
       return;
     }
 
-    const start = el.selectionStart ?? 0;
-    const end = el.selectionEnd ?? 0;
-    const value = el.value;
+    const { start, end } = readSelection();
+    const value = readEditorValue();
 
     if (kind === "copy") {
       const slice = value.slice(start, end);
@@ -113,7 +174,11 @@ export function EditorPane() {
         .writeText(slice)
         .then(() => {
           const next = `${value.slice(0, start)}${value.slice(end)}`;
-          updateActiveFileContent(next);
+          if (codeMirrorEnabled) {
+            codeEditorRef.current?.replaceRange(start, end, "");
+          } else {
+            updateActiveFileContent(next);
+          }
           useWorkbenchStore.setState({
             nextSelection: { start, end: start },
             activeSelection: { start, end: start },
@@ -130,7 +195,11 @@ export function EditorPane() {
         .then((text) => {
           const next = `${value.slice(0, start)}${text}${value.slice(end)}`;
           const caret = start + text.length;
-          updateActiveFileContent(next);
+          if (codeMirrorEnabled) {
+            codeEditorRef.current?.replaceRange(start, end, text);
+          } else {
+            updateActiveFileContent(next);
+          }
           useWorkbenchStore.setState({
             nextSelection: { start: caret, end: caret },
             activeSelection: { start: caret, end: caret },
@@ -142,7 +211,15 @@ export function EditorPane() {
     }
 
     clear();
-  }, [editorCommand, setActiveSelection, updateActiveFileContent]);
+  }, [
+    codeMirrorEnabled,
+    editorCommand,
+    focusEditor,
+    readEditorValue,
+    readSelection,
+    setActiveSelection,
+    updateActiveFileContent,
+  ]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -199,7 +276,7 @@ export function EditorPane() {
   }, [findQuery, content, findRegex, findCaseSensitive]);
 
   const jumpToFind = (targetIndex: number) => {
-    if (!textareaRef.current || findMatches.length === 0 || !findQuery) return;
+    if (findMatches.length === 0 || !findQuery) return;
     const nextIdx = ((targetIndex % findMatches.length) + findMatches.length) % findMatches.length;
     const from = findMatches[nextIdx];
     let to = from + findQuery.length;
@@ -215,8 +292,8 @@ export function EditorPane() {
         // keep fallback length
       }
     }
-    textareaRef.current.focus();
-    textareaRef.current.setSelectionRange(from, to);
+    focusEditor();
+    setEditorSelection(from, to);
     setActiveSelection({ start: from, end: to });
     setFindIndex(nextIdx);
   };
@@ -358,49 +435,71 @@ export function EditorPane() {
               })}
             </div>
           </div>
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => updateActiveFileContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (!activeFileId || !editorAutoCloseBrackets) return;
-              if (e.metaKey || e.ctrlKey || e.altKey) return;
-              const pairs: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
-              const close = pairs[e.key];
-              if (!close) return;
-              const ta = e.currentTarget;
-              const start = ta.selectionStart ?? 0;
-              const end = ta.selectionEnd ?? 0;
-              const v = ta.value;
-              const next = `${v.slice(0, start)}${e.key}${close}${v.slice(end)}`;
-              e.preventDefault();
-              updateActiveFileContent(next);
-              const caret = start + 1;
-              queueMicrotask(() => {
-                useWorkbenchStore.setState({
-                  nextSelection: { start: caret, end: caret },
-                  activeSelection: { start: caret, end: caret },
+          {codeMirrorEnabled ? (
+            <LatexCodeEditor
+              ref={codeEditorRef}
+              value={content}
+              onChange={updateActiveFileContent}
+              readOnly={false}
+              spellCheck={spellcheckEnabled}
+              wordWrap={editorWordWrap}
+              autoCloseBrackets={editorAutoCloseBrackets}
+              keybindings={editorKeybindings}
+              onSelectionChange={setActiveSelection}
+              onFocus={() => {
+                if (focusedLine) setFocusedLine(null);
+              }}
+              aria-label="LaTeX source editor"
+              className={cn(
+                "h-full w-full bg-background p-3 leading-[22px] text-foreground",
+                editorNonBlinkingCursor && "ide-caret-noblink",
+              )}
+            />
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => updateActiveFileContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (!activeFileId || !editorAutoCloseBrackets) return;
+                if (e.metaKey || e.ctrlKey || e.altKey) return;
+                const pairs: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
+                const close = pairs[e.key];
+                if (!close) return;
+                const ta = e.currentTarget;
+                const start = ta.selectionStart ?? 0;
+                const end = ta.selectionEnd ?? 0;
+                const v = ta.value;
+                const next = `${v.slice(0, start)}${e.key}${close}${v.slice(end)}`;
+                e.preventDefault();
+                updateActiveFileContent(next);
+                const caret = start + 1;
+                queueMicrotask(() => {
+                  useWorkbenchStore.setState({
+                    nextSelection: { start: caret, end: caret },
+                    activeSelection: { start: caret, end: caret },
+                  });
                 });
-              });
-            }}
-            onSelect={(e) => {
-              const target = e.currentTarget;
-              setActiveSelection({
-                start: target.selectionStart ?? 0,
-                end: target.selectionEnd ?? 0,
-              });
-            }}
-            onClick={() => {
-              if (focusedLine) setFocusedLine(null);
-            }}
-            spellCheck={spellcheckEnabled}
-            wrap={editorWordWrap ? "soft" : "off"}
-            className={cn(
-              "h-full w-full resize-none bg-background p-3 leading-[22px] outline-none text-foreground",
-              !editorWordWrap && "whitespace-pre overflow-x-auto",
-              editorNonBlinkingCursor && "ide-caret-noblink",
-            )}
-          />
+              }}
+              onSelect={(e) => {
+                const target = e.currentTarget;
+                setActiveSelection({
+                  start: target.selectionStart ?? 0,
+                  end: target.selectionEnd ?? 0,
+                });
+              }}
+              onClick={() => {
+                if (focusedLine) setFocusedLine(null);
+              }}
+              spellCheck={spellcheckEnabled}
+              wrap={editorWordWrap ? "soft" : "off"}
+              className={cn(
+                "h-full w-full resize-none bg-background p-3 leading-[22px] outline-none text-foreground",
+                !editorWordWrap && "whitespace-pre overflow-x-auto",
+                editorNonBlinkingCursor && "ide-caret-noblink",
+              )}
+            />
+          )}
         </div>
       </div>
       <div className="h-7 border-t px-3 text-[11px] text-muted-foreground flex items-center justify-between">
