@@ -32,6 +32,13 @@ export interface CompileJobResult {
   pdfBase64?: string;
   mainPdfRelPath?: string;
   errorMessage?: string;
+  errorCode?:
+    | "VALIDATION_ERROR"
+    | "TIMEOUT"
+    | "DOCKER_ERROR"
+    | "LATEX_ERROR"
+    | "OUTPUT_TOO_LARGE"
+    | "INTERNAL_ERROR";
   texliveImage?: string;
   timedOut?: boolean;
 }

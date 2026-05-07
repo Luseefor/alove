@@ -2,12 +2,25 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { CompileJobPayload } from "@alove/protocol";
 import { getCompileQueue } from "@/lib/compileQueue";
-import { isLocalStandalone } from "@/lib/localStandalone";
+import { getCompileAuthPolicy } from "@/lib/compileAuth";
 
 export const runtime = "nodejs";
 
+function isValidCompilePayload(payload: unknown): payload is CompileJobPayload {
+  if (typeof payload !== "object" || payload === null) return false;
+  const record = payload as Record<string, unknown>;
+  if (typeof record.projectId !== "string" || record.projectId.trim() === "") return false;
+  if (typeof record.mainFile !== "string" || record.mainFile.trim() === "") return false;
+  if (typeof record.files !== "object" || record.files === null) return false;
+  return Object.values(record.files).every((value) => typeof value === "string");
+}
+
 export async function POST(req: Request) {
-  if (process.env.CLERK_SECRET_KEY && !isLocalStandalone()) {
+  const authPolicy = getCompileAuthPolicy();
+  if ("error" in authPolicy) {
+    return NextResponse.json({ error: authPolicy.error }, { status: 500 });
+  }
+  if (!authPolicy.allowAnonymous) {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,9 +34,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  if (!body.projectId || !body.mainFile || !body.files) {
+  if (!isValidCompilePayload(body)) {
     return NextResponse.json(
-      { error: "projectId, mainFile, and files are required" },
+      { error: "projectId, mainFile, and files (string map) are required" },
       { status: 400 },
     );
   }

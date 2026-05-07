@@ -1,7 +1,22 @@
+function flagEnabled(value: string | undefined): boolean {
+  return value === "true" || value === "1";
+}
+
 /** True when the app runs without Clerk/Convex (offline editor + compile queue only). */
-export function isLocalStandalone(): boolean {
+export function isLocalStandalone(env: NodeJS.ProcessEnv = process.env): boolean {
+  return flagEnabled(env.NEXT_PUBLIC_LOCAL_STANDALONE);
+}
+
+export function isProductionRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.NODE_ENV === "production";
+}
+
+export function isPlaceholderConfigValue(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
   return (
-    process.env.NEXT_PUBLIC_LOCAL_STANDALONE === "true" ||
-    process.env.NEXT_PUBLIC_LOCAL_STANDALONE === "1"
+    normalized.includes("placeholder") ||
+    normalized.includes("example.com") ||
+    normalized.includes("changeme") ||
+    normalized.includes("your-")
   );
 }
