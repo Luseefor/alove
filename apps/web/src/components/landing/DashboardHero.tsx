@@ -28,7 +28,7 @@ export function DashboardHero() {
             <Edit3 className="w-5 h-5" />
             Open Editor
           </Button>
-          <Button variant="outline" size="lg" className="h-14 px-8 rounded-2xl gap-2 text-base font-bold border-2 hover:bg-zinc-50 hover:scale-[1.02] transition-transform active:scale-95">
+          <Button variant="outline" size="lg" href="/editor?new=true" className="h-14 px-8 rounded-2xl gap-2 text-base font-bold border-2 hover:bg-zinc-50 hover:scale-[1.02] transition-transform active:scale-95">
             <Plus className="w-5 h-5" />
             New Project
           </Button>

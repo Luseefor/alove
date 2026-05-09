@@ -2,16 +2,54 @@ import { ProjectFile } from "./types";
 
 export class ProjectService {
   /**
-   * Transforms a flat list of files (from DB or local memory) into a hierarchical tree.
+   * Transforms a flat list of files into a hierarchical tree.
    */
   static buildTree(files: { id?: string; path: string; content?: string; type?: string }[]): ProjectFile[] {
     const root: ProjectFile[] = [];
     const map = new Map<string, ProjectFile>();
     
+    // Sort files by path length to ensure parents are handled before deep children if we were iterating differently,
+    // but here we'll just use a map-based approach.
+    
+    const getOrCreateFolder = (path: string): ProjectFile => {
+      let node = map.get(path);
+      if (node) return node;
+      
+      const parts = path.split('/');
+      const name = parts[parts.length - 1];
+      
+      node = {
+        id: path,
+        name,
+        path,
+        type: 'folder',
+        children: []
+      };
+      
+      map.set(path, node);
+      
+      if (parts.length > 1) {
+        const parentPath = parts.slice(0, -1).join('/');
+        const parent = getOrCreateFolder(parentPath);
+        parent.children = parent.children || [];
+        parent.children.push(node);
+      } else {
+        root.push(node);
+      }
+      
+      return node;
+    };
+
     for (const f of files) {
+      if (f.type === 'folder') {
+        getOrCreateFolder(f.path);
+        continue;
+      }
+      
       const parts = f.path.split('/');
       const name = parts[parts.length - 1];
       let type = f.type as ProjectFile["type"] | undefined;
+      
       if (!type) {
          if (name.endsWith('.tex')) type = 'tex';
          else if (name.endsWith('.bib')) type = 'bib';
@@ -27,28 +65,14 @@ export class ProjectService {
         path: f.path,
         type,
         content: f.content,
-        children: type === 'folder' ? [] : undefined
+        children: undefined
       };
       
       map.set(f.path, node);
-    }
-    
-    for (const [path, node] of map.entries()) {
-      const parts = path.split('/');
+      
       if (parts.length > 1) {
         const parentPath = parts.slice(0, -1).join('/');
-        let parent = map.get(parentPath);
-        if (!parent) {
-          parent = {
-             id: parentPath,
-             name: parts[parts.length - 2] || parentPath,
-             path: parentPath,
-             type: 'folder',
-             children: []
-          };
-          map.set(parentPath, parent);
-          if (parts.length === 2) root.push(parent); // only push top-level virtual folders to root
-        }
+        const parent = getOrCreateFolder(parentPath);
         parent.children = parent.children || [];
         parent.children.push(node);
       } else {

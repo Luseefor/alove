@@ -72,6 +72,18 @@ interface WorkbenchState {
   pdfZoom: number;
   pdfPage: number;
   pdfPageCount: number;
+  stats: {
+    words: number;
+    chars: number;
+    equations: number;
+    figures: number;
+    tables: number;
+    pages: number | null;
+  };
+  cursor: {
+    line: number;
+    column: number;
+  };
   persistence: {
     save?: (path: string, content: string, expectedVersion?: number) => Promise<{ version: number } | void>;
     delete?: (path: string) => Promise<void>;
@@ -123,6 +135,17 @@ interface WorkbenchState {
   closeActiveEditorTab: () => void;
 }
 
+function calculateStats(content: string) {
+  const words = content.trim().split(/\s+/).filter((w) => w.length > 0).length;
+  const chars = content.length;
+  const equations =
+    (content.match(/\\begin\{equation\}/g) || []).length +
+    (content.match(/\$/g) || []).length / 2;
+  const figures = (content.match(/\\begin\{figure\}/g) || []).length;
+  const tables = (content.match(/\\begin\{table\}/g) || []).length;
+  return { words, chars, equations, figures, tables, pages: null };
+}
+
 export const useWorkbenchStore = create<WorkbenchState>()(
   persist(
     (set, get) => ({
@@ -157,6 +180,18 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       pdfZoom: 100,
       pdfPage: 1,
       pdfPageCount: 1,
+      stats: {
+        words: 0,
+        chars: 0,
+        equations: 0,
+        figures: 0,
+        tables: 0,
+        pages: null,
+      },
+      cursor: {
+        line: 1,
+        column: 1,
+      },
       persistence: {},
 
       setSettingsModalOpen: (open) => set({ settingsModalOpen: open }),
@@ -170,7 +205,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setActiveFile: (id) => {
         set({ activeFileId: id });
         const content = id ? get().filesByPath[id] ?? "" : "";
-        set({ outline: OutlineService.parse(content), focusedLine: null });
+        set({
+          outline: OutlineService.parse(content),
+          focusedLine: null,
+          stats: calculateStats(content),
+        });
       },
       setProjectTree: (tree) => set({ projectTree: tree }),
       setProjectTitle: (title) => set({ projectTitle: title }),
@@ -191,6 +230,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         }
         const nextOpen = current.openFiles.filter((f) => f in filesByPath);
         if (nextActive && !nextOpen.includes(nextActive)) nextOpen.push(nextActive);
+        const activeContent = nextActive ? filesByPath[nextActive] ?? "" : "";
         set({
           projectId,
           projectTitle: title ?? current.projectTitle,
@@ -200,7 +240,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           dirtyByPath,
           activeFileId: nextActive,
           openFiles: nextOpen,
-          outline: OutlineService.parse(nextActive ? filesByPath[nextActive] ?? "" : ""),
+          outline: OutlineService.parse(activeContent),
+          stats: calculateStats(activeContent),
         });
       },
       updateActiveFileContent: (content) => {
@@ -212,6 +253,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           filesByPath: nextFiles,
           dirtyByPath: nextDirty,
           outline: OutlineService.parse(content),
+          stats: calculateStats(content),
         });
       },
       saveActiveFile: () => {
@@ -382,7 +424,19 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         });
         return changed;
       },
-      setActiveSelection: (selection) => set({ activeSelection: selection }),
+      setActiveSelection: (selection) => {
+        const { activeFileId, filesByPath } = get();
+        if (!activeFileId || !selection) {
+          set({ activeSelection: selection });
+          return;
+        }
+        const content = filesByPath[activeFileId] ?? "";
+        const upToHead = content.slice(0, selection.end);
+        const lines = upToHead.split("\n");
+        const line = lines.length;
+        const column = lines[lines.length - 1].length + 1;
+        set({ activeSelection: selection, cursor: { line, column } });
+      },
       wrapSelectionOrInsert: (before, after = "", fallback) => {
         const { activeFileId, filesByPath, dirtyByPath, activeSelection } = get();
         if (!activeFileId) return;
@@ -568,12 +622,16 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           });
         }
       },
-      openFile: (id) => set((s) => ({
-        openFiles: s.openFiles.includes(id) ? s.openFiles : [...s.openFiles, id],
-        activeFileId: id,
-        outline: OutlineService.parse(s.filesByPath[id] ?? ""),
-        focusedLine: null,
-      })),
+      openFile: (id) => {
+        const content = get().filesByPath[id] ?? "";
+        set((s) => ({
+          openFiles: s.openFiles.includes(id) ? s.openFiles : [...s.openFiles, id],
+          activeFileId: id,
+          outline: OutlineService.parse(content),
+          focusedLine: null,
+          stats: calculateStats(content),
+        }));
+      },
       closeFile: (id) => set((s) => {
         const next = s.openFiles.filter(f => f !== id);
         const nextActive = s.activeFileId === id ? (next[next.length - 1] || null) : s.activeFileId;

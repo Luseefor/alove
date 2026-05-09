@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { LatexEditorApp } from "./latex-ide";
@@ -9,6 +9,7 @@ import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { DEMO_FILES } from "@/demo/demoProject";
+import { useSearchParams } from "next/navigation";
 
 function EditorWorkbenchConvex() {
   useUser();
@@ -75,23 +76,38 @@ function EditorWorkbenchConvex() {
 function EditorWorkbenchLocal() {
   const initializeProject = useWorkbenchStore((s) => s.initializeProject);
   const setPersistenceHandlers = useWorkbenchStore((s) => s.setPersistenceHandlers);
+  const searchParams = useSearchParams();
+  const isNew = searchParams.get("new") === "true";
 
   useEffect(() => {
-    initializeProject({
-      projectId: null,
-      title: "Deep Learning Survey",
-      files: DEMO_FILES.filter((f) => f.type !== "folder").map((f) => ({
-        path: f.path,
-        content: f.content ?? "",
-      })),
-    });
+    if (isNew) {
+      initializeProject({
+        projectId: "new-local-project",
+        title: "Untitled Project",
+        files: [
+          { path: "main.tex", content: "\\documentclass{article}\n\\begin{document}\n\n\\end{document}\n" }
+        ],
+      });
+    } else {
+      initializeProject({
+        projectId: null,
+        title: "Quantum Entanglement Review",
+        files: DEMO_FILES.filter((f) => f.type !== "folder").map((f) => ({
+          path: f.path,
+          content: f.content ?? "",
+        })),
+      });
+    }
     setPersistenceHandlers({});
-  }, [initializeProject, setPersistenceHandlers]);
+  }, [initializeProject, setPersistenceHandlers, isNew]);
 
   return <LatexEditorApp />;
 }
 
 export function EditorWorkbench() {
-  if (isLocalStandalone()) return <EditorWorkbenchLocal />;
-  return <EditorWorkbenchConvex />;
+  return (
+    <Suspense fallback={<div className="flex h-[100dvh] items-center justify-center text-zinc-500 font-medium">Loading editor...</div>}>
+      {isLocalStandalone() ? <EditorWorkbenchLocal /> : <EditorWorkbenchConvex />}
+    </Suspense>
+  );
 }

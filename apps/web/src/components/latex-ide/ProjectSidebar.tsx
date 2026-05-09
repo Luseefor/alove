@@ -16,10 +16,8 @@ import {
   Upload,
   Pencil,
   Trash2,
-  Scissors,
   Layout,
   Plus,
-  Filter
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -62,6 +60,7 @@ async function readFileForProjectPath(file: File, logicalPath: string): Promise<
 
 export function ProjectSidebar() {
   const {
+    projectTitle,
     filesByPath,
     activeRail,
     activeFileId,
@@ -270,7 +269,7 @@ export function ProjectSidebar() {
             <button className="p-0.5 hover:bg-zinc-100 rounded transition-colors">
                <ChevronDown size={14} className="text-zinc-400" />
             </button>
-            <span className="text-[11px] font-bold text-zinc-900 tracking-tight">Thesis</span>
+            <span className="text-[11px] font-bold text-zinc-900 tracking-tight">{projectTitle}</span>
           </div>
           <div className="flex items-center gap-0.5">
             <SidebarAction icon={FilePlus} title="New file" onClick={() => setNewFileOpen(true)} />
@@ -291,6 +290,10 @@ export function ProjectSidebar() {
           }}
         />
 
+        {uploadError ? (
+          <div className="px-3 py-1.5 text-[11px] text-error border-b bg-error-bg border-error-border">{uploadError}</div>
+        ) : null}
+
         <div className="flex-1 overflow-y-auto pt-1 min-h-0 bg-white">
           {filteredTree.length === 0 ? (
             <div className="px-6 py-12 text-center space-y-3">
@@ -306,31 +309,24 @@ export function ProjectSidebar() {
       </div>
 
       {/* Combined Snippets + Outline Section */}
-      <div className="h-[40%] border-t flex flex-col min-h-0 bg-white shadow-[0_-1px_3px_rgba(0,0,0,0.02)]">
-        <div className="h-10 px-1 border-b flex items-center justify-between bg-zinc-50/50">
-           <div className="flex items-center">
-              <SidebarTab 
-                active={sidebarTab === "snippets"} 
-                onClick={() => setSidebarTab("snippets")}
-                label="Snippets"
-              />
-              <SidebarTab 
-                active={sidebarTab === "outline"} 
-                onClick={() => setSidebarTab("outline")}
-                label="Outline"
-              />
-           </div>
-           {sidebarTab === "snippets" && (
-             <button className="mr-2 p-1 text-primary hover:bg-primary/5 rounded-lg transition-colors active:scale-95">
-                <Plus size={14} />
-             </button>
-           )}
+      <div className="flex-1 min-h-0 border-t flex flex-col bg-white">
+        <div className="h-10 px-1 border-b flex items-center bg-zinc-50/50">
+           <SidebarTab 
+             active={sidebarTab === "snippets"} 
+             onClick={() => setSidebarTab("snippets")}
+             label="Snippets"
+           />
+           <SidebarTab 
+             active={sidebarTab === "outline"} 
+             onClick={() => setSidebarTab("outline")}
+             label="Outline"
+           />
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col">
            {sidebarTab === "snippets" ? (
              <div className="flex-1 flex flex-col min-h-0">
-                <div className="p-2 border-b border-zinc-100 flex gap-2">
+                <div className="p-2 border-b border-zinc-100 flex gap-2 bg-white">
                    <div className="relative flex-1 group">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-zinc-400 group-focus-within:text-primary transition-colors" />
                       <input 
@@ -340,11 +336,8 @@ export function ProjectSidebar() {
                         className="w-full bg-zinc-100/50 hover:bg-zinc-100 focus:bg-white rounded-lg h-7 pl-7 pr-3 text-[11px] outline-none border border-transparent focus:border-zinc-200 transition-all font-medium"
                       />
                    </div>
-                   <button className="p-1 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-md transition-all">
-                      <Filter size={14} />
-                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-white">
                    {snippets.length === 0 ? (
                       <p className="text-[10px] text-zinc-400 text-center py-4 font-medium italic">No snippets found.</p>
                    ) : (
@@ -363,11 +356,6 @@ export function ProjectSidebar() {
                       ))
                    )}
                 </div>
-                <div className="p-2 border-t border-zinc-100 bg-zinc-50/20">
-                   <button className="w-full py-1.5 rounded-xl border border-zinc-200 bg-white text-[11px] font-bold text-zinc-700 hover:bg-zinc-50 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
-                      <Plus size={14} /> New Snippet
-                   </button>
-                </div>
              </div>
            ) : (
              <div className="flex-1 overflow-y-auto py-2 px-2 bg-white">
@@ -379,15 +367,14 @@ export function ProjectSidebar() {
                ) : (
                  <div className="space-y-0.5">
                    {outline.map((node) => (
-                     <OutlineItem 
+                     <RecursiveOutlineItem 
                        key={node.id} 
-                       label={node.title} 
-                       level={node.level} 
-                       onClick={() => jumpToDiagnostic({
+                       node={node} 
+                       onJump={(line) => jumpToDiagnostic({
                           severity: "info",
-                          message: node.title,
+                          message: `Jump to ${node.title}`,
                           file: activeFileId || "main.tex",
-                          line: node.line,
+                          line,
                           column: 1
                        })}
                      />
@@ -471,6 +458,25 @@ function SidebarTab({ active, onClick, label }: { active: boolean, onClick: () =
         <div className="absolute bottom-0 inset-x-4 h-0.5 bg-primary rounded-t-full shadow-[0_0_8px_rgba(124,58,237,0.5)]" />
       )}
     </button>
+  );
+}
+
+function RecursiveOutlineItem({ node, onJump }: { node: import("@/services/OutlineService").OutlineNode, onJump: (line: number) => void }) {
+  return (
+    <div className="space-y-0.5">
+      <OutlineItem 
+        label={node.title} 
+        level={node.level} 
+        onClick={() => onJump(node.line)} 
+      />
+      {node.children && node.children.length > 0 && (
+        <div className="space-y-0.5 px-0.5">
+          {node.children.map((child) => (
+            <RecursiveOutlineItem key={child.id} node={child} onJump={onJump} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

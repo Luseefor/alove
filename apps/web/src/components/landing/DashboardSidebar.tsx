@@ -4,13 +4,6 @@ import { cn } from "@/lib/utils";
 import { 
   Home, 
   Files, 
-  Scissors, 
-  Quote, 
-  LayoutTemplate, 
-  Trash2, 
-  Zap, 
-  FileText, 
-  Library, 
   Settings,
   Circle,
   Users
@@ -64,10 +57,6 @@ export function DashboardSidebar() {
           </div>
           <div className="space-y-0.5">
             <SidebarItem icon={Files} label="Projects" href="/editor" />
-            <SidebarItem icon={Scissors} label="Snippets" disabled />
-            <SidebarItem icon={Quote} label="Citations" disabled />
-            <SidebarItem icon={LayoutTemplate} label="Templates" disabled />
-            <SidebarItem icon={Trash2} label="Trash" disabled />
           </div>
         </div>
 
@@ -76,9 +65,6 @@ export function DashboardSidebar() {
             Tools
           </div>
           <div className="space-y-0.5">
-            <SidebarItem icon={Zap} label="Compile" disabled />
-            <SidebarItem icon={FileText} label="PDF Workflow" disabled />
-            <SidebarItem icon={Library} label="Bibliography" disabled />
             <SidebarItem icon={Settings} label="Settings" disabled />
           </div>
         </div>

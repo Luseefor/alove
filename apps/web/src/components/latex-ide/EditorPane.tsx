@@ -35,8 +35,8 @@ export function EditorPane() {
     updateActiveFileContent,
     setActiveSelection,
     saveActiveFile,
-    runCompile,
     setFocusedLine,
+    cursor,
   } = useWorkbenchStore();
   
   const spellcheckEnabled = useIdeSettingsStore((s) => s.spellcheckEnabled);
@@ -278,7 +278,7 @@ export function EditorPane() {
       {/* Editor Status Bar */}
       <div className="h-8 border-t bg-zinc-50/50 flex items-center justify-between px-4 shrink-0 select-none">
         <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-           <span className="text-zinc-600">Ln 17, Col 1</span>
+           <span className="text-zinc-600">Ln {cursor.line}, Col {cursor.column}</span>
            <span>Spaces: 2</span>
            <span>UTF-8</span>
            <span>LF</span>

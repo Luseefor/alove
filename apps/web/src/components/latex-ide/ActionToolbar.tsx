@@ -3,15 +3,11 @@
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import {
   Quote,
-  Library,
   ChevronDown,
   Search,
   Layout,
   Table as TableIcon,
-  MousePointer2,
-  BarChart3,
   Play,
-  Settings,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -134,12 +130,6 @@ export function ActionToolbar() {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        <ToolbarButton icon={Library} label="Library" disabled />
-      </ToolbarGroup>
-
-      <ToolbarGroup label="Bibliography">
-        <ToolbarButton icon={Settings} label="Style" disabled />
-        <ToolbarButton icon={Layout} label="Manage" disabled />
       </ToolbarGroup>
 
       <ToolbarGroup label="Figures & Tables">
@@ -159,8 +149,6 @@ export function ActionToolbar() {
             "\\begin{table}[htbp]\n  \\centering\n  \\begin{tabular}{lcc}\n    A & B & C \\\\\n  \\end{tabular}\n  \\caption{Table caption.}\n  \\label{tab:example}\n\\end{table}\n"
           )}
         />
-        <ToolbarButton icon={MousePointer2} label="Subfloat" disabled />
-        <ToolbarButton icon={BarChart3} label="Chart" disabled />
       </ToolbarGroup>
 
       <ToolbarGroup label="Search">
@@ -173,17 +161,14 @@ export function ActionToolbar() {
       </ToolbarGroup>
 
       <ToolbarGroup label="Compile">
-        <div className="flex items-center bg-zinc-100 rounded-lg p-0.5 border border-zinc-200 shadow-inner">
+        <div className="flex items-center">
            <ToolbarButton 
              icon={Play} 
-             label="PDF" 
+             label="Build" 
              variant="primary"
              dataTestId="compile-button"
              onClick={() => void runCompile()}
            />
-           <button className="px-1.5 text-zinc-500 hover:text-zinc-900 transition-colors">
-              <ChevronDown className="w-3.5 h-3.5" />
-           </button>
         </div>
       </ToolbarGroup>
     </div>

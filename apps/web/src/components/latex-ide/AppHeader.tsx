@@ -9,11 +9,8 @@ import {
   Undo2,
   Redo2,
   FileText,
-  FolderOpen,
   Share2,
   Download,
-  Bell,
-  HelpCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -74,8 +71,6 @@ export function AppHeader() {
 
         {/* Global Actions */}
         <div className="flex items-center gap-1">
-          <IconButton icon={FileText} title="Project Files" />
-          <IconButton icon={FolderOpen} title="Open Project" />
           <IconButton 
             icon={Save} 
             title="Save (Ctrl+S)" 
@@ -92,19 +87,20 @@ export function AppHeader() {
       {/* Project Title & State */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
         <div className="flex flex-col items-center">
-          <button className="flex items-center gap-1.5 px-3 py-1 rounded-xl hover:bg-zinc-50 transition-colors group">
-            <span className="text-[15px] font-bold text-zinc-900 tracking-tight">{projectTitle}</span>
-            <ChevronDown size={14} className="text-zinc-400 group-hover:text-zinc-600 transition-colors" />
-          </button>
-          <div className="flex items-center gap-1.5 mt-[-2px]">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-bold text-zinc-900 tracking-tight">{projectTitle}</span>
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              hasDirty ? "bg-warning animate-pulse" : "bg-success shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+            )} />
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
             <span className={cn(
-              "text-[10px] font-bold uppercase tracking-widest",
+              "text-[9px] font-black uppercase tracking-[0.1em]",
               hasDirty ? "text-warning" : "text-success"
             )}>
-              {hasDirty ? "Unsaved Changes" : "Saved 2m ago"}
+              {hasDirty ? "Unsaved Changes" : "Project Saved"}
             </span>
-            <div className="w-1 h-1 rounded-full bg-zinc-300" />
-            <span className="text-[10px] font-bold text-primary bg-primary/5 px-1.5 rounded-sm border border-primary/10">.tex</span>
           </div>
         </div>
       </div>
@@ -112,21 +108,20 @@ export function AppHeader() {
       {/* Right Actions */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 mr-2">
-           <IconButton icon={Bell} title="Notifications" disabled />
-           <IconButton icon={HelpCircle} title="Help" />
            <IconButton icon={Settings} title="Settings" onClick={() => setSettingsModalOpen(true)} />
         </div>
 
         <div className="flex items-center gap-2 pr-4 border-r border-zinc-100 mr-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-9 px-4 rounded-xl font-bold gap-2 text-zinc-600 border-zinc-200 hover:bg-zinc-50"
-            disabled={!localMode}
-          >
-            <Share2 className="w-4 h-4" />
-            Share
-          </Button>
+          {!localMode && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-9 px-4 rounded-xl font-bold gap-2 text-zinc-600 border-zinc-200 hover:bg-zinc-50"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </Button>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

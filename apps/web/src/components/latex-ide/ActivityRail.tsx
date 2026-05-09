@@ -6,9 +6,6 @@ import {
   Menu, 
   FileText, 
   Search as SearchIcon,
-  GitBranch,
-  History,
-  LayoutGrid
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,27 +64,9 @@ export function ActivityRail() {
           active={activeRail === "search" && sidebarOpen}
           onClick={() => setActiveRail("search")}
         />
-        <RailItem 
-          icon={GitBranch} 
-          label="Source Control" 
-          disabled
-          onClick={() => {}}
-        />
-        <RailItem 
-          icon={History} 
-          label="History" 
-          disabled
-          onClick={() => {}}
-        />
       </div>
 
       <div className="relative z-[1] flex flex-col w-full items-center pb-4">
-        <RailItem 
-          icon={LayoutGrid} 
-          label="Tools" 
-          disabled
-          onClick={() => {}}
-        />
         <RailItem 
           icon={Settings} 
           label="Settings" 

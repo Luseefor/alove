@@ -1,14 +1,8 @@
 "use client";
 
 import { 
-  Search, 
-  Bell, 
   HelpCircle, 
   FileText,
-  FolderOpen,
-  Cloud,
-  Star,
-  History,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -49,27 +43,13 @@ export function DashboardHeader() {
         </div>
 
         <nav className="flex items-center gap-1.5">
-          <IconButton icon={FileText} title="Recent Documents" />
-          <IconButton icon={FolderOpen} title="Open Project" />
-          <IconButton icon={Cloud} title="Cloud Sync" disabled />
-          <IconButton icon={Star} title="Favorites" disabled />
-          <IconButton icon={History} title="Version History" disabled />
+          <IconButton icon={FileText} title="Projects" />
         </nav>
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="flex items-center bg-zinc-100/50 rounded-lg px-3 py-1.5 gap-2 border border-transparent focus-within:border-primary/20 focus-within:bg-white transition-all group w-64">
-          <Search className="w-4 h-4 text-zinc-400 group-focus-within:text-primary transition-colors" />
-          <input 
-            type="text" 
-            placeholder="Search projects..." 
-            className="bg-transparent border-none text-[13px] text-zinc-900 placeholder:text-zinc-400 focus:ring-0 w-full p-0"
-          />
-        </div>
-
         <div className="flex items-center gap-1 pl-3 border-l border-border ml-2">
-          <IconButton icon={Bell} title="Notifications" disabled />
-          <IconButton icon={HelpCircle} title="Help & Support" />
+           <IconButton icon={HelpCircle} title="Help & Support" />
           
           <div className="flex items-center gap-2 ml-1">
             <PaletteSwitcher size="sm" />
