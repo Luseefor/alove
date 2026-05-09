@@ -4,6 +4,11 @@
 This PR finalizes the production hardening and redesign phases for the LaTeX IDE editor. The primary objective has been achieved: CodeMirror is now the default editor surface, ensuring a robust, extensible foundation for advanced editing features while preserving the stable textarea fallback as a rollback safety measure. Auth, configuration, and compile worker safety have also been significantly hardened.
 
 ## Major Changes
+- **Premium UI Redesign:** Completely overhauled the landing dashboard and editor workspace to match high-fidelity visual specifications.
+  - Implemented a refined light theme with violet accents and soft lavender surfaces.
+  - New Dashboard with project previews, status cards, and quick start actions.
+  - Redesigned Editor with tabbed file management, secondary feature toolbar, and enhanced PDF preview.
+  - Integrated document statistics and build status cards.
 - **Auth/config fail-closed hardening:** Ensure cloud providers fail loudly rather than using silent placeholders, and compile APIs fail closed when secrets are missing.
 - **Compile worker hardening:** Introduced payload limits, docker timeouts, size checks, and structured error/log formatting.
 - **Editor Mode Semantics:** 

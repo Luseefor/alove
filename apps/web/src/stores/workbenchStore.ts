@@ -41,7 +41,7 @@ interface WorkbenchState {
   sidebarOpen: boolean;
   bottomPanelOpen: boolean;
   activeRail: "explorer" | "search" | "source-control" | "ai";
-  activeBottomTab: "problems" | "log" | "terminal" | "output" | "ai";
+  activeBottomTab: "problems" | "log" | "terminal" | "output" | "ai" | "citations";
   activeFileId: string | null;
   openFiles: string[];
 

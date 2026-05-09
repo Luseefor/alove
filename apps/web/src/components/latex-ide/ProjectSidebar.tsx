@@ -16,6 +16,10 @@ import {
   Upload,
   Pencil,
   Trash2,
+  Scissors,
+  Layout,
+  Plus,
+  Filter
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -69,7 +73,10 @@ export function ProjectSidebar() {
     runProjectSearch,
     clearProjectSearch,
     jumpToDiagnostic,
+    appendToActiveFile,
+    wrapSelectionOrInsert
   } = useWorkbenchStore();
+  
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [projectSearchInput, setProjectSearchInput] = useState(projectSearchQuery);
@@ -80,6 +87,8 @@ export function ProjectSidebar() {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderPath, setNewFolderPath] = useState("figures");
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<"snippets" | "outline">("snippets");
+  const [snippetSearch, setSnippetSearch] = useState("");
 
   const handleProjectUploads = async (list: FileList | null) => {
     if (!list?.length) return;
@@ -119,7 +128,7 @@ export function ProjectSidebar() {
     setNewFolderOpen(false);
     setUploadError(null);
   };
-  /** Tree is always derived from live workspace files (includes newly created local files). */
+
   const fileTree = useMemo(
     () =>
       ProjectService.buildTree(
@@ -129,26 +138,40 @@ export function ProjectSidebar() {
   );
   const filteredTree = filterTree(fileTree, searchQuery);
 
+  const snippets = [
+    { label: "Figure", code: "\\begin{figure}[htbp]\n  \\centering\n  \\includegraphics[width=\\linewidth]{figure.png}\n  \\caption{Caption text.}\n  \\label{fig:example}\n\\end{figure}", icon: Layout },
+    { label: "Table", code: "\\begin{table}[htbp]\n  \\centering\n  \\begin{tabular}{lcc}\n    A & B & C \\\\\n  \\end{tabular}\n  \\caption{Table caption.}\n  \\label{tab:example}\n\\end{table}", icon: FileText },
+    { label: "Theorem", code: "\\begin{theorem}\nStatement.\n\\end{theorem}", icon: FileCode },
+    { label: "Fraction", code: "\\frac{a}{b}", icon: FileCode, wrap: ["\\frac{", "}{b}"] },
+    { label: "Summation", code: "\\sum_{i=1}^{n} i", icon: FileCode },
+    { label: "Integral", code: "\\int_{a}^{b} f(x) dx", icon: FileCode },
+    { label: "Equation", code: "\\begin{equation}\n  E = mc^2\n\\end{equation}", icon: FileCode, wrap: ["\\begin{equation}\n", "\n\\end{equation}"] },
+    { label: "Align", code: "\\begin{align}\n  a &= b \\\\\n  c &= d\n\\end{align}", icon: FileCode }
+  ].filter(s => s.label.toLowerCase().includes(snippetSearch.toLowerCase()));
+
   if (activeRail === "search") {
     return (
-      <aside className="w-full h-full flex flex-col bg-background select-none border-r isolate">
-        <div className="h-10 border-b px-3 flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider">Search</span>
+      <aside className="w-full h-full flex flex-col bg-white select-none border-r shrink-0">
+        <div className="h-10 border-b px-3 flex items-center justify-between bg-zinc-50/50">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">Global Search</span>
           <button
             onClick={clearProjectSearch}
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="text-[10px] font-bold text-primary hover:underline"
           >
             Clear
           </button>
         </div>
-        <div className="p-2 border-b">
+        <div className="p-3 space-y-3">
           <div className="flex gap-2">
-            <input
-              value={projectSearchInput}
-              onChange={(e) => setProjectSearchInput(e.target.value)}
-              placeholder="Search in project..."
-              className="h-8 flex-1 rounded border bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-primary"
-            />
+            <div className="relative flex-1 group">
+               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400 group-focus-within:text-primary transition-colors" />
+               <input
+                 value={projectSearchInput}
+                 onChange={(e) => setProjectSearchInput(e.target.value)}
+                 placeholder="Search text in project..."
+                 className="h-8 w-full rounded-lg border border-zinc-200 bg-white pl-8 pr-3 text-xs outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+               />
+            </div>
             <button
               onClick={() =>
                 runProjectSearch(projectSearchInput, {
@@ -157,38 +180,45 @@ export function ProjectSidebar() {
                   caseSensitive: searchCaseSensitive,
                 })
               }
-              className="h-8 px-2 rounded bg-primary text-primary-foreground text-xs"
+              className="h-8 px-4 rounded-lg bg-primary text-white text-[11px] font-bold shadow-md shadow-primary/10 active:scale-95 transition-transform"
             >
               Find
             </button>
           </div>
-          <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
-            <label className="inline-flex items-center gap-1">
+          <div className="flex items-center gap-4 text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1">
+            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-zinc-600 transition-colors">
               <input
                 type="checkbox"
                 checked={searchRegex}
                 onChange={(e) => setSearchRegex(e.target.checked)}
+                className="w-3 h-3 rounded border-zinc-300 text-primary focus:ring-primary/20"
               />
               Regex
             </label>
-            <label className="inline-flex items-center gap-1">
+            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-zinc-600 transition-colors">
               <input
                 type="checkbox"
                 checked={searchCaseSensitive}
                 onChange={(e) => setSearchCaseSensitive(e.target.checked)}
+                className="w-3 h-3 rounded border-zinc-300 text-primary focus:ring-primary/20"
               />
-              Case sensitive
+              Case Sensitive
             </label>
           </div>
         </div>
-        <div className="px-3 py-2 text-xs text-muted-foreground border-b">
-          {projectSearchResults.length} matches
-          {projectSearchQuery ? ` for "${projectSearchQuery}"` : ""}
+        <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 bg-zinc-50/50 border-y border-zinc-100 flex justify-between">
+          <span>{projectSearchResults.length} matches</span>
+          {projectSearchQuery && <span className="truncate max-w-[150px]">for &quot;{projectSearchQuery}&quot;</span>}
         </div>
-        <div className="flex-1 overflow-auto p-2 space-y-1">
+        <div className="flex-1 overflow-auto p-2 space-y-1 bg-white">
           {projectSearchResults.length === 0 ? (
-            <div className="text-xs text-muted-foreground px-2 py-4">
-              No results yet. Enter a query and click Find.
+            <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-3">
+               <div className="w-12 h-12 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-300 border border-zinc-100">
+                  <Search className="w-6 h-6" />
+               </div>
+               <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                 No results yet. Enter a query and click Find to search across all files.
+               </p>
             </div>
           ) : (
             projectSearchResults.slice(0, 500).map((r, idx) => (
@@ -203,11 +233,13 @@ export function ProjectSidebar() {
                     column: r.column,
                   })
                 }
-                className="w-full text-left rounded border px-2 py-1.5 hover:bg-muted/60"
+                className="w-full text-left rounded-xl border border-zinc-100 p-3 hover:bg-zinc-50 hover:border-primary/20 transition-all group shadow-sm mb-2"
               >
-                <div className="text-[11px] font-medium truncate">{r.path}</div>
-                <div className="text-[10px] text-muted-foreground">Ln {r.line}, Col {r.column}</div>
-                <div className="text-[11px] text-foreground/80 truncate mt-0.5">{r.preview}</div>
+                <div className="flex justify-between items-start mb-1">
+                   <div className="text-[11px] font-bold text-zinc-900 group-hover:text-primary transition-colors truncate pr-2">{r.path}</div>
+                   <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-tight shrink-0">Ln {r.line}</div>
+                </div>
+                <div className="text-[11px] text-zinc-500 font-medium line-clamp-2 leading-relaxed bg-zinc-50/50 p-2 rounded-lg border border-zinc-100/50 italic group-hover:bg-white transition-colors">{r.preview}</div>
               </button>
             ))
           )}
@@ -217,35 +249,36 @@ export function ProjectSidebar() {
   }
 
   return (
-    <aside className="w-full h-full flex flex-col bg-background select-none border-r isolate">
+    <aside className="w-full h-full flex flex-col bg-white select-none border-r shrink-0">
+      {/* Project Header */}
+      <div className="h-12 border-b flex items-center justify-between px-4 shrink-0 bg-white">
+        <button className="flex items-center gap-2 group">
+          <span className="text-[12px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-900 transition-colors">Project</span>
+          <ChevronDown size={14} className="text-zinc-400 group-hover:text-zinc-600 transition-colors" />
+        </button>
+        <div className="flex items-center gap-1">
+          <IconButton icon={Search} title="Search Files" />
+          <IconButton icon={Plus} title="New" onClick={() => setNewFileOpen(true)} />
+        </div>
+      </div>
+
       {/* File Tree Section */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="h-9 flex items-center justify-between px-3 shrink-0 border-b">
+        {/* Tree Toolbar */}
+        <div className="h-9 flex items-center justify-between px-3 shrink-0 bg-zinc-50/30 border-b border-zinc-100">
           <div className="flex items-center gap-2">
-            <ChevronDown size={14} className="text-muted-foreground" />
-            <span className="text-[11px] font-bold uppercase tracking-wider">File tree</span>
+            <button className="p-0.5 hover:bg-zinc-100 rounded transition-colors">
+               <ChevronDown size={14} className="text-zinc-400" />
+            </button>
+            <span className="text-[11px] font-bold text-zinc-900 tracking-tight">Thesis</span>
           </div>
-          <div className="flex items-center gap-1">
-            <SidebarAction
-              icon={FilePlus}
-              title="New file"
-              onClick={() => setNewFileOpen(true)}
-            />
-            <SidebarAction
-              icon={FolderPlus}
-              title="New folder"
-              onClick={() => {
-                setNewFolderPath("figures");
-                setNewFolderOpen(true);
-              }}
-            />
-            <SidebarAction
-              icon={Upload}
-              title="Upload files"
-              onClick={() => uploadInputRef.current?.click()}
-            />
+          <div className="flex items-center gap-0.5">
+            <SidebarAction icon={FilePlus} title="New file" onClick={() => setNewFileOpen(true)} />
+            <SidebarAction icon={FolderPlus} title="New folder" onClick={() => setNewFolderOpen(true)} />
+            <SidebarAction icon={Upload} title="Upload files" onClick={() => uploadInputRef.current?.click()} />
           </div>
         </div>
+
         <input
           ref={uploadInputRef}
           type="file"
@@ -258,50 +291,119 @@ export function ProjectSidebar() {
           }}
         />
 
-        {uploadError ? (
-          <div className="px-3 py-1.5 text-[11px] text-destructive border-b bg-destructive/5">{uploadError}</div>
-        ) : null}
-        <div className="p-2 border-b">
-          <div className="relative group">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
-            <input 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full bg-muted/50 rounded h-7 pl-7 pr-3 text-[12px] outline-none border border-transparent focus:border-border transition-all"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto pt-1 min-h-0">
+        <div className="flex-1 overflow-y-auto pt-1 min-h-0 bg-white">
           {filteredTree.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-muted-foreground">No files match your search.</div>
+            <div className="px-6 py-12 text-center space-y-3">
+               <div className="w-10 h-10 mx-auto rounded-full bg-zinc-50 flex items-center justify-center text-zinc-300 border border-zinc-100">
+                  <FileText className="w-5 h-5" />
+               </div>
+               <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">No files match your search.</p>
+            </div>
           ) : (
             filteredTree.map((file) => <FileRow key={file.id} file={file} level={0} />)
           )}
         </div>
       </div>
 
-      {/* Outline Section */}
-      <div className="h-1/3 border-t flex flex-col min-h-0">
-        <div className="h-9 flex items-center gap-2 px-3 shrink-0 border-b">
-          <ChevronDown size={14} className="text-muted-foreground" />
-          <span className="text-[11px] font-bold uppercase tracking-wider">File outline</span>
+      {/* Combined Snippets + Outline Section */}
+      <div className="h-[40%] border-t flex flex-col min-h-0 bg-white shadow-[0_-1px_3px_rgba(0,0,0,0.02)]">
+        <div className="h-10 px-1 border-b flex items-center justify-between bg-zinc-50/50">
+           <div className="flex items-center">
+              <SidebarTab 
+                active={sidebarTab === "snippets"} 
+                onClick={() => setSidebarTab("snippets")}
+                label="Snippets"
+              />
+              <SidebarTab 
+                active={sidebarTab === "outline"} 
+                onClick={() => setSidebarTab("outline")}
+                label="Outline"
+              />
+           </div>
+           {sidebarTab === "snippets" && (
+             <button className="mr-2 p-1 text-primary hover:bg-primary/5 rounded-lg transition-colors active:scale-95">
+                <Plus size={14} />
+             </button>
+           )}
         </div>
-        <div className="flex-1 overflow-y-auto py-1 px-2 min-h-0">
-          {outline.length === 0 ? (
-            <div className="text-xs text-muted-foreground px-2 py-2">
-              No headings in active file.
-            </div>
-          ) : (
-            outline.map((node) => <OutlineItem key={node.id} label={node.title} level={node.level} />)
-          )}
+
+        <div className="flex-1 overflow-hidden flex flex-col">
+           {sidebarTab === "snippets" ? (
+             <div className="flex-1 flex flex-col min-h-0">
+                <div className="p-2 border-b border-zinc-100 flex gap-2">
+                   <div className="relative flex-1 group">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-zinc-400 group-focus-within:text-primary transition-colors" />
+                      <input 
+                        value={snippetSearch}
+                        onChange={(e) => setSnippetSearch(e.target.value)}
+                        placeholder="Search snippets..."
+                        className="w-full bg-zinc-100/50 hover:bg-zinc-100 focus:bg-white rounded-lg h-7 pl-7 pr-3 text-[11px] outline-none border border-transparent focus:border-zinc-200 transition-all font-medium"
+                      />
+                   </div>
+                   <button className="p-1 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-md transition-all">
+                      <Filter size={14} />
+                   </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                   {snippets.length === 0 ? (
+                      <p className="text-[10px] text-zinc-400 text-center py-4 font-medium italic">No snippets found.</p>
+                   ) : (
+                      snippets.map((s, i) => (
+                        <button 
+                          key={i}
+                          data-testid={`sidebar-snippet-${s.label}`}
+                          onClick={() => s.wrap ? wrapSelectionOrInsert(s.wrap[0], s.wrap[1], s.code) : appendToActiveFile(s.code)}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-zinc-50 border border-transparent hover:border-zinc-100 group transition-all active:scale-[0.98]"
+                        >
+                           <div className="w-5 h-5 bg-zinc-100 rounded-md flex items-center justify-center text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                              <s.icon size={11} />
+                           </div>
+                           <span className="text-[11px] font-bold text-zinc-600 group-hover:text-zinc-900 transition-colors">{s.label}</span>
+                        </button>
+                      ))
+                   )}
+                </div>
+                <div className="p-2 border-t border-zinc-100 bg-zinc-50/20">
+                   <button className="w-full py-1.5 rounded-xl border border-zinc-200 bg-white text-[11px] font-bold text-zinc-700 hover:bg-zinc-50 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+                      <Plus size={14} /> New Snippet
+                   </button>
+                </div>
+             </div>
+           ) : (
+             <div className="flex-1 overflow-y-auto py-2 px-2 bg-white">
+               {outline.length === 0 ? (
+                 <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-2 opacity-40">
+                    <Layout className="w-6 h-6 text-zinc-400" />
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">No outline data</p>
+                 </div>
+               ) : (
+                 <div className="space-y-0.5">
+                   {outline.map((node) => (
+                     <OutlineItem 
+                       key={node.id} 
+                       label={node.title} 
+                       level={node.level} 
+                       onClick={() => jumpToDiagnostic({
+                          severity: "info",
+                          message: node.title,
+                          file: activeFileId || "main.tex",
+                          line: node.line,
+                          column: 1
+                       })}
+                     />
+                   ))}
+                 </div>
+               )}
+             </div>
+           )}
         </div>
       </div>
+
+      {/* Confirmation Dialogs */}
       <ConfirmDialog
         open={newFileOpen}
         title="Create new file"
-        description="Use a relative path such as `sections/methods.tex`."
+        description="Provide a path relative to project root."
         confirmLabel="Create"
         cancelLabel="Cancel"
         onCancel={() => setNewFileOpen(false)}
@@ -314,14 +416,16 @@ export function ProjectSidebar() {
         <input
           value={newFilePath}
           onChange={(e) => setNewFilePath(e.target.value)}
-          className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary"
+          className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          autoFocus
         />
       </ConfirmDialog>
+
       <ConfirmDialog
         open={newFolderOpen}
         title="Create new folder"
-        description="Enter a folder path relative to the project root (e.g. `figures` or `sections/ch1`). A small placeholder file is added so the folder syncs to the server."
-        confirmLabel="Create folder"
+        description="Enter a folder path relative to the project root."
+        confirmLabel="Create Folder"
         cancelLabel="Cancel"
         onCancel={() => {
           setNewFolderOpen(false);
@@ -333,10 +437,40 @@ export function ProjectSidebar() {
           value={newFolderPath}
           onChange={(e) => setNewFolderPath(e.target.value)}
           placeholder="figures"
-          className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary"
+          className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          autoFocus
         />
       </ConfirmDialog>
     </aside>
+  );
+}
+
+function IconButton({ icon: Icon, title, onClick }: { icon: LucideIcon, title?: string, onClick?: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      title={title}
+      className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95"
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+}
+
+function SidebarTab({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] transition-all relative",
+        active ? "text-primary" : "text-zinc-400 hover:text-zinc-600"
+      )}
+    >
+      {label}
+      {active && (
+        <div className="absolute bottom-0 inset-x-4 h-0.5 bg-primary rounded-t-full shadow-[0_0_8px_rgba(124,58,237,0.5)]" />
+      )}
+    </button>
   );
 }
 
@@ -346,35 +480,34 @@ function SidebarAction({ icon: Icon, onClick, title }: { icon: LucideIcon; onCli
       type="button"
       title={title}
       onClick={onClick}
-      className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"
+      className="p-1 hover:bg-zinc-100 rounded transition-colors text-zinc-400 hover:text-zinc-700"
     >
       <Icon size={14} />
     </button>
   );
 }
 
-function OutlineItem({ label, level, active }: { label: string; level: number; active?: boolean }) {
+function OutlineItem({ label, level, onClick }: { label: string; level: number; onClick: () => void }) {
   const depth = Math.max(0, level - 1);
-  const indent = depth * 12 + 10;
+  const indent = depth * 12;
   return (
     <div
+      onClick={onClick}
       className={cn(
-        "relative h-7 flex items-center text-[12px] cursor-pointer truncate rounded px-2 transition-colors",
-        active
-          ? "bg-primary/10 text-primary font-semibold"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        "group relative min-h-7 flex items-center text-[11px] cursor-pointer rounded-lg px-2 transition-all",
+        "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 hover:pl-3"
       )}
       style={{ paddingLeft: `${indent + 8}px` }}
     >
       {depth > 0 && (
         <span
           aria-hidden
-          className="absolute top-0 bottom-0 w-px bg-border/60"
-          style={{ left: `${indent}px` }}
+          className="absolute top-0 bottom-0 w-px bg-zinc-100 left-2"
+          style={{ left: `${indent + 4}px` }}
         />
       )}
-      {active && <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-r" />}
-      {label}
+      <span className="truncate py-1 font-semibold">{label}</span>
+      <ChevronRight size={10} className="ml-auto opacity-0 group-hover:opacity-40 transition-opacity" />
     </div>
   );
 }
@@ -398,14 +531,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
         : file.type === "image"
           ? FileImage
           : FileText;
-  const indent = level * 12 + 10;
-
-  const rowClass = cn(
-    "relative w-full h-7 flex items-stretch text-left transition-colors rounded-sm",
-    isActive
-      ? "bg-primary/10 text-foreground"
-      : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-  );
+  const indent = level * 12;
 
   const confirmRename = () => {
     const next = renamePathInput.trim().replace(/\\/g, "/");
@@ -420,68 +546,71 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
   };
 
   return (
-    <div className="group relative w-full">
-      {isActive && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-0.5 bg-primary rounded-r"
-        />
-      )}
-      <div className={rowClass} style={{ paddingLeft: `${indent + 8}px` }}>
-        {level > 0 && (
-          <span
-            aria-hidden
-            className="absolute top-0 bottom-0 w-px bg-border/60"
-            style={{ left: `${indent}px` }}
-          />
+    <div className="group relative w-full px-1">
+      <div 
+        className={cn(
+          "relative w-full min-h-8 flex items-center transition-all rounded-lg cursor-pointer group/row",
+          isActive 
+            ? "bg-primary/5 text-primary border border-primary/10 shadow-sm" 
+            : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
         )}
-        <button
-          type="button"
-          onClick={() => (isFolder ? setIsOpen(!isOpen) : openFile(file.path))}
-          className="flex-1 min-w-0 flex items-center gap-2 py-0 pr-1 text-left outline-none focus-visible:ring-1 focus-visible:ring-primary rounded-sm"
-        >
-          <div className="relative shrink-0 flex items-center">
-            {isFolder && (
-              <ChevronRight
-                size={12}
-                className={cn("mr-0.5 transition-transform text-muted-foreground", isOpen && "rotate-90")}
-              />
-            )}
-            <Icon size={13} className={cn(isActive ? "text-primary" : "text-muted-foreground")} />
-          </div>
-          <span className={cn("text-[12px] truncate ml-1", isActive && "font-semibold")}>{file.name}</span>
-        </button>
+        style={{ paddingLeft: `${indent + 6}px` }}
+        onClick={() => (isFolder ? setIsOpen(!isOpen) : openFile(file.path))}
+      >
+        <div className="relative shrink-0 flex items-center mr-2">
+          {isFolder && (
+            <ChevronRight
+              size={12}
+              className={cn("mr-0.5 transition-transform text-zinc-400", isOpen && "rotate-90")}
+            />
+          )}
+          <Icon size={14} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-primary" : "text-zinc-400 group-hover/row:text-zinc-600")} />
+        </div>
+        <span className={cn("text-[12px] font-bold truncate flex-1", isActive && "text-primary")}>{file.name}</span>
+        
+        {file.path.endsWith(".tex") && (
+          <span className="text-[9px] font-black uppercase tracking-tighter text-primary/40 mr-1.5 bg-primary/5 px-1 rounded-sm border border-primary/5">TEX</span>
+        )}
+        {file.path.endsWith(".bib") && (
+          <span className="text-[9px] font-black uppercase tracking-tighter text-violet-400 mr-1.5 bg-violet-50 px-1 rounded-sm border border-violet-50">BIB</span>
+        )}
+
         {!isFolder && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 aria-label="File actions"
+                onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  "shrink-0 flex h-7 w-7 items-center justify-center rounded-sm text-muted-foreground outline-none transition-opacity",
-                  "opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-primary data-[state=open]:opacity-100",
+                  "shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 outline-none transition-all",
+                  "opacity-0 group-hover/row:opacity-100 hover:bg-white hover:text-zinc-900 shadow-sm border border-transparent hover:border-zinc-100",
                 )}
               >
                 <MoreVertical size={12} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[9rem]">
+            <DropdownMenuContent align="end" className="min-w-[9rem] rounded-xl shadow-xl p-1.5 border-zinc-100">
               <DropdownMenuItem
-                className="text-xs gap-2"
-                onSelect={() => {
+                className="rounded-lg font-semibold text-xs gap-3 p-2 cursor-pointer"
+                onSelect={(e) => {
+                  e.stopPropagation();
                   setRenamePathInput(file.path);
                   setRenameOpen(true);
                 }}
               >
-                <Pencil size={12} className="opacity-70" />
+                <Pencil size={14} className="text-zinc-400" />
                 Rename…
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-zinc-100" />
               <DropdownMenuItem
-                className="text-xs gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
-                onSelect={() => setDeleteOpen(true)}
+                className="rounded-lg font-semibold text-xs gap-3 p-2 text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
+                onSelect={(e) => {
+                  e.stopPropagation();
+                  setDeleteOpen(true);
+                }}
               >
-                <Trash2 size={12} className="opacity-70" />
+                <Trash2 size={14} className="text-red-400" />
                 Delete…
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -492,12 +621,13 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
       {isFolder &&
         isOpen &&
         file.children?.map((child) => <FileRow key={child.id} file={child} level={level + 1} />)}
+      
       {!isFolder && (
         <>
           <ConfirmDialog
             open={renameOpen}
             title="Rename file"
-            description="Use a project-relative path (e.g. sections/methods.tex)."
+            description="Use a project-relative path."
             confirmLabel="Rename"
             cancelLabel="Cancel"
             onCancel={() => setRenameOpen(false)}
@@ -506,7 +636,8 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
             <input
               value={renamePathInput}
               onChange={(e) => setRenamePathInput(e.target.value)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary"
+              className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
+              autoFocus
             />
           </ConfirmDialog>
           <ConfirmDialog

@@ -393,6 +393,33 @@
 - **Remaining risk**
   - Compile-success behavior in queue/worker-provisioned environments is still tracked separately from compile-trigger safety coverage.
 
+## 2026-05-08 — Phase 11: Premium UI Redesign (Exact Target)
+
+- **Scope:** Implement a premium, high-polish UI for the landing dashboard and editor workspace, matching specific visual specifications and layout hierarchy.
+- **Files changed:**
+  - `apps/web/src/app/page.tsx`: Rewritten dashboard with hero, status cards, quick start, and templates.
+  - `apps/web/src/components/landing/*`: Created new dashboard sub-components.
+  - `apps/web/src/components/latex-ide/*`: Refactored all IDE components for premium look (header, toolbars, sidebar, panels).
+  - `apps/web/src/theme/palette-definitions.ts`: Refined Violet palette for the redesign.
+  - `apps/web/src/app/globals.css`: Added semantic premium design tokens.
+  - `apps/web/src/demo/demoProject.ts`: Updated sample project for realistic presentation.
+  - `apps/web/e2e/editor.spec.ts`: Updated tests for new UI selectors and structure.
+- **What was fixed:**
+  - Standardized on a premium violet-accented light theme.
+  - Implemented the "Quantum Entanglement" workspace theme.
+  - Added a combined Snippets + Outline bottom-left area in the sidebar.
+  - Refined the PDF preview experience with thumbnails and page controls.
+  - Improved the bottom utility panel with build log icons, status cards, and document stats.
+  - Fixed various lint errors and forbidden palette class usages.
+  - Updated e2e coverage to match the new UI interactions.
+- **Result:**
+  - Premium Dashboard matching target Screenshot 1.
+  - Premium Editor Workspace matching target Screenshot 2.
+  - All existing features functional and wired.
+  - CodeMirror remains default; textarea fallback remains available.
+  - **All quality gates pass** (Typecheck, Lint, Test, Build, E2E).
+- **Decision:** UI is production-ready for the redesign release.
+
 ## 2026-05-07 — Phase 9: Release Readiness
 
 - **Scope:** Prepare the branch for merge/release readiness. Clean generated artifacts, verify repo hygiene, run final validation, update final readiness docs, and prepare a PR/merge summary.

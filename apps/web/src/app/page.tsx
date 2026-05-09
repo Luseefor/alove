@@ -1,73 +1,55 @@
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
-import { LandingShell } from "@/components/LandingShell";
-import { Button } from "@/components/ui/primitives";
-import { isLocalStandalone } from "@/lib/localStandalone";
+"use client";
 
-export default async function Home() {
-  if (isLocalStandalone()) {
-    return (
-      <LandingShell>
-        <main className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col justify-center gap-10 px-6 pb-16 pt-20">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-widest text-alove-fg-muted dark:text-alove-fg-muted">
-              LaTeX workspace
-            </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              alove
-            </h1>
-            <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-300">
-              Running in local mode: full editor and PDF builds on this machine.
-              Convex sync and Clerk sign-in are off.
-            </p>
-          </div>
-          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
-            <Button variant="primary" size="md" href="/editor">
-              Open editor
-            </Button>
-          </div>
-        </main>
-      </LandingShell>
-    );
-  }
+import { DashboardSidebar } from "@/components/landing/DashboardSidebar";
+import { DashboardHeader } from "@/components/landing/DashboardHeader";
+import { DashboardHero } from "@/components/landing/DashboardHero";
+import { DashboardContent } from "@/components/landing/DashboardContent";
+import { Info, X, ExternalLink } from "lucide-react";
+import { useState } from "react";
+
+export default function Home() {
+  const [showTip, setShowTip] = useState(true);
 
   return (
-    <LandingShell>
-      <main className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col justify-center gap-10 px-6 pb-16 pt-20">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-alove-fg-muted dark:text-alove-fg-muted">
-            LaTeX workspace
-          </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            alove
-          </h1>
-          <p className="mt-4 text-lg leading-relaxed text-zinc-600 dark:text-zinc-300">
-            A focused editor with live Convex sync, Clerk sign-in, and fast PDF
-            builds — tuned for clarity and everyday writing flow.
-          </p>
-        </div>
-        <Show
-          when="signed-out"
-          fallback={
-            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button variant="primary" size="md" href="/editor">
-                Open editor
-              </Button>
-              <UserButton />
+    <div className="flex h-[100dvh] bg-background overflow-hidden font-sans antialiased">
+      <DashboardSidebar />
+      
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative scroll-smooth">
+        <DashboardHeader />
+        
+        <main className="flex-1 p-8 lg:p-12 max-w-[1440px] mx-auto w-full space-y-12">
+          <DashboardHero />
+          <DashboardContent />
+        </main>
+
+        {showTip && (
+          <div className="sticky bottom-0 inset-x-0 p-4 z-50">
+            <div className="max-w-[1440px] mx-auto">
+              <div className="bg-primary/95 backdrop-blur-md text-white px-6 py-3.5 rounded-[20px] shadow-2xl flex items-center justify-between gap-4 border border-white/10 ring-1 ring-black/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+                    <Info className="w-4 h-4" />
+                  </div>
+                  <p className="text-[13px] font-medium leading-relaxed">
+                    <span className="font-bold">Pro Tip:</span> Use snippets and templates to accelerate your writing. Everything stays local and under your control.
+                  </p>
+                </div>
+                <div className="flex items-center gap-6">
+                  <button className="text-[12px] font-bold hover:underline flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
+                    Learn more <ExternalLink className="w-3 h-3" />
+                  </button>
+                  <button 
+                    onClick={() => setShowTip(false)}
+                    className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
-          }
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <SignInButton mode="modal">
-              <Button variant="primary" size="md" type="button">
-                Sign in
-              </Button>
-            </SignInButton>
-            <Button variant="outline" size="md" href="/sign-up">
-              Create account
-            </Button>
           </div>
-        </Show>
-      </main>
-    </LandingShell>
+        )}
+      </div>
+    </div>
   );
 }

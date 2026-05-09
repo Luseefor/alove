@@ -9,7 +9,6 @@ import { EditorPane } from "./EditorPane";
 import { PdfPreviewPane } from "./PdfPreviewPane";
 import { BottomUtilityPanel } from "./BottomUtilityPanel";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
-import { cn } from "@/lib/utils";
 
 export function LatexEditorApp() {
   const { sidebarOpen, bottomPanelOpen } = useWorkbenchStore();
@@ -18,6 +17,7 @@ export function LatexEditorApp() {
     <div className="flex h-[100dvh] flex-col bg-background text-foreground overflow-hidden font-sans antialiased selection:bg-primary/20">
       <AppHeader />
       <ActionToolbar />
+      
       <PanelGroup direction="vertical" className="flex-1">
         <Panel className="min-h-0">
           <main className="flex h-full min-h-0 relative">
@@ -26,20 +26,20 @@ export function LatexEditorApp() {
             <PanelGroup direction="horizontal" className="flex-1">
               {sidebarOpen && (
                 <>
-                  <Panel defaultSize={18} minSize={12} maxSize={30} className="z-20">
+                  <Panel defaultSize={20} minSize={15} maxSize={35} className="z-20">
                     <ProjectSidebar />
                   </Panel>
-                  <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/40 transition-colors relative z-30 cursor-col-resize" />
+                  <PanelResizeHandle className="w-[2px] bg-zinc-100 hover:bg-primary/20 transition-all relative z-30 cursor-col-resize active:bg-primary/40" />
                 </>
               )}
 
-              <Panel className="flex flex-col min-w-0">
+              <Panel className="flex flex-col min-w-0 bg-white">
                 <PanelGroup direction="horizontal">
-                  <Panel minSize={30} className="bg-background flex flex-col">
+                  <Panel minSize={30} className="bg-white flex flex-col">
                     <EditorPane />
                   </Panel>
 
-                  <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/40 transition-colors relative z-30 cursor-col-resize" />
+                  <PanelResizeHandle className="w-[2px] bg-zinc-100 hover:bg-primary/20 transition-all relative z-30 cursor-col-resize active:bg-primary/40" />
 
                   <Panel defaultSize={45} minSize={20} className="z-10">
                     <PdfPreviewPane />
@@ -51,8 +51,8 @@ export function LatexEditorApp() {
         </Panel>
         {bottomPanelOpen && (
           <>
-            <PanelResizeHandle className="h-[1px] bg-border hover:bg-primary/40 transition-colors cursor-row-resize" />
-            <Panel defaultSize={24} minSize={14} maxSize={45}>
+            <PanelResizeHandle className="h-[2px] bg-zinc-100 hover:bg-primary/20 transition-all cursor-row-resize active:bg-primary/40" />
+            <Panel defaultSize={32} minSize={15} maxSize={50}>
               <BottomUtilityPanel />
             </Panel>
           </>

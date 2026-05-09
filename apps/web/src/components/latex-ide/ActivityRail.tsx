@@ -1,8 +1,47 @@
 "use client";
 
 import { useWorkbenchStore } from "@/stores/workbenchStore";
-import { Settings, HelpCircle, Menu, FileText, Search as SearchIcon } from "lucide-react";
+import { 
+  Settings, 
+  Menu, 
+  FileText, 
+  Search as SearchIcon,
+  GitBranch,
+  History,
+  LayoutGrid
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface RailItemProps {
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+function RailItem({ icon: Icon, label, active, onClick, disabled }: RailItemProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      className={cn(
+        "w-12 h-12 flex items-center justify-center transition-all group relative disabled:opacity-20 disabled:cursor-not-allowed",
+        active 
+          ? "text-primary" 
+          : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50"
+      )}
+    >
+      <Icon size={20} strokeWidth={active ? 2.5 : 2} className="transition-transform group-hover:scale-110" />
+      {active && (
+        <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-primary rounded-r-full shadow-[0_0_8px_rgba(124,58,237,0.5)]" />
+      )}
+    </button>
+  );
+}
 
 export function ActivityRail() {
   const {
@@ -11,63 +50,57 @@ export function ActivityRail() {
     sidebarOpen,
     toggleSidebar,
     setSettingsModalOpen,
-    setKeyboardShortcutsModalOpen,
   } = useWorkbenchStore();
 
-  const items = [
-    { id: "explorer", icon: FileText, label: "Project" },
-    { id: "search", icon: SearchIcon, label: "Search" },
-  ] as const;
-
   return (
-    <nav className="relative z-[45] isolate w-10 border-r bg-background flex flex-col items-center py-2 shrink-0 select-none">
-      <div className="flex flex-col gap-1 flex-1 w-full items-center">
-        {items.map((item) => {
-          const isActive = activeRail === item.id && sidebarOpen;
-          return (
-            <button
-              type="button"
-              key={item.id}
-              onClick={() => setActiveRail(item.id)}
-              className={cn(
-                "w-8 h-8 rounded flex items-center justify-center transition-all group relative",
-                isActive 
-                  ? "bg-muted text-foreground" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <item.icon size={18} strokeWidth={2} />
-              {isActive && (
-                <div className="absolute left-0 w-0.5 h-4 bg-primary rounded-r" />
-              )}
-            </button>
-          );
-        })}
+    <nav className="relative z-[45] isolate w-12 border-r bg-white flex flex-col items-center shrink-0 select-none shadow-[1px_0_0_rgba(0,0,0,0.02)]">
+      <div className="flex flex-col flex-1 w-full items-center">
+        <RailItem 
+          icon={FileText} 
+          label="Project" 
+          active={activeRail === "explorer" && sidebarOpen}
+          onClick={() => setActiveRail("explorer")}
+        />
+        <RailItem 
+          icon={SearchIcon} 
+          label="Search" 
+          active={activeRail === "search" && sidebarOpen}
+          onClick={() => setActiveRail("search")}
+        />
+        <RailItem 
+          icon={GitBranch} 
+          label="Source Control" 
+          disabled
+          onClick={() => {}}
+        />
+        <RailItem 
+          icon={History} 
+          label="History" 
+          disabled
+          onClick={() => {}}
+        />
       </div>
 
-      <div className="relative z-[1] flex flex-col gap-1 w-full items-center pb-2">
-        <button
-          type="button"
-          title="Keyboard shortcuts"
-          onClick={() => setKeyboardShortcutsModalOpen(true)}
-          className="size-8 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-        >
-          <HelpCircle size={18} />
-        </button>
-        <button
-          type="button"
-          title="Settings"
+      <div className="relative z-[1] flex flex-col w-full items-center pb-4">
+        <RailItem 
+          icon={LayoutGrid} 
+          label="Tools" 
+          disabled
+          onClick={() => {}}
+        />
+        <RailItem 
+          icon={Settings} 
+          label="Settings" 
+          active={false}
           onClick={() => setSettingsModalOpen(true)}
-          className="size-8 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-        >
-          <Settings size={18} />
-        </button>
+        />
+        <div className="w-8 h-px bg-zinc-100 my-2" />
         <button
           type="button"
           onClick={toggleSidebar}
-          className="size-8 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+          className="size-10 rounded-xl flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 transition-all active:scale-95"
         >
-          <Menu size={18} />
+          <Menu size={20} />
         </button>
       </div>
     </nav>
