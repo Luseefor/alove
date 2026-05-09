@@ -4,6 +4,17 @@ Monorepo for a web LaTeX workspace: Next.js editor, BullMQ compile worker (TeX L
 
 **Default `bun run dev`** runs the web app in **local standalone** mode: **no Clerk or Convex**, editor + PDF + multi-file on disk-backed browser history only, **no live collaboration**. Next.js binds the **first free TCP port** from **`ALOVE_WEB_PORT`** (default **30127**) upward (skips common services and Next‑blocked ports such as **6000** / X11); the chosen URL is **printed when dev starts**. Use **`bun run --filter web dev:cloud`** plus Convex when you want the full authenticated stack (port **3000**).
 
+## Quick Start (Docker)
+
+You can run the entire backend and frontend locally using Docker Compose:
+
+```bash
+cp .env.example .env
+bun run docker:dev
+```
+
+Visit `http://localhost:3000` to use the editor. See [Deployment Docs](./docs/deployment/docker.md) for more details.
+
 ## Prerequisites
 
 | Tool | Notes |

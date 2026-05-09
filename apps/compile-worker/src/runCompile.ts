@@ -499,9 +499,17 @@ export async function runCompileJob(
     });
   } finally {
     if (dockerContainerName) {
-      await ensureDockerContainerRemoved(dockerContainerName, work);
+      try {
+        await ensureDockerContainerRemoved(dockerContainerName, work);
+      } catch (cleanupError) {
+        console.error("Cleanup warning:", cleanupError);
+      }
     }
-    await rm(work, { recursive: true, force: true });
+    try {
+      await rm(work, { recursive: true, force: true });
+    } catch (rmError) {
+      console.error("Failed to remove temp dir:", rmError);
+    }
   }
 }
 

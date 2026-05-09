@@ -11,7 +11,14 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
     "convex:dev": "bun run --filter web convex:dev",
-    "dev:with-convex": "bun run --filter web dev:with-convex"
+    "dev:with-convex": "bun run --filter web dev:with-convex",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up --build",
+    "docker:dev:detached": "docker compose -f docker-compose.dev.yml up --build -d",
+    "docker:down": "docker compose -f docker-compose.dev.yml down",
+    "docker:logs": "docker compose -f docker-compose.dev.yml logs -f",
+    "docker:ps": "docker compose -f docker-compose.dev.yml ps",
+    "docker:health": "curl -fsS http://localhost:3000/api/health",
+    "smoke:docker": "bash scripts/smoke-docker-stack.sh"
   },
   "devDependencies": {
     "prettier": "^3.8.3",
