@@ -64,7 +64,6 @@ export function ProjectSidebar() {
     filesByPath,
     activeRail,
     activeFileId,
-    openFile,
     outline,
     createFile,
     projectSearchQuery,
@@ -77,7 +76,7 @@ export function ProjectSidebar() {
   } = useWorkbenchStore();
   
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery] = useState("");
   const [projectSearchInput, setProjectSearchInput] = useState(projectSearchQuery);
   const [searchRegex, setSearchRegex] = useState(false);
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false);
@@ -262,7 +261,7 @@ export function ProjectSidebar() {
       </div>
 
       {/* File Tree Section */}
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-[3] flex flex-col min-h-0">
         {/* Tree Toolbar */}
         <div className="h-9 flex items-center justify-between px-3 shrink-0 bg-zinc-50/30 border-b border-zinc-100">
           <div className="flex items-center gap-2">
@@ -309,7 +308,7 @@ export function ProjectSidebar() {
       </div>
 
       {/* Combined Snippets + Outline Section */}
-      <div className="flex-1 min-h-0 border-t flex flex-col bg-white">
+      <div className="flex-[2] min-h-0 border-t flex flex-col bg-white">
         <div className="h-10 px-1 border-b flex items-center bg-zinc-50/50">
            <SidebarTab 
              active={sidebarTab === "snippets"} 

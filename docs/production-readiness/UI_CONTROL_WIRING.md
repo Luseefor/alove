@@ -1,67 +1,63 @@
 # UI Control Wiring Map
 
-This document audits every visible control in the alove workspace and maps it to its actual behavior. Controls without real behavior are marked for removal or honest disabling.
+This document audits every visible control in the alove workspace and maps it to its actual behavior. Controls without real behavior are HIDDEN or HONESTLY DISABLED.
 
 ## Landing / Dashboard
 
-| Control | Location | Visible? | Real behavior | Handler / Source | If unsupported |
-|---|---|---|---|---|---|
-| Open Editor | Hero | Yes | Navigates to `/editor` | Next.js Link | - |
-| New Project | Hero | Yes | Opens "New File" modal (demo hack) | `setNewFileOpen(true)` | Better: real project creation |
-| Home | Sidebar | Yes | Active state for home | `usePathname` | - |
-| Projects | Sidebar | Yes | Navigates to `/editor` | Next.js Link | - |
-| Snippets | Sidebar | Yes | Disabled placeholder | `disabled` | Hide or wire to real snippets |
-| Citations | Sidebar | Yes | Disabled placeholder | `disabled` | Hide or wire to real library |
-| Templates | Sidebar | Yes | Disabled placeholder | `disabled` | Hide or wire to real gallery |
-| Trash | Sidebar | Yes | Disabled placeholder | `disabled` | Hide |
-| Compile | Tools | Yes | Disabled placeholder | `disabled` | Hide |
-| PDF Workflow | Tools | Yes | Disabled placeholder | `disabled` | Hide |
-| Bibliography | Tools | Yes | Disabled placeholder | `disabled` | Hide |
-| Settings | Tools | Yes | Disabled placeholder | `disabled` | Wire to IdeSettingsDialog |
-| Local Mode Card | Sidebar | Yes | Displays operational status | `isLocalStandalone` | - |
-| View System Details | Status Card | Yes | Navigates to health check (stub) | - | Better: health modal |
-| Search Projects | Header | Yes | Decorative input | - | Hide or wire to project search |
-| Notifications | Header | Yes | Disabled placeholder | `disabled` | Hide |
-| Help | Header | Yes | Decorative icon | - | Wire to support docs |
-| Recent Projects | Content | Yes | Renders demo project list | `demoProject.ts` | Show real projects if any |
+| Control | Screen | Visible? | Behavior | Handler/Source | State |
+|---|---|---:|---|---|---|
+| alove Logo | Dashboard | yes | brand display | - | display-only |
+| Projects (Icon) | Dashboard | yes | navigate to /editor | next/link | functional |
+| Help | Dashboard | yes | show documentation modal | setHelpOpen | functional |
+| Theme Toggle | Dashboard | yes | switch light/dark | useTheme | functional |
+| Palette Switcher | Dashboard | yes | change accent color | useTheme | functional |
+| Account/Profile | Dashboard | yes | user context | - | disabled-local-mode |
+| Home | Sidebar | yes | active state indicator | usePathname | functional |
+| Projects | Sidebar | yes | navigate to /editor | next/link | functional |
+| Settings | Sidebar | yes | open settings modal | setSettingsModalOpen | functional |
+| Local Mode Status | Sidebar | yes | system state indicator | isLocalStandalone | display-only |
+| Open Editor | Hero | yes | navigate to /editor | next/link | functional |
+| New Project | Hero | yes | create blank document | next/link | functional |
+| Mini Preview | Hero | yes | illustrative workspace | - | display-only |
+| Workspace Status | Content | yes | real-time system health | /api/health | functional |
+| Recent Projects | Content | yes | list demo documents | demoProject.ts | functional |
+| Quick Start Cards | Content | yes | primary actions | next/link | functional |
+| Pro Tip Bar | Bottom | yes | helpful hints | - | functional |
 
 ## Editor Workspace
 
-| Control | Location | Visible? | Real behavior | Handler / Source | If unsupported |
-|---|---|---|---|---|---|
-| Build | Top Header | Yes | Triggers LaTeX compilation | `runCompile()` | - |
-| Export | Top Header | Yes | Downloads PDF | `pdfDataUrl` download | Disabled if no PDF |
-| Share | Top Header | Yes | Disabled in local mode | `isLocalStandalone` | Tooltip explanation |
-| Save | Header Icon | Yes | Saves active file | `saveActiveFile()` | - |
-| Undo/Redo | Header Icons | Yes | Editor history | `requestEditorCommand` | - |
-| Project Title | Header Center | Yes | Decorative button | - | Make editable or read-only |
-| Cite | Feature Bar | Yes | Inserts `\cite` snippet | `appendToActiveFile` | Wire to real BibTeX selector |
-| Library | Feature Bar | Yes | Disabled placeholder | `disabled` | Hide |
-| Style | Feature Bar | Yes | Disabled placeholder | `disabled` | Hide |
-| Manage | Feature Bar | Yes | Disabled placeholder | `disabled` | Hide |
-| Figure | Feature Bar | Yes | Inserts figure snippet | `appendToActiveFile` | - |
-| Table | Feature Bar | Yes | Inserts table snippet | `appendToActiveFile` | - |
-| Subfloat | Feature Bar | Yes | Disabled placeholder | `disabled` | Hide |
-| Chart | Feature Bar | Yes | Disabled placeholder | `disabled` | Hide |
-| Find | Feature Bar | Yes | Opens editor find bar | `requestEditorFindBar` | - |
-| PDF Target | Feature Bar | Yes | Decorative selector | - | Fixed to PDF for now |
-| Project Rail | Left Rail | Yes | Selects file tree | `setActiveRail('explorer')` | - |
-| Search Rail | Left Rail | Yes | Selects project search | `setActiveRail('search')` | - |
-| Source Control | Left Rail | Yes | Disabled placeholder | `disabled` | Hide |
-| History | Left Rail | Yes | Disabled placeholder | `disabled` | Hide |
-| File Row | Sidebar | Yes | Switches active file | `openFile(path)` | - |
-| Snippets Tab | Bottom Sidebar | Yes | Shows insertable snippets | `sidebarTab` state | - |
-| Outline Tab | Bottom Sidebar | Yes | Shows document structure | `sidebarTab` state | - |
-| Jump to Section | Outline | Yes | Scrolls to line | `jumpToDiagnostic` | - |
-| Editor Tabs | Center | Yes | Switches active file | `openFile(path)` | - |
-| Log Tab | Bottom Utility | Yes | Shows build log | `activeBottomTab` | - |
-| Problems Tab | Bottom Utility | Yes | Shows diagnostics | `activeBottomTab` | - |
-| Citations Tab | Bottom Utility | Yes | Placeholder | `activeBottomTab` | - |
-| Stats Card | Bottom Utility | Yes | Derived text metrics | `useMemo` from content | Show unknown if not built |
+| Control | Screen | Visible? | Behavior | Handler/Source | State |
+|---|---|---:|---|---|---|
+| alove Logo | Editor | yes | brand display | - | display-only |
+| Save | Header | yes | save current file | saveActiveFile | functional |
+| Undo/Redo | Header | yes | history management | requestEditorCommand | functional |
+| Project Title | Header | yes | document title | projectTitle | display-only |
+| Saved Status | Header | yes | dirty state indicator | hasDirty | display-only |
+| Build (Button) | Header | yes | trigger compilation | runCompile | functional |
+| Export | Header | yes | download compiled PDF | pdfDataUrl | functional |
+| Share | Header | no | cloud-only feature | - | hidden-unsupported |
+| Cite | Feature Bar | yes | insert bib snippet | appendToActiveFile | functional |
+| Figure | Feature Bar | yes | insert figure snippet | appendToActiveFile | functional |
+| Table | Feature Bar | yes | insert table snippet | appendToActiveFile | functional |
+| Find | Feature Bar | yes | open source find bar | requestEditorFindBar | functional |
+| Build (Toolbar) | Feature Bar | yes | trigger compilation | runCompile | functional |
+| App Rail Icons | Rail | yes | switch active view | setActiveRail | functional |
+| Sidebar Tabs | Sidebar | yes | switch snippet/outline | sidebarTab state | functional |
+| File Tree | Sidebar | yes | file management | openFile/createFile | functional |
+| Snippets | Sidebar | yes | insert math/latex | appendToActiveFile | functional |
+| Outline | Sidebar | yes | navigate document | jumpToDiagnostic | functional |
+| Editor Tabs | Editor | yes | switch active file | openFile | functional |
+| Status Bar | Editor | yes | document metrics | cursor/stats | display-only |
+| PDF Preview | PDF Pane | success | view document | pdfDataUrl | functional |
+| PDF Thumbnails | PDF Pane | success | navigate pages | setCurrentPage | functional |
+| Log / Problems | Bottom | yes | view output | activeBottomTab | functional |
+| Build Success Card| Bottom | success | compile summary | buildStatus | display-only |
+| Document Stats | Bottom | yes | derived metrics | derivedStats | display-only |
 
-## Decisions
+## Non-Negotiable Repairs
 
-1. **Hide** all "Coming Soon" or placeholder tools from the sidebar/rail that are not part of the core editor workflow.
-2. **Harden** state checks: Don't show "Build Successful" if `buildStatus !== 'ready'`.
-3. **Refine** file tree: Eliminate any potential for duplicate folders in `ProjectService`.
-4. **Light Theme**: Force a light, high-contrast theme for the editor and toolbar to match the premium reference.
+1. **Light Theme**: Re-implement `globals.css` and palettes to force a clean light IDE.
+2. **Layout Consistency**: Ensure no overlaps. Mini preview belongs in a card in the main grid.
+3. **Sidebar**: Use light background for all sidebars.
+4. **State Consistency**: PDF pane and Build Result card MUST agree on `buildStatus`.
+5. **No Fakes**: Remove Storage, Sync, Invite, and all dead toolbar icons.

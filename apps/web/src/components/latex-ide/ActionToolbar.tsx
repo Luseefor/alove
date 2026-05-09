@@ -66,7 +66,7 @@ function ToolbarButton({
       className={cn(
         "flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 group disabled:opacity-30 disabled:cursor-not-allowed",
         variant === "primary" 
-          ? "bg-primary text-white shadow-sm shadow-primary/20" 
+          ? "bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90" 
           : active 
             ? "bg-primary/10 text-primary font-bold" 
             : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
@@ -95,7 +95,7 @@ export function ActionToolbar() {
     .flatMap(([, content]) => BibliographyService.parse(content));
 
   return (
-    <div className="h-14 border-b bg-white/50 backdrop-blur-sm flex items-center px-2 shrink-0 z-40 shadow-sm overflow-x-auto scrollbar-hide">
+    <div className="h-14 border-b bg-white flex items-center px-2 shrink-0 z-40 shadow-sm overflow-x-auto scrollbar-hide">
       <ToolbarGroup label="Citations">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -108,7 +108,7 @@ export function ActionToolbar() {
               />
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-72 overflow-auto rounded-xl shadow-xl p-1.5 border-zinc-100">
+          <DropdownMenuContent align="start" className="max-h-72 overflow-auto rounded-xl shadow-xl p-1.5 border-zinc-100 bg-white">
             {bibEntries.length === 0 ? (
               <DropdownMenuItem
                 data-testid="snippet-button-cite"
@@ -161,15 +161,13 @@ export function ActionToolbar() {
       </ToolbarGroup>
 
       <ToolbarGroup label="Compile">
-        <div className="flex items-center">
-           <ToolbarButton 
-             icon={Play} 
-             label="Build" 
-             variant="primary"
-             dataTestId="compile-button"
-             onClick={() => void runCompile()}
-           />
-        </div>
+        <ToolbarButton 
+          icon={Play} 
+          label="Build" 
+          variant="primary"
+          dataTestId="compile-button"
+          onClick={() => void runCompile()}
+        />
       </ToolbarGroup>
     </div>
   );

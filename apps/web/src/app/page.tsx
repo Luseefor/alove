@@ -11,44 +11,50 @@ export default function Home() {
   const [showTip, setShowTip] = useState(true);
 
   return (
-    <div className="flex h-[100dvh] bg-background overflow-hidden font-sans antialiased">
+    <div className="grid grid-cols-[280px_1fr] h-screen bg-[#fdfcff] overflow-hidden font-sans antialiased text-zinc-900">
       <DashboardSidebar />
       
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative scroll-smooth">
+      <div className="flex flex-col min-w-0 h-full relative overflow-hidden">
         <DashboardHeader />
         
-        <main className="flex-1 p-8 lg:p-12 max-w-[1440px] mx-auto w-full space-y-12">
-          <DashboardHero />
-          <DashboardContent />
-        </main>
+        <div className="flex-1 overflow-y-auto scroll-smooth bg-[#fdfcff]">
+          <main className="max-w-[1400px] mx-auto w-full p-8 lg:p-12 space-y-12">
+            <DashboardHero />
+            <DashboardContent />
+          </main>
 
-        {showTip && (
-          <div className="sticky bottom-0 inset-x-0 p-4 z-50">
-            <div className="max-w-[1440px] mx-auto">
-              <div className="bg-primary/95 backdrop-blur-md text-white px-6 py-3.5 rounded-[20px] shadow-2xl flex items-center justify-between gap-4 border border-white/10 ring-1 ring-black/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                    <Info className="w-4 h-4" />
+          {showTip && (
+            <div className="px-8 lg:px-12 pb-12">
+              <div className="max-w-[1400px] mx-auto">
+                <div className="bg-primary/95 backdrop-blur-md text-white px-8 py-5 rounded-[32px] shadow-2xl flex items-center justify-between gap-6 border border-white/10 relative overflow-hidden ring-1 ring-black/5">
+                  <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent)] pointer-events-none" />
+                  <div className="flex items-center gap-5 relative z-10">
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-white/10">
+                      <Info className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[15px] font-black tracking-tight text-white uppercase tracking-widest">Pro Tip</p>
+                      <p className="text-[14px] text-white/90 font-bold leading-relaxed">
+                        Use snippets and templates to accelerate your writing. Everything stays local and under your control.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[13px] font-medium leading-relaxed">
-                    <span className="font-bold">Pro Tip:</span> Use snippets and templates to accelerate your writing. Everything stays local and under your control.
-                  </p>
-                </div>
-                <div className="flex items-center gap-6">
-                  <button className="text-[12px] font-bold hover:underline flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
-                    Learn more <ExternalLink className="w-3 h-3" />
-                  </button>
-                  <button 
-                    onClick={() => setShowTip(false)}
-                    className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-6 relative z-10">
+                    <button className="text-[13px] font-black px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest border border-white/10 active:scale-95">
+                      Learn more <ExternalLink className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => setShowTip(false)}
+                      className="p-2.5 hover:bg-white/10 rounded-2xl transition-all shrink-0 active:scale-90"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

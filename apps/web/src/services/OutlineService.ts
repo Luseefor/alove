@@ -17,6 +17,7 @@ export class OutlineService {
     const nodes: OutlineNode[] = [];
     const stack: { node: OutlineNode; level: number }[] = [];
     
+    // Match \section, \subsection, etc.
     const headingRegex = /\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\{([^}]+)\}/;
     
     const levelMap: Record<string, number> = {

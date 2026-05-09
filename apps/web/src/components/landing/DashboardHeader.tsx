@@ -3,23 +3,25 @@
 import { 
   HelpCircle, 
   FileText,
+  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { PaletteSwitcher } from "@/components/theme/PaletteSwitcher";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 function IconButton({ icon: Icon, title, disabled }: { icon: LucideIcon, title?: string, disabled?: boolean }) {
   return (
     <button 
       className={cn(
-        "p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed",
+        "p-2 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed",
       )}
       title={title}
       disabled={disabled}
     >
-      <Icon className="w-[18px] h-[18px]" />
+      <Icon className="w-5 h-5" />
     </button>
   );
 }
@@ -29,38 +31,41 @@ export function DashboardHeader() {
 
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return <div className="h-14 shrink-0" />;
+  if (!mounted) return <div className="h-16 shrink-0 bg-white" />;
 
   return (
-    <header className="h-14 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50 flex items-center justify-between px-4 shrink-0">
-...
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-2 pr-6 border-r border-border">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/20">
-            <span className="font-bold text-lg tracking-tight">a</span>
+    <header className="h-16 border-b border-border bg-white/80 backdrop-blur-md sticky top-0 z-[100] flex items-center justify-between px-8 shrink-0">
+      <div className="flex items-center gap-12">
+        <Link href="/" className="flex items-center gap-2.5 pr-8 border-r border-zinc-100 group transition-all">
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-white shadow-xl shadow-primary/25 group-hover:scale-105 transition-transform">
+            <span className="font-black text-xl tracking-tighter">a</span>
           </div>
-          <span className="text-xl font-bold tracking-tight text-primary drop-shadow-sm">alove</span>
-        </div>
+          <span className="text-2xl font-black tracking-tighter text-zinc-900">alove</span>
+        </Link>
 
-        <nav className="flex items-center gap-1.5">
-          <IconButton icon={FileText} title="Projects" />
+        <nav className="flex items-center gap-2">
+          <Link href="/editor" title="Projects">
+            <IconButton icon={FileText} />
+          </Link>
         </nav>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 pl-3 border-l border-border ml-2">
-           <IconButton icon={HelpCircle} title="Help & Support" />
-          
-          <div className="flex items-center gap-2 ml-1">
-            <PaletteSwitcher size="sm" />
-            <ThemeToggle />
-          </div>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 pr-6 border-r border-zinc-100">
+           <IconButton icon={HelpCircle} title="Help" />
+           <div className="flex items-center gap-2">
+              <PaletteSwitcher size="sm" />
+              <ThemeToggle />
+           </div>
+        </div>
 
-          <div className="ml-2 flex items-center gap-2 bg-zinc-100/80 p-1 rounded-full pl-1.5 pr-3 hover:bg-zinc-200/80 transition-colors cursor-pointer group active:scale-95">
-            <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-[10px] group-hover:bg-primary group-hover:text-white transition-colors">
-              A
-            </div>
-            <span className="text-[11px] font-semibold text-zinc-700">Account</span>
+        <div className="flex items-center gap-3 bg-zinc-50 border border-zinc-100 p-1.5 rounded-2xl hover:bg-zinc-100 transition-all cursor-default group shadow-sm">
+          <div className="w-8 h-8 bg-white border border-zinc-200 rounded-xl flex items-center justify-center text-primary font-bold shadow-sm">
+            <User className="w-4.5 h-4.5" />
+          </div>
+          <div className="flex flex-col pr-2">
+             <span className="text-[12px] font-black text-zinc-900 leading-none">Guest User</span>
+             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Local Mode</span>
           </div>
         </div>
       </div>
