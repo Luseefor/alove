@@ -51,22 +51,11 @@ export function DashboardHeader() {
       </div>
 
       <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3 pr-6 border-r border-zinc-100">
-           <IconButton icon={HelpCircle} title="Help" />
+        <div className="flex items-center gap-3 pr-4">
            <div className="flex items-center gap-2">
               <PaletteSwitcher size="sm" />
               <ThemeToggle />
            </div>
-        </div>
-
-        <div className="flex items-center gap-3 bg-zinc-50 border border-zinc-100 p-1.5 rounded-2xl hover:bg-zinc-100 transition-all cursor-default group shadow-sm">
-          <div className="w-8 h-8 bg-white border border-zinc-200 rounded-xl flex items-center justify-center text-primary font-bold shadow-sm">
-            <User className="w-4.5 h-4.5" />
-          </div>
-          <div className="flex flex-col pr-2">
-             <span className="text-[12px] font-black text-zinc-900 leading-none">Guest User</span>
-             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Local Mode</span>
-          </div>
         </div>
       </div>
     </header>

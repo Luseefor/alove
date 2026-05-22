@@ -169,13 +169,6 @@ export function AppHeader() {
             {buildStatus === "running" ? "Building..." : "Build"}
           </Button>
         </div>
-
-        <div className="flex items-center gap-2 bg-zinc-50 p-1 rounded-full pl-1.5 pr-3 hover:bg-zinc-100 transition-colors cursor-pointer group active:scale-95 border border-zinc-200/50">
-          <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center text-white font-bold text-[11px] shadow-sm group-hover:scale-105 transition-transform">
-            A
-          </div>
-          <span className="text-[12px] font-bold text-zinc-700">A. Love</span>
-        </div>
       </div>
 
       <IdeSettingsDialog open={settingsModalOpen} onOpenChange={setSettingsModalOpen} />

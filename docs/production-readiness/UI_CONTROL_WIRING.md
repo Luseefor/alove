@@ -8,20 +8,24 @@ This document audits every visible control in the alove workspace and maps it to
 |---|---|---:|---|---|---|
 | alove Logo | Dashboard | yes | brand display | - | display-only |
 | Projects (Icon) | Dashboard | yes | navigate to /editor | next/link | functional |
-| Help | Dashboard | yes | show documentation modal | setHelpOpen | functional |
+| Help | Dashboard | no | not implemented | - | hidden-unsupported |
 | Theme Toggle | Dashboard | yes | switch light/dark | useTheme | functional |
 | Palette Switcher | Dashboard | yes | change accent color | useTheme | functional |
-| Account/Profile | Dashboard | yes | user context | - | disabled-local-mode |
+| Account/Profile | Dashboard | no | user context not implemented | - | hidden-unsupported |
 | Home | Sidebar | yes | active state indicator | usePathname | functional |
 | Projects | Sidebar | yes | navigate to /editor | next/link | functional |
-| Settings | Sidebar | yes | open settings modal | setSettingsModalOpen | functional |
+| Settings | Sidebar | yes | navigate to editor settings | next/link | functional |
 | Local Mode Status | Sidebar | yes | system state indicator | isLocalStandalone | display-only |
+| Hero Headline | Hero | yes | main pitch | - | display-only |
+| Hero Subtext | Hero | yes | supporting pitch | - | display-only |
 | Open Editor | Hero | yes | navigate to /editor | next/link | functional |
 | New Project | Hero | yes | create blank document | next/link | functional |
 | Mini Preview | Hero | yes | illustrative workspace | - | display-only |
 | Workspace Status | Content | yes | real-time system health | /api/health | functional |
 | Recent Projects | Content | yes | list demo documents | demoProject.ts | functional |
-| Quick Start Cards | Content | yes | primary actions | next/link | functional |
+| New Document | Quick Start| yes | navigate to /editor?new=true | next/link | functional |
+| Open Sample | Quick Start| yes | navigate to /editor | next/link | functional |
+| Editor | Quick Start| yes | navigate to /editor | next/link | functional |
 | Pro Tip Bar | Bottom | yes | helpful hints | - | functional |
 
 ## Editor Workspace
@@ -34,7 +38,7 @@ This document audits every visible control in the alove workspace and maps it to
 | Project Title | Header | yes | document title | projectTitle | display-only |
 | Saved Status | Header | yes | dirty state indicator | hasDirty | display-only |
 | Build (Button) | Header | yes | trigger compilation | runCompile | functional |
-| Export | Header | yes | download compiled PDF | pdfDataUrl | functional |
+| Export | Header | yes | download compiled PDF | pdfDataUrl | disabled-no-pdf |
 | Share | Header | no | cloud-only feature | - | hidden-unsupported |
 | Cite | Feature Bar | yes | insert bib snippet | appendToActiveFile | functional |
 | Figure | Feature Bar | yes | insert figure snippet | appendToActiveFile | functional |
@@ -46,18 +50,15 @@ This document audits every visible control in the alove workspace and maps it to
 | File Tree | Sidebar | yes | file management | openFile/createFile | functional |
 | Snippets | Sidebar | yes | insert math/latex | appendToActiveFile | functional |
 | Outline | Sidebar | yes | navigate document | jumpToDiagnostic | functional |
-| Editor Tabs | Editor | yes | switch active file | openFile | functional |
-| Status Bar | Editor | yes | document metrics | cursor/stats | display-only |
-| PDF Preview | PDF Pane | success | view document | pdfDataUrl | functional |
-| PDF Thumbnails | PDF Pane | success | navigate pages | setCurrentPage | functional |
-| Log / Problems | Bottom | yes | view output | activeBottomTab | functional |
-| Build Success Card| Bottom | success | compile summary | buildStatus | display-only |
+| Editor Tabs | Center | yes | switch active file | openFile | functional |
+| Line Numbers | Editor | yes | gutter | CodeMirror | functional |
+| Status Bar | Editor | yes | ln/col/stats | derived from state | display-only |
+| Thumbnails | PDF Pane | success | browse pages | setCurrentPage | functional |
+| PDF iframe | PDF Pane | success | view document | pdfDataUrl | functional |
+| Document not built| PDF Pane | idle | empty state | - | display-only |
+| Compiling status | PDF Pane | active | loading state | buildStatus | display-only |
+| Build Failed state | PDF Pane | failed | error state | buildStatus | display-only |
+| Log Tab | Bottom | yes | view build output | activeBottomTab | functional |
+| Problems Tab | Bottom | yes | view diagnostics | activeBottomTab | functional |
+| Build Result Card | Bottom | success | compile summary | buildStatus | display-only |
 | Document Stats | Bottom | yes | derived metrics | derivedStats | display-only |
-
-## Non-Negotiable Repairs
-
-1. **Light Theme**: Re-implement `globals.css` and palettes to force a clean light IDE.
-2. **Layout Consistency**: Ensure no overlaps. Mini preview belongs in a card in the main grid.
-3. **Sidebar**: Use light background for all sidebars.
-4. **State Consistency**: PDF pane and Build Result card MUST agree on `buildStatus`.
-5. **No Fakes**: Remove Storage, Sync, Invite, and all dead toolbar icons.
