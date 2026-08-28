@@ -2,7 +2,7 @@
 
 Next.js app for the LaTeX editor and Convex backend client.
 
-Setup and run instructions live in the [repository root README](../../README.md). Quick reference:
+Product overview and quickstart: [repository root README](../../README.md). Env vars, ports, and cloud setup: [docs/development.md](../../docs/development.md). Quick reference:
 
 ```bash
 # from monorepo root

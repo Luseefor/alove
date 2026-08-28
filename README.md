@@ -1,185 +1,53 @@
 # alove
 
-Monorepo for a web LaTeX workspace: Next.js editor, BullMQ compile worker (TeX Live in Docker), and optional Convex-backed collaboration. **Dependencies and scripts use [Bun](https://bun.sh)** (`bun install`, `bun run`, workspaces, and the Bun runtime for the compile worker and legacy realtime server).
+**alove** is a web LaTeX workspace you run yourself. Write in the browser, compile with a full TeX Live install in Docker, and preview the PDF next to your source. Default local mode needs no account. Optional Clerk + Convex collaboration is there when you want a shared cloud workspace.
 
-**Default `bun run dev`** runs the web app in **local standalone** mode: **no Clerk or Convex**, editor + PDF + multi-file on disk-backed browser history only, **no live collaboration**. Next.js binds the **first free TCP port** from **`ALOVE_WEB_PORT`** (default **30127**) upward (skips common services and Next‑blocked ports such as **6000** / X11); the chosen URL is **printed when dev starts**. Use **`bun run --filter web dev:cloud`** plus Convex when you want the full authenticated stack (port **3000**).
+There is no public hosted demo; clone the repo and run it.
 
-## Prerequisites
+## Why alove (vs Overleaf)
 
-| Tool | Notes |
-|------|--------|
-| **[Bun](https://bun.sh/docs/installation)** | **1.3.10+** — matches `packageManager` in root `package.json` and CI |
-| **Docker** | Docker Engine + Compose v2 (Redis, Postgres, TeX compiles) |
-| **Git** | SSH recommended for GitHub |
-| **Clerk** | Only for **cloud** mode — [sign up](https://dashboard.clerk.com), create an application |
-| **Convex** | Only for **cloud** mode — [sign up](https://dashboard.convex.dev), create a project |
+Overleaf is a hosted service. alove is software you clone and run:
 
-Install Bun (macOS/Linux):
+- **Local-first** — editor, multi-file projects, and PDFs on your machine; no sign-in for the default `bun run dev`
+- **Your TeX Live** — `latexmk` in Docker (`pdflatex`, `xelatex`, `lualatex`) or a host install
+- **Collab when you opt in** — Clerk auth + Convex sync, not required to write
+- **Open source** — MIT; fork, self-host, or wire up the cloud path yourself
+
+## Features
+
+- Split CodeMirror 6 LaTeX editor + PDF preview (outline, folding, snippets, search, optional Vim)
+- Auto-compile, engine picker, log tail, and inline diagnostics
+- Multi-file projects, article templates, command palette, zen mode, themes
+- Local compile snapshots in the browser (IndexedDB)
+- Optional live presence and file sync (cloud mode)
+
+## Try it
+
+You need [Bun](https://bun.sh) **1.3.10+** and Docker (Engine + Compose v2).
 
 ```bash
-curl -fsSL https://bun.sh/install | bash
-```
-
-Windows: see [Bun docs](https://bun.sh/docs/installation).
-
-## Clone the repository
-
-```bash
-git clone git@github.com:Luseefor/alove.git
+git clone https://github.com/Luseefor/alove.git
 cd alove
-```
-
-## Step 1 — Install dependencies
-
-```bash
 bun install
-```
-
-## Step 2 — Start Redis and Postgres
-
-```bash
 docker compose up -d
-```
-
-This exposes **Redis** on `6379` and **Postgres** on `5432`.
-
-## Step 3 — Pull the TeX Live image (compile worker)
-
-```bash
 docker pull ghcr.io/xu-cheng/texlive-full:latest
-```
-
-Optional: set `COMPILE_USE_DOCKER=false` and use host TeX Live; see **Environment variables** below.
-
-## Step 4 — Configure environment
-
-```bash
-cp apps/web/.env.example apps/web/.env.local
-```
-
-Edit `apps/web/.env.local` when using **cloud** mode (`dev:cloud` / `dev:with-convex`):
-
-1. **Clerk** — `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` from the Clerk dashboard. For relaxed local cloud dev you can omit `CLERK_SECRET_KEY`; set it for production-like middleware and `/api/compile`.
-2. **Convex** — after Step 5, the Convex CLI writes `NEXT_PUBLIC_CONVEX_URL` into `.env.local` (or copy from the Convex dashboard).
-3. **Clerk JWT for Convex** — `CLERK_JWT_ISSUER_DOMAIN` (Clerk issuer URL, often `https://<instance>.clerk.accounts.dev`). Add a JWT template named **`convex`** per [Convex + Clerk](https://docs.convex.dev/auth/clerk).
-4. **Redis** — defaults `REDIS_HOST=127.0.0.1`, `REDIS_PORT=6379` match `docker compose`.
-
-**Local standalone** (default `bun run dev`): you do **not** need Clerk or Convex in `.env.local`. Optionally set `NEXT_PUBLIC_LOCAL_STANDALONE=true` yourself if you run `next dev` without the web `dev` script.
-
-The compile worker reads `REDIS_*` from the environment (defaults match Docker). Next.js loads `apps/web/.env.local` for the web app.
-
-## Step 5 — Link Convex (cloud mode only)
-
-Skip this for default local standalone. From the **repository root**:
-
-```bash
-bun run convex:dev
-```
-
-This runs `convex dev` in the `web` workspace (`apps/web`). Log in when prompted, select a project, and keep the process running while developing, **or** use the combined script in Step 6.
-
-## Step 6 — Run the app
-
-### Default — local editor + compile (no auth, no collab)
-
-**Terminal 1** — Next.js (dynamic port, see terminal output) + compile worker via Turbo:
-
-```bash
 bun run dev
 ```
 
-Ensure **Redis** is up (`docker compose`). No Convex terminal is required in this mode.
+Open **`/editor`** at the URL printed in the terminal (the app picks a free port starting at **30127**). Redis from Compose is required for compiles. Clerk and Convex are **not** used in this mode.
 
-Open **`/editor`** on the URL printed in the web dev logs (by default the first free port from **30127**).
+## Live collaboration (optional)
 
-Set **`ALOVE_WEB_PORT`** (integer) to prefer a different starting port, e.g. `ALOVE_WEB_PORT=38400 bun run dev` from the repo root. You can still run manually from `apps/web`:  
-`NEXT_PUBLIC_LOCAL_STANDALONE=true bunx next dev --turbopack -p <port>`.
-
-### Cloud — Clerk + Convex + collaboration
-
-**Terminal 1** — Next on port **3000** + compile worker:
+Cloud mode is Clerk + Convex + the same compile worker. Copy [`apps/web/.env.example`](apps/web/.env.example) to `apps/web/.env.local`, fill Clerk and Convex keys, then:
 
 ```bash
 bun run --filter web dev:cloud
 bun run --filter compile-worker dev
-```
-
-(Or run both via two terminals / a process manager.)
-
-**Terminal 2** — Convex:
-
-```bash
 bun run convex:dev
 ```
 
-**Alternative — Next + Convex in one terminal** (Next still on **3000**):
+Editor: [http://localhost:3000/editor](http://localhost:3000/editor). Ports, env vars, host TeX Live, and workspace commands: [docs/development.md](docs/development.md).
 
-```bash
-bun run dev:with-convex
-```
+## License
 
-Use a second terminal for the compile worker:
-
-```bash
-bun run --filter compile-worker dev
-```
-
-### Open the editor (cloud)
-
-1. [http://localhost:3000/editor](http://localhost:3000/editor)
-2. Sign in with Clerk.
-3. Optional: second browser or incognito to verify collaboration.
-
-**Ports:** local standalone — first free port from `ALOVE_WEB_PORT` (default **30127**); cloud dev — **3000**; **6379** — Redis; **5432** — Postgres; Convex URL comes from `NEXT_PUBLIC_CONVEX_URL` when enabled.
-
-## Other useful commands
-
-| Command | Purpose |
-|---------|---------|
-| `bun run build` | Production build (Turbo) |
-| `bun run typecheck` | Typecheck all packages |
-| `bun run lint` | Lint |
-| `bun run test` | Tests |
-| `bun run format` | Prettier |
-
-**Workspace examples:**
-
-```bash
-bun run --filter web lint
-bun run --filter compile-worker dev
-bun run --filter realtime dev:legacy
-```
-
-## Environment variables (reference)
-
-| Variable | Where | Purpose |
-|----------|--------|---------|
-| `NEXT_PUBLIC_LOCAL_STANDALONE` | build / `.env.local` | `true` / `1` disables Clerk, Convex UI, and collaboration (set by the default `apps/web` `dev` launcher) |
-| `ALOVE_WEB_PORT` | dev only | Starting port for local Next scan (default **30127**); increase if that range is busy |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk |
-| `NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN` | `apps/web/.env.local` | Convex + Clerk JWT |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | env / `.env.local` for Next; export for worker | BullMQ |
-| `COMPILE_USE_DOCKER` | worker | `true` (default) Docker; `false` / `0` host `latexmk` |
-| `COMPILE_DOCKER_IMAGE` | worker | TeX image override |
-| `COMPILE_DOCKER_PLATFORM` | worker | `docker run --platform` value; on **macOS + arm64** defaults to **`linux/amd64`** so common TeX images run under emulation |
-| `WORKER_CONCURRENCY` | worker | BullMQ concurrency (default `2`) |
-
-## Packages and apps
-
-- `apps/web` — Next.js UI, `/api/compile`, Convex client
-- `apps/compile-worker` — BullMQ consumer (`bun` runtime)
-- `apps/realtime` — optional legacy server (`bun` runtime)
-- `packages/protocol`, `packages/queue`, `packages/editor` — shared libraries
-
-## Feature coverage (high level)
-
-| Area | In repo | Roadmap-style gaps |
-|------|---------|---------------------|
-| Editing | CM6 LaTeX, folding, brackets, search, Vim option, autocomplete | Richer cite/ref, spellcheck |
-| Build | `latexmk` via Docker or host, multiple engines, log parse, timeout | Docker-side hard kill, SyncTeX |
-| Collaboration | Convex + Clerk | Roles, comments, track changes |
-| Versioning | IndexedDB compile snapshots | Server history, Git |
-
----
-
-Repository: [https://github.com/Luseefor/alove](https://github.com/Luseefor/alove)
+[MIT](LICENSE)
