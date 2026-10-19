@@ -20,6 +20,11 @@ import {
 export function EditorPane() {
   const {
     activeFileId,
+    projectId,
+    mainFile,
+    diagnostics,
+    diagnosticRevision,
+    documentRevision,
     openFiles,
     filesByPath,
     dirtyByPath,
@@ -256,8 +261,12 @@ export function EditorPane() {
         <div className="flex-1 flex overflow-hidden min-h-0">
           {codeMirrorEnabled ? (
             <LatexCodeEditor
+              key={`${projectId}:${activeFileId}`}
               ref={codeEditorRef}
               value={content}
+              filePath={activeFileId ?? undefined}
+              mainFile={mainFile}
+              diagnostics={diagnosticRevision === documentRevision ? diagnostics : undefined}
               onChange={updateActiveFileContent}
               readOnly={false}
               spellCheck={spellcheckEnabled}

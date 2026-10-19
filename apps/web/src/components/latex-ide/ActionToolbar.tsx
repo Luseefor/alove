@@ -86,6 +86,7 @@ export function ActionToolbar() {
   const {
     appendToActiveFile,
     runCompile,
+    buildStatus,
     requestEditorFindBar,
     filesByPath,
   } = useWorkbenchStore();
@@ -166,6 +167,7 @@ export function ActionToolbar() {
           label="Build" 
           variant="primary"
           dataTestId="compile-button"
+          disabled={buildStatus === "running" || buildStatus === "queued"}
           onClick={() => void runCompile()}
         />
       </ToolbarGroup>

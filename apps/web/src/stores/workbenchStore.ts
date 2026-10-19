@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { preferenceStorage } from "@/lib/preferenceStorage";
 import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import { pollCompileJob } from "@/lib/compilePoll";
+import { normalizeDiagnosticFile } from "@/lib/editorDiagnostics";
 import { BibliographyService } from "@/services/BibliographyService";
 import { ProjectService } from "@/services/ProjectService";
 import { OutlineService, type OutlineNode } from "@/services/OutlineService";
@@ -49,6 +50,9 @@ export interface WorkbenchState {
   projectId: string | null;
   projectTitle: string;
   mainFile: string | null;
+  documentRevision: number;
+  pdfSourceRevision: number | null;
+  pdfMainFile: string | null;
   saveStatus: "loading" | "unsaved" | "saving" | "saved" | "error" | "conflict";
   saveMessage: string | null;
   projectTree: ProjectFile[];
@@ -69,6 +73,7 @@ export interface WorkbenchState {
   projectSearchQuery: string;
   projectSearchResults: ProjectSearchResult[];
   diagnostics: Diagnostic[];
+  diagnosticRevision: number | null;
   buildLog: string;
   buildStatus: "idle" | "queued" | "running" | "ready" | "failed";
   buildMessage: string | null;
@@ -106,6 +111,8 @@ export interface WorkbenchState {
   setActiveFile: (id: string | null) => void;
   setProjectTree: (tree: ProjectFile[]) => void;
   setProjectTitle: (title: string) => void;
+  setMainFile: (path: string) => void;
+  stopCompilePolling: () => void;
   initializeProject: (args: {
     projectId: string | null;
     title?: string;
@@ -154,6 +161,9 @@ function calculateStats(content: string) {
   return { words, chars, equations, figures, tables, pages: null };
 }
 
+let compileSequence = 0;
+let activeCompile: AbortController | null = null;
+
 export const useWorkbenchStore = create<WorkbenchState>()(
   persist(
     (set, get) => ({
@@ -166,6 +176,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       projectId: null,
       projectTitle: "Deep Learning Survey",
       mainFile: null,
+      documentRevision: 0,
+      pdfSourceRevision: null,
+      pdfMainFile: null,
       saveStatus: "unsaved",
       saveMessage: null,
       projectTree: [],
@@ -184,6 +197,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       projectSearchQuery: "",
       projectSearchResults: [],
       diagnostics: [],
+      diagnosticRevision: null,
       buildLog: "",
       buildStatus: "idle",
       buildMessage: null,
@@ -224,6 +238,15 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       },
       setProjectTree: (tree) => set({ projectTree: tree }),
       setProjectTitle: (title) => set({ projectTitle: title }),
+      setMainFile: (path) => {
+        if (path.endsWith(".tex") && Object.hasOwn(get().filesByPath, path)) set({ mainFile: path });
+      },
+      stopCompilePolling: () => {
+        compileSequence += 1;
+        activeCompile?.abort();
+        activeCompile = null;
+        if (get().buildStatus === "queued" || get().buildStatus === "running") set({ buildStatus: "idle", buildMessage: null });
+      },
       setPersistenceHandlers: (handlers) => set({ persistence: handlers }),
       initializeProject: ({ projectId, title, files, mainFile, activeFile, openFiles }) => {
         const filesByPath: Record<string, string> = {};
@@ -525,12 +548,12 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       },
       setFocusedLine: (line) => set({ focusedLine: line }),
       jumpToDiagnostic: (diagnostic) => {
-        const file = diagnostic.file;
-        if (file && file in get().filesByPath) {
+        const file = normalizeDiagnosticFile(diagnostic.file ?? get().mainFile);
+        if (file && Object.hasOwn(get().filesByPath, file)) {
           get().openFile(file);
         }
         set({
-          focusedLine: diagnostic.line ?? null,
+          focusedLine: get().diagnostics.includes(diagnostic) && get().diagnosticRevision !== get().documentRevision ? null : diagnostic.line ?? null,
           activeBottomTab: "problems",
         });
       },
@@ -542,12 +565,18 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         const state = get();
         const engine = engineArg ?? useIdeSettingsStore.getState().defaultCompilerEngine;
         const cleanAux = useIdeSettingsStore.getState().compilerCleanAux;
-        const mainFile =
-          state.activeFileId && state.activeFileId.endsWith(".tex")
-            ? state.activeFileId
-            : Object.keys(state.filesByPath).find((path) => path === "main.tex") ??
-              Object.keys(state.filesByPath).find((path) => path.endsWith(".tex")) ??
-              "main.tex";
+        const mainFile = state.mainFile ?? (Object.hasOwn(state.filesByPath, "main.tex") ? "main.tex" : Object.keys(state.filesByPath).find((path) => path.endsWith(".tex")));
+        // Every requested run supersedes the previous one, including invalid requests.
+        activeCompile?.abort();
+        activeCompile = null;
+        const sequence = ++compileSequence;
+        if (!mainFile || !Object.hasOwn(state.filesByPath, mainFile)) {
+          set({ buildStatus: "failed", buildMessage: "Choose a main .tex document before building." });
+          return;
+        }
+        const controller = new AbortController();
+        activeCompile = controller;
+        const isCurrent = () => !controller.signal.aborted && sequence === compileSequence && get().projectId === state.projectId;
         set({
           buildStatus: "queued",
           buildMessage: null,
@@ -558,6 +587,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         });
         try {
           const res = await fetch("/api/compile", {
+            signal: controller.signal,
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
@@ -569,12 +599,20 @@ export const useWorkbenchStore = create<WorkbenchState>()(
               timeoutMs: 120_000,
             }),
           });
+          if (!isCurrent()) return;
           if (!res.ok) {
-            throw new Error(`Compile queue failed: ${res.status}`);
+            let message = `Compile queue failed: ${res.status}`;
+            try {
+              const error = await res.json() as { error?: string };
+              message = error.error ?? message;
+            } catch { /* Keep HTTP error when response is not JSON. */ }
+            throw new Error(message);
           }
           const { jobId } = (await res.json()) as { jobId: string };
+          if (!isCurrent()) return;
           set({ buildStatus: "running", buildMessage: `Job ${jobId}` });
-          const result = await pollCompileJob(jobId);
+          const result = await pollCompileJob(jobId, controller.signal);
+          if (!isCurrent()) return;
           const ok = result.phase === "ready" && Boolean(result.pdfBase64);
           const texFiles = Object.entries(state.filesByPath).filter(([path]) => path.endsWith(".tex"));
           const bibFiles = Object.entries(state.filesByPath).filter(([path]) => path.endsWith(".bib"));
@@ -605,16 +643,24 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             buildMessage: result.errorMessage ?? (ok ? "Compiled successfully" : "Compilation failed"),
             buildLog: result.log ?? "",
             diagnostics: mergedDiagnostics,
-            pdfDataUrl: result.pdfBase64 ? `data:application/pdf;base64,${result.pdfBase64}` : null,
-            pdfPage: 1,
+            diagnosticRevision: state.documentRevision,
+            ...(ok && result.pdfBase64 ? {
+              pdfDataUrl: `data:application/pdf;base64,${result.pdfBase64}`,
+              pdfSourceRevision: state.documentRevision,
+              pdfMainFile: mainFile,
+              pdfPage: 1,
+            } : {}),
             activeBottomTab: mergedDiagnostics.length > 0 ? "problems" : "log",
           });
         } catch (error: unknown) {
+          if (!isCurrent()) return;
           set({
             buildStatus: "failed",
             buildMessage: error instanceof Error ? error.message : String(error),
             buildLog: error instanceof Error ? error.message : String(error),
           });
+        } finally {
+          if (sequence === compileSequence) activeCompile = null;
         }
       },
       openFile: (id) => {
@@ -697,3 +743,24 @@ function saveFileToPersistence(path: string, initialVersion?: number): Promise<v
   void pending.then(() => { if (pendingFileSaves.get(path) === pending) pendingFileSaves.delete(path); });
   return pending;
 }
+
+// Build provenance follows source, not tab/layout changes or save acknowledgements.
+useWorkbenchStore.subscribe((state, previous) => {
+  const projectChanged = state.projectId !== previous.projectId;
+  const filesChanged = state.filesByPath !== previous.filesByPath && (
+    Object.keys(state.filesByPath).length !== Object.keys(previous.filesByPath).length ||
+    Object.entries(state.filesByPath).some(([path, content]) => previous.filesByPath[path] !== content)
+  );
+  if (projectChanged) {
+    compileSequence += 1;
+    activeCompile?.abort();
+    activeCompile = null;
+    useWorkbenchStore.setState({
+      documentRevision: previous.documentRevision + 1,
+      pdfDataUrl: null, pdfSourceRevision: null, pdfMainFile: null,
+      buildStatus: "idle", buildMessage: null, buildLog: "", diagnostics: [], diagnosticRevision: null,
+    });
+  } else if (filesChanged || state.mainFile !== previous.mainFile) {
+    useWorkbenchStore.setState({ documentRevision: previous.documentRevision + 1 });
+  }
+});

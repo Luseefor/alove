@@ -111,6 +111,7 @@ function EditorWorkbenchLocal() {
       active = false;
       window.removeEventListener("beforeunload", warnIfUnsaved);
       session.dispose();
+      useWorkbenchStore.getState().stopCompilePolling();
     };
   }, [requestedId, isNew, router]);
 
@@ -118,6 +119,7 @@ function EditorWorkbenchLocal() {
 }
 
 export function EditorWorkbench() {
+  useEffect(() => () => useWorkbenchStore.getState().stopCompilePolling(), []);
   const searchParams = useSearchParams();
   const setSettingsModalOpen = useWorkbenchStore((s) => s.setSettingsModalOpen);
   const settingsHandledRef = useRef(false);

@@ -8,6 +8,9 @@ import {
 } from "@alove/editor";
 import type { EditorKeybindings } from "@/stores/ideSettingsStore";
 import { EditorView } from "@codemirror/view";
+import type { Diagnostic } from "@alove/protocol";
+import { setDiagnostics } from "@codemirror/lint";
+import { toCmDiagnostics } from "@/lib/editorDiagnostics";
 import React from "react";
 import {
   forwardRef,
@@ -19,6 +22,9 @@ import { cn } from "@/lib/utils";
 
 export type LatexCodeEditorProps = {
   value: string;
+  diagnostics?: Diagnostic[];
+  filePath?: string;
+  mainFile?: string | null;
   onChange: (nextValue: string) => void;
   className?: string;
   readOnly?: boolean;
@@ -49,6 +55,9 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
   function LatexCodeEditor(
     {
       value,
+      diagnostics,
+      filePath,
+      mainFile,
       onChange,
       className,
       readOnly = false,
@@ -68,6 +77,8 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
     const onSelectionChangeRef = useRef(onSelectionChange);
     const onFocusRef = useRef(onFocus);
     const initialValueRef = useRef(value);
+    const diagnosticRef = useRef({ diagnostics, filePath, mainFile });
+    diagnosticRef.current = { diagnostics, filePath, mainFile };
 
     onChangeRef.current = onChange;
     onSelectionChangeRef.current = onSelectionChange;
@@ -119,6 +130,8 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
       );
 
       viewRef.current = createLatexEditorView(host, state);
+      const diagnostic = diagnosticRef.current;
+      viewRef.current.dispatch(setDiagnostics(viewRef.current.state, toCmDiagnostics(viewRef.current.state.doc, diagnostic.diagnostics ?? [], diagnostic.filePath, diagnostic.mainFile)));
       return () => {
         viewRef.current?.destroy();
         viewRef.current = null;
@@ -141,6 +154,11 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
         changes: { from: 0, to: view.state.doc.length, insert: value },
       });
     }, [value]);
+
+    useEffect(() => {
+      const view = viewRef.current;
+      if (view) view.dispatch(setDiagnostics(view.state, toCmDiagnostics(view.state.doc, diagnostics ?? [], filePath, mainFile)));
+    }, [diagnostics, filePath, mainFile, value]);
 
     useImperativeHandle(ref, (): LatexCodeEditorHandle => ({
       focus: () => {

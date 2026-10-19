@@ -39,4 +39,14 @@ Worker artifact handling reads bounded log tails, caps PDFs before reading, reje
 
 Validation: shared protocol tests 17 passed; worker tests 10 passed; web tests 80 passed; all-package typecheck and lint passed. Default and local-standalone production builds passed. The local-standalone production browser suite passed 21 checks with 2 cloud-only skips. The first production build exposed a source-extension resolution mismatch in the protocol re-export; the validator now lives in the package's existing entry point, and both builds pass. The Docker daemon remained unreachable after attempting to start the installed application, including its normal-home socket; no actual TeX/container smoke is claimed.
 
-Still required before public hosting: container/runner hardening and real cleanup smoke (C3), ownership and server-only local-mode policy (C4), quotas/cancellation (C5), and cloud membership/conflict work (S1/S2). Local history restore/checkpoints and compile-controller races remain the next editor tasks.
+Still required before public hosting: container/runner hardening and real cleanup smoke (C3), ownership and server-only local-mode policy (C4), quotas/cancellation (C5), and cloud membership/conflict work (S1/S2).
+
+## Build provenance and usable previews
+
+Builds now use the configured main document independently of the active tab. The file menu selects the main document, and local workspaces retain that choice. Each requested run supersedes the previous response, including invalid requests; project changes and unmount stop obsolete client polling. This stops watching a job, not the worker itself.
+
+Successful previews retain their source revision and root. Rebuilds and failures keep the last successful PDF; source changes label it stale. A build finishing while typing may publish its captured snapshot as a stale preview, without changing newer source. Diagnostics retain their snapshot revision, paint only the matching file at valid locations, and stop painting after edits. Problem navigation normalizes worker paths and avoids stale line jumps. File switches isolate undo histories so another file's contents cannot be restored into the active file.
+
+The preview no longer displays invented page counts, dummy thumbnails, or unwired controls. Native PDF viewing and source-named PDF download remain. Autosave no longer serializes the workspace for cursor/status-only updates.
+
+Validation: 112 web unit tests passed; all-package typecheck and lint passed; local-standalone production build passed. The full production Chromium suite passed 22 checks with 2 cloud-only skips. Extended root-selection reload and cross-file undo checks then passed 2/2 after correcting a case-sensitive save-label locator in the test. Compile UI checks use mocked API results, not real TeX. Independent review found the invalid-request supersession race; its regression now passes. Settings/theme reconfiguration and cloud dirty-buffer merging are next; real runner smoke and public-hosting gates above remain open.

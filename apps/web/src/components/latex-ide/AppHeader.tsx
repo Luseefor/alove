@@ -200,7 +200,7 @@ export function AppHeader() {
             variant="primary" 
             size="sm" 
             onClick={() => void runCompile()}
-            disabled={buildStatus === "running"}
+            disabled={buildStatus === "running" || buildStatus === "queued"}
             className="h-9 px-5 rounded-xl font-bold gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95"
           >
             <Play className={cn("w-4 h-4 fill-current", buildStatus === "running" && "animate-pulse")} />

@@ -116,7 +116,8 @@ export function createLocalWorkspaceSession({
         saveStatus: loaded ? "saved" : "unsaved",
         persistence: { saveWorkspace: save },
       });
-      unsubscribe = store.subscribe(() => {
+      unsubscribe = store.subscribe((state, previous) => {
+        if (state.filesByPath === previous.filesByPath && state.projectTitle === previous.projectTitle && state.mainFile === previous.mainFile && state.activeFileId === previous.activeFileId && state.openFiles === previous.openFiles) return;
         const next = JSON.stringify(snapshot());
         if (next === observed) return;
         observed = next;

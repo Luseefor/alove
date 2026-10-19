@@ -514,7 +514,7 @@ function OutlineItem({ label, level, onClick }: { label: string; level: number; 
 }
 
 function FileRow({ file, level }: { file: ProjectFile; level: number }) {
-  const { activeFileId, openFile, deleteFile, renameFile } = useWorkbenchStore();
+  const { activeFileId, openFile, deleteFile, renameFile, mainFile, setMainFile } = useWorkbenchStore();
   const [isOpen, setIsOpen] = useState(true);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -570,7 +570,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
         <span className={cn("text-[12px] font-bold truncate flex-1", isActive && "text-primary")}>{file.name}</span>
         
         {file.path.endsWith(".tex") && (
-          <span className="text-[9px] font-black uppercase tracking-tighter text-primary/40 mr-1.5 bg-primary/5 px-1 rounded-sm border border-primary/5">TEX</span>
+          <span className="text-[9px] font-black uppercase tracking-tighter text-primary/40 mr-1.5 bg-primary/5 px-1 rounded-sm border border-primary/5">{mainFile === file.path ? "MAIN" : "TEX"}</span>
         )}
         {file.path.endsWith(".bib") && (
           <span className="text-[9px] font-black uppercase tracking-tighter text-violet-400 mr-1.5 bg-violet-50 px-1 rounded-sm border border-violet-50">BIB</span>
@@ -592,6 +592,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[9rem] rounded-xl shadow-xl p-1.5 border-zinc-100">
+              {file.path.endsWith(".tex") && <DropdownMenuItem disabled={mainFile === file.path} onSelect={(event) => { event.stopPropagation(); setMainFile(file.path); }}>Set as Main Document</DropdownMenuItem>}
               <DropdownMenuItem
                 className="rounded-lg font-semibold text-xs gap-3 p-2 cursor-pointer"
                 onSelect={(e) => {
