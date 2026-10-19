@@ -66,3 +66,52 @@ Next delivery order: C3 runner isolation, bounded resources, and real timeout/cl
 The reported overlapping header and crushed sidebar/editor/preview were reproduced at 525 CSS pixels. Earlier DOM snapshots and desktop checks did not establish responsive visual quality. The header now uses normal document flow, truncates long titles, and keeps actions reachable without overlap. Build has one global action. Below 1024 pixels, Source and PDF use separate views while retaining mounted editor state; project files open in a drawer. Desktop keeps a readable 220–280 pixel sidebar and resizable source/PDF panes. Empty build output no longer consumes a third of the screen. The preview has compact controls and a bounded empty state; editor chrome follows the light/dark palette and uses thinner scrollbars.
 
 Validation: inspected real Ace browser screenshots in light and dark, including the reported 525-pixel width and phone/tablet/desktop sizes. Added 11 browser regressions for header geometry, clipping, minimum editor/sidebar widths, Source/PDF switching with undo, and resizing across the breakpoint. The final local-standalone production build passed; production Chromium suite passed 35 tests with 2 cloud-only skips. Web unit suite remains 132 passed, and web typecheck/lint passed. Independent layout review found no blockers. Initial preview-unit failures were a missing React import during the rewrite; the import was restored and all seven preview regressions pass. Runner/cloud release limitations above remain unchanged.
+
+## Real Docker and PDF workflow verification
+
+Docker Desktop was installed but stopped. Launching it from the isolated agent
+home failed because the Unix socket path was too long. Launching the existing
+application from the normal Mac Terminal restored the daemon; Docker 28.3.2 and
+a real hello-world container succeeded. No reinstall, factory reset, image purge
+or user-data deletion was needed. The CLI/worker use the normal desktop-linux
+context. A smaller local TeX image was built from a pinned amd64 TeX Live base
+with physics/cleveref; the bundled demo produced a real 128,381-byte PDF. Added
+packages are not version-pinned, so this development image is not a reproducible
+release artifact.
+
+Real execution exposed defects that fake-process fixtures could not detect:
+image data URLs were written as UTF-8, and nested main documents produced PDFs
+in a different directory from the worker's retrieval path. Uploaded binary data
+is now decoded with strict MIME/base64 validation; both latexmk steps explicitly
+write into the configured root's directory. Generated output must start with a
+PDF signature. Ordinary TeX errors now report LATEX_ERROR instead of a Docker
+infrastructure error. A timeout takes precedence over partial invalid PDFs.
+Repeated real timeout runs also exposed Docker's automatic-removal race with
+explicit cleanup; cleanup now retries the specific removal-in-progress response
+with bounded attempts and command deadlines, while other failures remain visible.
+
+The live test uses a dedicated loopback Redis on port 6381, a host worker running
+Docker TeX, and the local production preview at http://127.0.0.1:30127. Existing
+Redis port 6379 and its queued jobs were left untouched. The preview and worker
+remain running for inspection. This setup does not verify the Compose worker's
+host bind-mount arrangement.
+
+Validation: 23 worker unit/process tests passed; the real Docker suite passed
+6/6 (pdflatex/lualatex/xelatex, nested include/PNG/BibTeX, real TeX error, deadline
+and container/temp-directory cleanup). A separate repeated timeout check passed.
+All-package typecheck and lint passed; five package lint tasks remain no-ops.
+Web unit tests passed 132/132 (Node's experimental-storage notices remain).
+The final real production browser workflow passed 1/1 in 17 seconds against the
+updated worker, without compile mocks: create, edit, queue, build, download a
+valid PDF, preserve it after failure, reload saved source, and rebuild. Ace's
+visible browser also rendered an actual compiled PDF. The final browser rerun
+was initially blocked by a missing matching Playwright executable; the official
+matching browser archive was installed into an explicit cache, then the rerun
+passed. Independent reviews of the runtime changes and timeout race found no
+blockers. All 13 original dirty/untracked source files still match their backup
+hashes; all changes remain isolated on ace/quality-implementation.
+
+Next release gates remain C3 container resource/network/user/filesystem isolation,
+C4 ownership and server-only local-mode policy, C5 quotas/cancellation, and cloud
+conflict/history recovery. The real runner smoke closes the earlier Docker-
+unavailable verification gap; it does not establish safe public TeX hosting.

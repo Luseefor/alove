@@ -20,6 +20,7 @@ import {
   type Diagnostic,
 } from "@alove/protocol";
 import { parseLatexLog } from "./logParse.js";
+import { decodeCompileFileData } from "./compileFileData.js";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_FILES = 250;
@@ -322,13 +323,25 @@ async function ensureDockerContainerRemoved(
   containerName: string,
   cwd: string,
 ): Promise<void> {
-  const removed = await runCmd("docker", ["rm", "-f", containerName], cwd, {
-    maxOutputBytes: 16_384,
-  });
-  const detail = `${removed.stdout}\n${removed.stderr}`.toLowerCase();
-  if (removed.code !== 0 && !detail.includes("no such container")) {
+  // docker run --rm and the deadline's explicit removal can race. Wait for
+  // that removal to finish rather than reporting a successful timeout as internal.
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const removed = await runCmd("docker", ["rm", "-f", containerName], cwd, {
+      maxOutputBytes: 16_384,
+      signal: AbortSignal.timeout(5000),
+    });
+    const detail = `${removed.stdout}\n${removed.stderr}`.toLowerCase();
+    if (removed.code === 0 || detail.includes("no such container")) return;
+    if (
+      detail.includes("removal of container") &&
+      detail.includes("already in progress") &&
+      attempt < 19
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      continue;
+    }
     throw new Error(
-      `docker cleanup failed for container ${containerName} (exit ${removed.code})`,
+      `docker cleanup failed for container ${containerName} (exit ${removed.code}): ${detail.trim()}`,
     );
   }
 }
@@ -381,7 +394,19 @@ export async function runCompileJob(
       return validated.result;
     }
 
-    for (const file of validated.value.files) {
+    let decodedFiles: Array<{ path: string; content: string | Uint8Array }>;
+    try {
+      decodedFiles = validated.value.files.map((file) => ({
+        path: file.path,
+        content: decodeCompileFileData(file.path, file.content),
+      }));
+    } catch (error) {
+      return validationFailure(
+        error instanceof Error ? error.message : "Invalid binary asset",
+        image,
+      );
+    }
+    for (const file of decodedFiles) {
       const target = join(work, file.path);
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, file.content, "utf8");
@@ -408,12 +433,19 @@ export async function runCompileJob(
     }
     const commands = [
       ...(payload.cleanAux
-        ? [["-norc", "-c", "-interaction=batchmode", `./${main}`]]
+        ? [[
+            "-norc",
+            "-c",
+            `-outdir=./${dirname(main)}`,
+            "-interaction=batchmode",
+            `./${main}`,
+          ]]
         : []),
       [
         "-norc",
         ...latexmkEngineArgs(payload.engine),
         "-no-shell-escape",
+        `-outdir=./${dirname(main)}`,
         "-interaction=nonstopmode",
         "-halt-on-error",
         `./${main}`,
@@ -512,6 +544,21 @@ export async function runCompileJob(
       });
     }
 
+    // A deadline failure takes precedence over partial or corrupt artifacts.
+    if (timedOut) {
+      return executionFailure({
+        message: `Compile timed out after ${limits.timeoutMs} ms.`,
+        texliveImage: image,
+        log: trimmed.text,
+        diagnostics: [
+          ...diagnostics,
+          { severity: "error", message: `Compile timed out after ${limits.timeoutMs} ms.` },
+        ],
+        errorCode: "TIMEOUT",
+        timedOut: true,
+      });
+    }
+
     const pdfPath = join(work, main.replace(/\.tex$/u, ".pdf"));
     let pdfBase64: string | undefined;
     if (await pathExists(pdfPath)) {
@@ -527,24 +574,16 @@ export async function runCompileJob(
       }
       const pdfBuffer = (await readArtifact(work, pdfPath, limits.maxPdfBytes))
         .data;
+      if (pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+        return executionFailure({
+          message: "latexmk produced an invalid PDF signature",
+          texliveImage: image,
+          log: trimmed.text,
+          diagnostics,
+          errorCode: "LATEX_ERROR",
+        });
+      }
       pdfBase64 = pdfBuffer.toString("base64");
-    }
-
-    if (timedOut) {
-      return executionFailure({
-        message: `Compile timed out after ${limits.timeoutMs} ms.`,
-        texliveImage: image,
-        log: trimmed.text,
-        diagnostics: [
-          ...diagnostics,
-          {
-            severity: "error",
-            message: `Compile timed out after ${limits.timeoutMs} ms.`,
-          },
-        ],
-        errorCode: "TIMEOUT",
-        timedOut: true,
-      });
     }
 
     if (exit !== 0 || !pdfBase64) {
@@ -556,7 +595,8 @@ export async function runCompileJob(
         texliveImage: image,
         log: trimmed.text,
         diagnostics,
-        errorCode: useDocker ? "DOCKER_ERROR" : "LATEX_ERROR",
+        errorCode:
+          useDocker && [125, 126, 127].includes(exit) ? "DOCKER_ERROR" : "LATEX_ERROR",
       });
     }
 
