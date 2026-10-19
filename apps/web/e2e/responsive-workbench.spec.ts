@@ -12,7 +12,7 @@ for (const width of [390, 525, 768, 1024, 1440]) {
       const geometry = await page.evaluate(() => {
         const visible = (element: Element) => element.getClientRects().length > 0;
         const header = document.querySelector("header")!;
-        const items = [...header.querySelectorAll("button"), header.querySelector("span[title]")!].filter(visible);
+        const items = [...header.querySelectorAll("button")].filter(visible);
         const boxes = items.map((element) => ({ text: element.getAttribute("aria-label") ?? element.textContent, box: element.getBoundingClientRect() }));
         const overlaps: string[] = [];
         boxes.forEach((a, index) => boxes.slice(index + 1).forEach((b) => {

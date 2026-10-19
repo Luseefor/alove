@@ -460,6 +460,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             ...base,
             openFiles: s.openFiles.includes(path) ? s.openFiles : [...s.openFiles, path],
             activeFileId: path,
+            activeSelection:null,
+            nextSelection:null,
             outline: OutlineService.parse(content),
           };
         });
@@ -530,15 +532,16 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         }
       },
       appendToActiveFile: (text) => {
-        const { activeFileId, filesByPath, dirtyByPath } = get();
-        if (!activeFileId) return;
-        const current = filesByPath[activeFileId] ?? "";
-        const next = `${current}${current.endsWith("\n") || current.length === 0 ? "" : "\n"}${text}`;
-        set({
-          filesByPath: { ...filesByPath, [activeFileId]: next },
-          dirtyByPath: { ...dirtyByPath, [activeFileId]: true },
-          outline: OutlineService.parse(next),
-        });
+        const {activeFileId,filesByPath,dirtyByPath,activeSelection}=get();
+        if(!activeFileId)return;
+        const current=filesByPath[activeFileId]??"";
+        const documentEnd=current.indexOf("\\end{document}");
+        const fallback=documentEnd<0?current.length:documentEnd;
+        const start=Math.max(0,Math.min(activeSelection?.start??fallback,current.length));
+        const end=Math.max(start,Math.min(activeSelection?.end??start,current.length));
+        const next=current.slice(0,start)+text+current.slice(end);
+        const selection={start:start+text.length,end:start+text.length};
+        set({filesByPath:{...filesByPath,[activeFileId]:next},dirtyByPath:{...dirtyByPath,[activeFileId]:true},outline:OutlineService.parse(next),nextSelection:selection,activeSelection:selection});
       },
       transformActiveFile: (transformer) => {
         const { activeFileId, filesByPath, dirtyByPath } = get();
@@ -592,8 +595,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         const { activeFileId, filesByPath, dirtyByPath, activeSelection } = get();
         if (!activeFileId) return;
         const current = filesByPath[activeFileId] ?? "";
-        const start = activeSelection?.start ?? 0;
-        const end = activeSelection?.end ?? 0;
+        const bodyEnd=current.indexOf("\\end{document}");
+        const fallbackPosition=bodyEnd<0?current.length:bodyEnd;
+        const start=Math.max(0,Math.min(activeSelection?.start??fallbackPosition,current.length));
+        const end=Math.max(start,Math.min(activeSelection?.end??start,current.length));
         let next = current;
         let nextSelection = null as { start: number; end: number } | null;
 
@@ -803,6 +808,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         set((s) => ({
           openFiles: s.openFiles.includes(id) ? s.openFiles : [...s.openFiles, id],
           activeFileId: id,
+          activeSelection:null,
+          nextSelection:null,
           outline: OutlineService.parse(content),
           focusedLine: null,
           stats: calculateStats(content),
@@ -814,6 +821,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         return {
           openFiles: next,
           activeFileId: nextActive,
+          activeSelection:null,
+          nextSelection:null,
           outline: OutlineService.parse(nextActive ? s.filesByPath[nextActive] ?? "" : ""),
         };
       }),
