@@ -291,4 +291,54 @@ describe("buildRecordRepository", () => {
       }
     }
   });
+
+  it("snapshots save input before first await so later mutations cannot leak", async () => {
+    const factory = newFactory();
+    const repo = createBuildRecordRepository(factory);
+    const input = makeRecord({
+      id: "snapshot-mutate",
+      projectId: "snap-proj",
+      completedAt: 500,
+    });
+    const pending = repo.save(input);
+    input.files["main.tex"] = "MUTATED WHILE SAVING";
+    input.result.log = "MUTATED LOG";
+    input.result.diagnostics.push({ severity: "error", message: "mutated" });
+    await pending;
+    const listed = await repo.list("snap-proj");
+    expect(listed).toHaveLength(1);
+    expect(listed[0].files["main.tex"]).toBe("\\documentclass{article}");
+    expect(listed[0].result.log).toBe("log");
+    expect(listed[0].result.diagnostics).toEqual([]);
+  });
+
+  it("returns detached list rows so nested mutations cannot affect later reads", async () => {
+    const factory = newFactory();
+    const repo = createBuildRecordRepository(factory);
+    await repo.save(
+      makeRecord({ id: "detach-1", projectId: "detach-proj", completedAt: 10 }),
+    );
+    const first = await repo.list("detach-proj");
+    expect(first).toHaveLength(1);
+    first[0].files["main.tex"] = "MUTATED";
+    first[0].result.log = "MUTATED";
+    first[0].result.diagnostics.push({ severity: "error", message: "mutated" });
+    const second = await repo.list("detach-proj");
+    expect(second).toHaveLength(1);
+    expect(second[0].files["main.tex"]).toBe("\\documentclass{article}");
+    expect(second[0].result.log).toBe("log");
+    expect(second[0].result.diagnostics).toEqual([]);
+  });
+});
+
+describe("legacy history compatibility",()=>{
+  it("treats omitted optional fields like undefined when checking immutable IDs",async()=>{
+    const factory=newFactory();const repo=createBuildRecordRepository(factory);
+    const record=makeRecord();record.result.errorCode=undefined;record.result.environment=undefined;
+    const legacy=JSON.parse(JSON.stringify(record));
+    await putRaw(factory,legacy);
+    await expect(repo.save(record)).resolves.toBeUndefined();
+    expect(await getRaw(factory,record.id)).toEqual(legacy);
+    await expect(repo.save({...record,files:{"main.tex":"changed"}})).rejects.toBeInstanceOf(BuildRecordConflictError);
+  });
 });

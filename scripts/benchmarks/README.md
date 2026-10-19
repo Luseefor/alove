@@ -82,3 +82,9 @@ bun run bench:resources benchmark-results/tex-resources.json
 The report expects complete `recovery.json` and `browser.json` files in its target
 folder; `tex-resources.json` is optional. The published October 19 baseline and
 raw data live in `docs/benchmarks/2026-10-19-local-m3-pro/`.
+
+For a paired old/new repository comparison (no compilation or typing), run
+`PLAYWRIGHT_BROWSERS_PATH=/path/to/cache bun scripts/benchmarks/compareHistoryStorage.ts`.
+The script pins the old source to `eed8107`, alternates order over five paired
+rounds, and measures fresh isolated databases with identical growing histories.
+See `docs/benchmarks/2026-10-19-history-storage/README.md` for the measured result.
