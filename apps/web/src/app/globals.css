@@ -73,6 +73,20 @@
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
   --color-info-border: var(--info-border);
+
+  --radius-panel: 24px;
+  --radius-shell: 32px;
+  
+  --shadow-float: 0 40px 80px -15px rgba(0,0,0,0.12);
+  --shadow-glow: 0 0 8px rgba(124,58,237,0.5);
+  --shadow-success-glow: 0 0 8px rgba(16,185,129,0.5);
+}
+
+@utility text-overline {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
 }
 
 body {

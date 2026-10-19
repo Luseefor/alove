@@ -1,9 +1,7 @@
 "use client";
 
 import { 
-  HelpCircle, 
   FileText,
-  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";

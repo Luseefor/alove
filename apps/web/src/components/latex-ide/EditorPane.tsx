@@ -6,12 +6,10 @@ import {
   X,
   Plus,
   Check,
-  Search,
-  Settings,
-  ChevronDown
+  Search
 } from "lucide-react";
 import React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getEditorMode } from "@/lib/editorMode";
 import {
@@ -32,6 +30,7 @@ export function EditorPane() {
     editorWordWrap,
     openFile,
     closeFile,
+    createFile,
     updateActiveFileContent,
     setActiveSelection,
     saveActiveFile,
@@ -40,6 +39,7 @@ export function EditorPane() {
   } = useWorkbenchStore();
   
   const spellcheckEnabled = useIdeSettingsStore((s) => s.spellcheckEnabled);
+  const setSpellcheckEnabled = useIdeSettingsStore((s) => s.setSpellcheckEnabled);
   const editorAutoCloseBrackets = useIdeSettingsStore((s) => s.editorAutoCloseBrackets);
   const editorNonBlinkingCursor = useIdeSettingsStore((s) => s.editorNonBlinkingCursor);
   const editorKeybindings = useIdeSettingsStore((s) => s.editorKeybindings);
@@ -51,18 +51,7 @@ export function EditorPane() {
   const [findQuery, setFindQuery] = useState("");
   
   const content = activeFileId ? filesByPath[activeFileId] ?? "" : "";
-  const selection = useWorkbenchStore((s) => s.activeSelection);
   
-  const lineCount = useMemo(
-    () => Math.max(1, content.split("\n").length),
-    [content],
-  );
-  
-  const wordCount = useMemo(() => {
-    const words = content.trim().match(/\S+/g);
-    return words ? words.length : 0;
-  }, [content]);
-
   const codeMirrorEnabled = getEditorMode() === "codemirror";
 
   const focusEditor = useCallback(() => {
@@ -80,6 +69,18 @@ export function EditorPane() {
     }
     textareaRef.current?.setSelectionRange(start, end);
   }, [codeMirrorEnabled]);
+  
+  const createNewFile = useCallback(() => {
+    const base = "untitled";
+    const ext = ".tex";
+    let index = 0;
+    let path = `${base}${ext}`;
+    while (path in filesByPath) {
+      index += 1;
+      path = `${base}-${index}${ext}`;
+    }
+    createFile(path, "", { open: true });
+  }, [createFile, filesByPath]);
 
   useEffect(() => {
     if (!nextSelection) return;
@@ -91,6 +92,17 @@ export function EditorPane() {
   useEffect(() => {
     if (findBarRequestId > 0) setFindOpen(true);
   }, [findBarRequestId]);
+  
+  useEffect(() => {
+    if (!findOpen) return;
+    const query = findQuery.trim();
+    if (!query) return;
+    const index = content.indexOf(query);
+    if (index === -1) return;
+    focusEditor();
+    setEditorSelection(index, index + query.length);
+    setActiveSelection({ start: index, end: index + query.length });
+  }, [content, findOpen, findQuery, focusEditor, setActiveSelection, setEditorSelection]);
 
   useEffect(() => {
     if (!editorCommand) return;
@@ -208,7 +220,12 @@ export function EditorPane() {
             </div>
           );
         })}
-        <button className="h-10 w-10 flex items-center justify-center text-zinc-400 hover:text-primary hover:bg-zinc-50 transition-all border-r border-zinc-100">
+        <button
+          type="button"
+          title="New file"
+          onClick={createNewFile}
+          className="h-10 w-10 flex items-center justify-center text-zinc-400 hover:text-primary hover:bg-zinc-50 transition-all border-r border-zinc-100"
+        >
            <Plus size={16} />
         </button>
       </div>
@@ -289,12 +306,16 @@ export function EditorPane() {
               <Check size={10} strokeWidth={3} />
               <span>Synced</span>
            </div>
-           <div className="flex items-center gap-1.5 hover:text-zinc-600 cursor-pointer transition-colors">
-              <span>Spell</span>
-              <ChevronDown size={10} />
-           </div>
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => setSpellcheckEnabled(!spellcheckEnabled)}
+              className="flex items-center gap-1.5 hover:text-zinc-600 transition-colors"
+              title={`Spellcheck ${spellcheckEnabled ? "on" : "off"}`}
+            >
+               <span>Spell: {spellcheckEnabled ? "On" : "Off"}</span>
+            </button>
+         </div>
+       </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { LatexEditorApp } from "./latex-ide";
@@ -105,6 +105,17 @@ function EditorWorkbenchLocal() {
 }
 
 export function EditorWorkbench() {
+  const searchParams = useSearchParams();
+  const setSettingsModalOpen = useWorkbenchStore((s) => s.setSettingsModalOpen);
+  const settingsHandledRef = useRef(false);
+  const shouldOpenSettings = searchParams.get("settings") === "true";
+
+  useEffect(() => {
+    if (!shouldOpenSettings || settingsHandledRef.current) return;
+    setSettingsModalOpen(true);
+    settingsHandledRef.current = true;
+  }, [shouldOpenSettings, setSettingsModalOpen]);
+
   return (
     <Suspense fallback={<div className="flex h-[100dvh] items-center justify-center text-zinc-500 font-medium">Loading editor...</div>}>
       {isLocalStandalone() ? <EditorWorkbenchLocal /> : <EditorWorkbenchConvex />}

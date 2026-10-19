@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 function SectionHeader({ title, action }: { title: string, action?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-4 px-2">
-      <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 opacity-80">{title}</h2>
+      <h2 className="text-overline text-zinc-400 opacity-80">{title}</h2>
       {action}
     </div>
   );
@@ -25,7 +25,7 @@ function SectionHeader({ title, action }: { title: string, action?: React.ReactN
 
 function QuickStartCard({ title, icon: Icon, color, href }: { title: string, icon: LucideIcon, color: string, href: string }) {
   return (
-    <Link href={href} className="group bg-white border border-zinc-100 rounded-3xl p-6 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer flex flex-col items-start gap-4">
+    <Link href={href} className="group bg-card-bg border border-zinc-100 rounded-3xl p-6 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer flex flex-col items-start gap-4">
       <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center border transition-all group-hover:scale-110 shadow-sm", color)}>
         <Icon className="w-6 h-6" />
       </div>
@@ -81,11 +81,21 @@ export function DashboardContent() {
         <div className="lg:col-span-8 space-y-4">
           <SectionHeader 
             title="Active Documents" 
-            action={<button className="text-[11px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity">View all</button>} 
+            action={
+              <Link
+                href="/editor"
+                className="text-[11px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity"
+              >
+                View all
+              </Link>
+            } 
           />
-          <div className="bg-white border border-border rounded-[32px] overflow-hidden shadow-sm border-zinc-100 min-h-[300px] flex flex-col">
+          <div className="bg-white border border-border rounded-shell overflow-hidden shadow-sm border-zinc-100 min-h-[300px] flex flex-col">
             <div className="divide-y divide-zinc-50 flex-1">
-              <div className="flex items-center gap-5 p-6 hover:bg-zinc-50/50 transition-colors group cursor-pointer">
+              <Link
+                href="/editor"
+                className="flex items-center gap-5 p-6 hover:bg-zinc-50/50 transition-colors group"
+              >
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center border text-primary bg-primary/5 border-primary/10 transition-all group-hover:scale-105 shadow-sm group-hover:bg-white">
                   <FileText className="w-7 h-7" />
                 </div>
@@ -100,7 +110,7 @@ export function DashboardContent() {
                     <span className="flex items-center gap-2 shrink-0"><Layout className="w-4 h-4" /> 12</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
             <div className="p-5 bg-zinc-50/30 border-t border-zinc-50 flex justify-center">
                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.25em] opacity-60">
@@ -113,7 +123,7 @@ export function DashboardContent() {
         {/* Workspace Status */}
         <div className="lg:col-span-4 space-y-4">
           <SectionHeader title="Workspace Health" />
-          <div className="bg-white border border-border rounded-[32px] p-10 shadow-sm space-y-12 border-zinc-100 min-h-[300px] flex flex-col justify-center">
+          <div className="bg-white border border-border rounded-shell p-10 shadow-sm space-y-12 border-zinc-100 min-h-[300px] flex flex-col justify-center">
             <StatusRow 
               label="Local Standalone" 
               status={localMode ? "Active" : "Cloud"} 

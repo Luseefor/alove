@@ -326,8 +326,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       },
       deleteFile: (path) => {
         set((s) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [path]: _, ...filesByPath } = s.filesByPath;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [path]: __, ...versionsByPath } = s.versionsByPath;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [path]: ___, ...dirtyByPath } = s.dirtyByPath;
           const openFiles = s.openFiles.filter((p) => p !== path);
           const activeFileId =
@@ -357,8 +360,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         const version = state.versionsByPath[oldPath] ?? 1;
         const dirty = state.dirtyByPath[oldPath] ?? false;
         set((s) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [oldPath]: _c, ...filesRest } = s.filesByPath;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [oldPath]: _v, ...verRest } = s.versionsByPath;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [oldPath]: _d, ...dirtyRest } = s.dirtyByPath;
           const nextFiles = { ...filesRest, [trimmed]: content };
           const openFiles = s.openFiles.map((p) => (p === oldPath ? trimmed : p));

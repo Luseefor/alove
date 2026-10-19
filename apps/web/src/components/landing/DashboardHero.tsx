@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export function DashboardHero() {
   return (
-    <div className="bg-white border border-border rounded-[40px] p-10 lg:p-14 shadow-sm relative overflow-hidden group border-zinc-100">
+    <div className="bg-white border border-border rounded-shell p-10 lg:p-14 shadow-sm relative overflow-hidden group border-zinc-100">
       {/* Subtle decorative background gradient */}
       <div className="absolute top-0 right-0 w-2/3 h-full bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.08),transparent_70%)] pointer-events-none" />
       
@@ -44,7 +44,7 @@ export function DashboardHero() {
             <div className="absolute -inset-8 bg-primary/5 rounded-[50px] blur-3xl opacity-50" />
             
             {/* Display-only Illustrative Preview */}
-            <div className="relative bg-white border border-border rounded-[32px] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.12)] overflow-hidden ring-12 ring-zinc-50/50 cursor-default">
+            <div className="relative bg-white border border-border rounded-shell shadow-float overflow-hidden ring-12 ring-zinc-50/50 cursor-default">
               <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-50 bg-zinc-50/30">
                 <div className="flex gap-2">
                   <div className="w-3 h-3 rounded-full bg-error/60" />

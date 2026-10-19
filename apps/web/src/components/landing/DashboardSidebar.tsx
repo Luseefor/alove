@@ -53,7 +53,7 @@ export function DashboardSidebar() {
         </div>
 
         <div className="space-y-3">
-          <div className="px-4 text-[11px] font-black text-zinc-400 uppercase tracking-[0.2em] opacity-80 border-b border-zinc-50 pb-2">
+          <div className="px-4 text-overline text-zinc-400 opacity-80 border-b border-zinc-50 pb-2">
             Tools
           </div>
           <div className="space-y-1">
@@ -64,16 +64,17 @@ export function DashboardSidebar() {
 
       <div className="mt-auto p-6 space-y-6">
         {/* Local Mode Status Card */}
-        <div className="bg-[#fdfcff] border border-primary/10 rounded-[24px] p-6 space-y-4 shadow-sm relative overflow-hidden group">
+        <div className="bg-[#fdfcff] border border-primary/10 rounded-panel p-5 space-y-3 shadow-sm relative overflow-hidden group border shadow-sm">
           <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-8 -mt-8 blur-2xl group-hover:bg-primary/10 transition-colors" />
           <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-2.5">
               <div className={cn(
-                "w-2 h-2 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]",
+                "w-2 h-2 rounded-full shadow-success-glow",
                 localMode ? "bg-success animate-pulse" : "bg-info"
               )} />
-              <span className="text-[13px] font-black text-zinc-900 uppercase tracking-tight">System</span>
+              <span className="text-[13px] font-black text-zinc-900 uppercase tracking-tight">Status</span>
             </div>
+
             <span className="text-[10px] font-black text-success bg-success-bg px-2 py-0.5 rounded-full border border-success-border">ONLINE</span>
           </div>
           <p className="text-[12px] text-zinc-500 leading-relaxed font-medium relative z-10">

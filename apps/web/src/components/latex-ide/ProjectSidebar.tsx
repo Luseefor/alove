@@ -8,7 +8,6 @@ import {
   FileImage,
   FileText,
   ChevronRight,
-  ChevronDown,
   MoreVertical,
   Search,
   FilePlus,
@@ -65,6 +64,7 @@ export function ProjectSidebar() {
     activeRail,
     activeFileId,
     outline,
+    setActiveRail,
     createFile,
     projectSearchQuery,
     projectSearchResults,
@@ -76,8 +76,8 @@ export function ProjectSidebar() {
   } = useWorkbenchStore();
   
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const [searchQuery] = useState("");
   const [projectSearchInput, setProjectSearchInput] = useState(projectSearchQuery);
+
   const [searchRegex, setSearchRegex] = useState(false);
   const [searchCaseSensitive, setSearchCaseSensitive] = useState(false);
   const [newFileOpen, setNewFileOpen] = useState(false);
@@ -134,7 +134,7 @@ export function ProjectSidebar() {
       ),
     [filesByPath],
   );
-  const filteredTree = filterTree(fileTree, searchQuery);
+  const filteredTree = filterTree(fileTree, "");
 
   const snippets = [
     { label: "Figure", code: "\\begin{figure}[htbp]\n  \\centering\n  \\includegraphics[width=\\linewidth]{figure.png}\n  \\caption{Caption text.}\n  \\label{fig:example}\n\\end{figure}", icon: Layout },
@@ -250,12 +250,11 @@ export function ProjectSidebar() {
     <aside className="w-full h-full flex flex-col bg-white select-none border-r shrink-0">
       {/* Project Header */}
       <div className="h-12 border-b flex items-center justify-between px-4 shrink-0 bg-white">
-        <button className="flex items-center gap-2 group">
-          <span className="text-[12px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-zinc-900 transition-colors">Project</span>
-          <ChevronDown size={14} className="text-zinc-400 group-hover:text-zinc-600 transition-colors" />
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] font-black uppercase tracking-widest text-zinc-500">Project</span>
+        </div>
         <div className="flex items-center gap-1">
-          <IconButton icon={Search} title="Search Files" />
+          <IconButton icon={Search} title="Search Files" onClick={() => setActiveRail("search")} />
           <IconButton icon={Plus} title="New" onClick={() => setNewFileOpen(true)} />
         </div>
       </div>
@@ -265,9 +264,6 @@ export function ProjectSidebar() {
         {/* Tree Toolbar */}
         <div className="h-9 flex items-center justify-between px-3 shrink-0 bg-zinc-50/30 border-b border-zinc-100">
           <div className="flex items-center gap-2">
-            <button className="p-0.5 hover:bg-zinc-100 rounded transition-colors">
-               <ChevronDown size={14} className="text-zinc-400" />
-            </button>
             <span className="text-[11px] font-bold text-zinc-900 tracking-tight">{projectTitle}</span>
           </div>
           <div className="flex items-center gap-0.5">
