@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Files, X } from "lucide-react";
+import { BuildRecoveryDialog } from "./BuildRecoveryDialog";
 import { AppHeader } from "./AppHeader";
 import { ActivityRail } from "./ActivityRail";
 import { ActionToolbar } from "./ActionToolbar";
@@ -34,6 +35,7 @@ export function LatexEditorApp() {
 
   return (
     <div className="latex-workbench flex h-[100dvh] min-w-0 flex-col overflow-hidden bg-background text-foreground font-sans antialiased" data-view={view} data-sidebar-open={sidebarOpen} data-files-open={filesOpen}>
+      <BuildRecoveryDialog />
       <AppHeader />
       <ActionToolbar />
       <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3 lg:hidden">

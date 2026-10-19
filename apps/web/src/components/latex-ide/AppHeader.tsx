@@ -60,6 +60,7 @@ export function AppHeader() {
     setSettingsModalOpen,
     activeFileId,
     pdfDataUrl,
+    setBuildRecoveryOpen,
   } = useWorkbenchStore();
   
   const hasDirty = useMemo(() => Object.values(dirtyByPath).some(Boolean), [dirtyByPath]);
@@ -201,6 +202,7 @@ export function AppHeader() {
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 Download Source (.alove.json)
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setBuildRecoveryOpen(true)} className="rounded-md font-semibold text-xs p-2.5 cursor-pointer">Build recovery</DropdownMenuItem>
               {localMode && <DropdownMenuItem onSelect={() => importInput.current?.click()} className="rounded-md font-semibold text-xs p-2.5 cursor-pointer">Import Source as New Project</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>

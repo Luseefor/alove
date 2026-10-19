@@ -135,3 +135,42 @@ The first real production browser scenario passed without compile mocks: restore
 a deleted macro, retained an unrelated prose change, reloaded durable evidence,
 exported trial results, applied/undid/reapplied, then compiled successfully.
 Full UI validation and final evidence follow with the UI delivery checkpoint.
+
+## Recovery dialog and real workflow
+
+Build recovery is reachable from the toolbar, failed preview and Export menu.
+The dialog shows persisted good/failed snapshots, changed-file previews, bounded
+trial progress/results, a compile-verified full-file restoration, guarded apply
+and undo, and an evidence export containing source/settings/runtime/logs/trials.
+It does not silently modify working source or replace the working PDF with a
+trial PDF. Apply is local-only. The UI explicitly distinguishes whole-file
+restoration from minimal-edit diagnosis and discloses source in exports.
+
+Validation at the core checkpoint 840f376 plus this UI: 181 web unit tests,
+24 worker unit/process tests, six real Docker integration tests, all-package
+typecheck, web lint and the final local-standalone production build passed.
+Final targeted production Chromium suite: 13/13 passed in 38.9 seconds: real
+recovery workflow, existing real create/compile/download/reload workflow, and
+11 responsive editor checks. The recovery case itself passed in 22.3 seconds
+including setup, initial builds, baseline/candidate trials, export, apply/undo
+and final rebuild. A prior run took 38.2 seconds; neither is a comparative
+benchmark. Verified the populated dialog at 390/525/1440 pixels in light/dark,
+with actual screenshots inspected. Ace open/snapshot and phone/tablet/desktop
+screenshots also checked the empty-history dialog and toolbar entry.
+
+Review found a WebCrypto-unavailable path, baseline-selection guard, live settings
+race and undo-during-build state. Those paths were fixed; new regressions include
+settings changes inside the apply action and unavailable source hashing. Follow-up
+review found no blockers. Initial typecheck found an older narrow polling-result
+type and test-fixture signatures; both were corrected. The first Docker smoke
+attempt could not resolve the local image tag; rebuilding the local Dockerfile
+from cached layers restored it and all six real checks passed. Node experimental
+storage/deprecation notices remain; five package lint scripts remain no-ops.
+All 13 original dirty/untracked source files still match their backup hashes.
+
+See docs/build-recovery.md for operation, architecture, limits, test commands and
+a proposed public 20-failure benchmark against Overleaf history/Error Assist.
+No Overleaf comparison has been executed and no superiority claim is made.
+Next feature slice: line/hunk-level candidates, multiple-failure handling and an
+executable reproduction bundle. Public-hosting C3/C4/C5 and cloud mutation/history
+work remain separate release gates.

@@ -3,6 +3,7 @@
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import {
   Quote,
+  History,
   ChevronDown,
   Search,
   Layout,
@@ -86,6 +87,7 @@ function ToolbarButton({
 
 export function ActionToolbar() {
   const {
+    setBuildRecoveryOpen,
     appendToActiveFile,
     requestEditorFindBar,
     filesByPath,
@@ -159,6 +161,9 @@ export function ActionToolbar() {
           dataTestId="find-button"
           onClick={requestEditorFindBar}
         />
+      </ToolbarGroup>
+      <ToolbarGroup label="Build tools">
+        <ToolbarButton icon={History} label="Build recovery" onClick={() => setBuildRecoveryOpen(true)} />
       </ToolbarGroup>
     </div>
   );

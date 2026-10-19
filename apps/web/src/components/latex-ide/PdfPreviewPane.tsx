@@ -5,7 +5,7 @@ import { FileText, Loader2, Play } from "lucide-react";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 
 export function PdfPreviewPane() {
-  const { pdfDataUrl, buildStatus, buildMessage, runCompile, mainFile, documentRevision, pdfSourceRevision, pdfMainFile } = useWorkbenchStore();
+  const { pdfDataUrl, buildStatus, buildMessage, runCompile, mainFile, documentRevision, pdfSourceRevision, pdfMainFile, setBuildRecoveryOpen } = useWorkbenchStore();
   const busy = buildStatus === "queued" || buildStatus === "running";
   const failed = buildStatus === "failed";
   const stale = Boolean(pdfDataUrl) && pdfSourceRevision !== null && documentRevision !== pdfSourceRevision;
@@ -19,6 +19,7 @@ export function PdfPreviewPane() {
         <span className="min-w-0 flex-1 truncate text-xs font-medium" title={filename}>{filename}</span>
         {pdfDataUrl && <a href={pdfDataUrl} download={filename} className="shrink-0 rounded px-2 py-1 text-xs text-primary hover:bg-muted">Download</a>}
       </div>
+      {failed && <div className="shrink-0 border-b border-border bg-background p-2"><button type="button" className="rounded border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted" onClick={() => setBuildRecoveryOpen(true)}>Find breaking change</button></div>}
       {pdfDataUrl ? (
         <>
           <div className="shrink-0 border-b border-border bg-background px-3 py-2">
