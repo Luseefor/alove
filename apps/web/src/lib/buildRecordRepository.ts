@@ -152,8 +152,8 @@ function deepEqual(a: unknown, b: unknown): boolean {
   if (typeof a === "object" && typeof b === "object") {
     const ra = a as Record<string, unknown>;
     const rb = b as Record<string, unknown>;
-    const ka = Object.keys(ra).sort();
-    const kb = Object.keys(rb).sort();
+    const ka = Object.keys(ra).filter(key=>ra[key]!==undefined).sort();
+    const kb = Object.keys(rb).filter(key=>rb[key]!==undefined).sort();
     if (ka.length !== kb.length) return false;
     for (let i = 0; i < ka.length; i++) {
       if (ka[i] !== kb[i]) return false;
@@ -164,8 +164,8 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return false;
 }
 
-function cloneRecord(record: BuildRecord): BuildRecord {
-  return JSON.parse(JSON.stringify(record)) as BuildRecord;
+function snapshotRecord(record: BuildRecord): BuildRecord {
+  return structuredClone(record);
 }
 
 const utf8Encoder = new TextEncoder();
@@ -264,7 +264,7 @@ export function createBuildRecordRepository(
 
   async function save(record: BuildRecord): Promise<void> {
     checkRecord(record);
-    const snapshot = cloneRecord(record);
+    const snapshot = snapshotRecord(record);
     const db = await openDb(resolveFactory(), dbName);
     return new Promise<void>((resolve, reject) => {
       let done = false;
@@ -448,8 +448,13 @@ export function createBuildRecordRepository(
                 if (newest) pinned.add(newest.id);
                 if (newestOk) pinned.add(newestOk.id);
                 let count = all.length;
+                const sizes = new Map<string, number>();
                 let bytes = 0;
-                for (const row of all) bytes += recordBytes(row);
+                for (const row of all) {
+                  const size = recordBytes(row);
+                  sizes.set(row.id, size);
+                  bytes += size;
+                }
                 const candidates = sortedAsc.filter((r) => !pinned.has(r.id));
                 for (const victim of candidates) {
                   if (count <= MAX_RECORDS_PER_PROJECT && bytes <= MAX_BYTES_PER_PROJECT)
@@ -473,7 +478,7 @@ export function createBuildRecordRepository(
                     return;
                   }
                   count -= 1;
-                  bytes -= recordBytes(victim);
+                  bytes -= sizes.get(victim.id) ?? 0;
                 }
               } catch (e) {
                 failure = e;
@@ -577,7 +582,9 @@ export function createBuildRecordRepository(
           const checked: BuildRecord[] = [];
           for (const row of raw) {
             checkRecord(row);
-            checked.push(cloneRecord(row as BuildRecord));
+            // getAll already returns fresh structured clones detached from IDB,
+            // so validated rows are returned directly without another copy.
+            checked.push(row as BuildRecord);
           }
           checked.sort((a, b) => -compareAsc(a, b));
           rows = checked;

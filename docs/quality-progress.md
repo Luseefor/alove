@@ -222,3 +222,20 @@ allowed the complete isolated browser run to pass. No true cold start, cache pur
 remote staging, native Linux, sustained load or comparative competitor test occurred.
 Public C3/C4/C5 release gates remain open. Next: optimize history storage, then run
 this corpus on private staging before making public performance claims.
+
+## History copying optimization
+
+Removed redundant JSON round-trip clones: save snapshots with structuredClone
+before its first await; list returns IndexedDB's already-detached records. Retention
+counts JSON bytes once per row and reuses the counts for victims. IDB v1, immutable
+IDs, 20-record/50-MiB limits, pinned newest/last-good, corrupt-row preservation
+and transaction-completion acknowledgements are unchanged. Twelve repository
+tests pass, including new mutation-isolation checks.
+
+A same-session paired Chromium comparison (five alternating-order rounds per
+size) measured 10-MiB later-save median 82.65→73.80 ms (n=20 each) and list median
+36.60→17.20 ms (n=25 each). The read improvement is the clearest gain.
+Raw timing data and boundaries: [history storage comparison](benchmarks/2026-10-19-history-storage/README.md).
+The final run includes an idempotency regression for legacy records with omitted
+optional fields; the preliminary run remains separate. No application/TeX latency
+or competitor advantage is inferred from this helper benchmark.
