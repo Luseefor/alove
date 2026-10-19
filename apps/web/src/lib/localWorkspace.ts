@@ -1,3 +1,4 @@
+import { normalizeCompilePath } from "@alove/protocol";
 export type LocalWorkspace = {
   schemaVersion: 1;
   id: string;
@@ -9,6 +10,11 @@ export type LocalWorkspace = {
   revision: number;
   updatedAt: number;
 };
+
+export type LocalWorkspaceSummary = Pick<
+  LocalWorkspace,
+  "id" | "title" | "mainFile" | "updatedAt" | "revision"
+> & { fileCount: number; unavailableReason?: string };
 
 export type LocalWorkspaceInput = Omit<
   LocalWorkspace,
@@ -40,7 +46,8 @@ function checkFiles(value: unknown): asserts value is Record<string, string> {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     fail("Invalid files");
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (!k || typeof v !== "string") fail("Invalid files");
+    if (normalizeCompilePath(k) !== k || typeof v !== "string")
+      fail("Invalid files");
   }
 }
 
@@ -77,8 +84,10 @@ function checkInput(input: unknown): asserts input is LocalWorkspaceInput {
   if (typeof input !== "object" || input === null || Array.isArray(input))
     fail("Invalid workspace");
   const r = input as Record<string, unknown>;
-  if (typeof r.id !== "string" || !r.id) fail("Invalid id");
-  if (typeof r.title !== "string") fail("Invalid title");
+  if (typeof r.id !== "string" || !/^[a-zA-Z0-9_-]{1,120}$/.test(r.id))
+    fail("Invalid id");
+  if (typeof r.title !== "string" || !r.title.trim() || r.title.length > 200)
+    fail("Invalid title");
   checkFiles(r.files);
   checkSelection(
     r.files as Record<string, string>,
@@ -96,9 +105,11 @@ function checkStored(
     fail("Invalid stored workspace");
   const r = value as Record<string, unknown>;
   if (r.schemaVersion !== 1) fail("Unsupported schema version");
-  if (typeof r.id !== "string" || !r.id) fail("Invalid id");
+  if (typeof r.id !== "string" || !/^[a-zA-Z0-9_-]{1,120}$/.test(r.id))
+    fail("Invalid id");
   if (expectedId !== undefined && r.id !== expectedId) fail("Mismatched id");
-  if (typeof r.title !== "string") fail("Invalid title");
+  if (typeof r.title !== "string" || !r.title.trim() || r.title.length > 200)
+    fail("Invalid title");
   checkFiles(r.files);
   checkSelection(
     r.files as Record<string, string>,
@@ -418,5 +429,101 @@ export function createLocalWorkspaceRepository(
     });
   }
 
-  return { load, save };
+  async function list(): Promise<LocalWorkspaceSummary[]> {
+    const db = await openDb(resolveFactory(), dbName);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const summaries: LocalWorkspaceSummary[] = [];
+      let failure: unknown;
+      tx.oncomplete = () => {
+        db.close();
+        resolve(
+          summaries.sort(
+            (a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id),
+          ),
+        );
+      };
+      tx.onerror = tx.onabort = () => {
+        db.close();
+        reject(
+          failure ??
+            tx.error ??
+            new LocalWorkspaceDataError("Could not list projects"),
+        );
+      };
+      const request = tx.objectStore(STORE).openCursor();
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return;
+        try {
+          checkStored(cursor.value);
+          const row = cursor.value as LocalWorkspace;
+          summaries.push({
+            id: row.id,
+            title: row.title,
+            mainFile: row.mainFile,
+            updatedAt: row.updatedAt,
+            revision: row.revision,
+            fileCount: Object.keys(row.files).length,
+          });
+          cursor.continue();
+        } catch (error) {
+          summaries.push({
+            id: String(cursor.primaryKey),
+            title: "Unavailable stored project",
+            mainFile: null,
+            updatedAt: 0,
+            revision: 0,
+            fileCount: 0,
+            unavailableReason:
+              error instanceof Error ? error.message : "Invalid project data",
+          });
+          cursor.continue();
+        }
+      };
+    });
+  }
+
+  async function remove(id: string, expectedRevision: number): Promise<void> {
+    if (!id || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
+      fail("Invalid delete request");
+    const db = await openDb(resolveFactory(), dbName);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      let failure: unknown;
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = tx.onabort = () => {
+        db.close();
+        reject(
+          failure ??
+            tx.error ??
+            new LocalWorkspaceDataError("Could not delete project"),
+        );
+      };
+      const store = tx.objectStore(STORE);
+      const request = store.get(id);
+      request.onsuccess = () => {
+        try {
+          if (request.result === undefined)
+            throw new LocalWorkspaceConflictError(
+              "Project was already removed. Refresh the list.",
+            );
+          checkStored(request.result, id);
+          if (request.result.revision !== expectedRevision)
+            throw new LocalWorkspaceConflictError(
+              "Project changed in another tab. Refresh before deleting.",
+            );
+          store.delete(id);
+        } catch (error) {
+          failure = error;
+          tx.abort();
+        }
+      };
+    });
+  }
+
+  return { load, save, list, remove };
 }

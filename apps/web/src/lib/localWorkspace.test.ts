@@ -238,3 +238,44 @@ describe("localWorkspace repository", () => {
     expect(current).toMatchObject({ title: "original", revision: 1 });
   });
 });
+
+describe("workspace library operations", () => {
+  it("lists durable metadata without source and deletes only the expected revision", async () => {
+    const repo = createLocalWorkspaceRepository(newFactory());
+    const saved = await repo.save(makeInput(), 0);
+    expect(await repo.list()).toEqual([
+      {
+        id: saved.id,
+        title: saved.title,
+        mainFile: saved.mainFile,
+        updatedAt: saved.updatedAt,
+        revision: 1,
+        fileCount: 3,
+      },
+    ]);
+    const newer = await repo.save(makeInput({ title: "Updated" }), 1);
+    await expect(repo.remove(saved.id, 1)).rejects.toBeInstanceOf(
+      LocalWorkspaceConflictError,
+    );
+    expect((await repo.load(saved.id))?.title).toBe("Updated");
+    await repo.remove(saved.id, newer.revision);
+    expect(await repo.list()).toEqual([]);
+    expect(await repo.load(saved.id)).toBeNull();
+  });
+  it("keeps corrupt/future project data intact when listing or deleting fails", async () => {
+    const factory = newFactory();
+    const repo = createLocalWorkspaceRepository(factory);
+    const corrupt = {
+      ...makeInput(),
+      schemaVersion: 99,
+      revision: 4,
+      updatedAt: 1,
+    };
+    await putRaw(factory, corrupt);
+    expect((await repo.list())[0].unavailableReason).toMatch(/schema/i);
+    await expect(repo.remove(corrupt.id, 4)).rejects.toBeInstanceOf(
+      LocalWorkspaceDataError,
+    );
+    expect(await getRaw(factory, corrupt.id)).toEqual(corrupt);
+  });
+});

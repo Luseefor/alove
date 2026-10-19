@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export default defineSchema({
   projects: defineTable({
     name: v.string(),
+    mainFile: v.optional(v.string()),
     ownerId: v.string(),
     /** When true, collaborators may edit files (still owner-scoped in MVP). */
     designMode: v.boolean(),

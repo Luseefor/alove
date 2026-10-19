@@ -239,3 +239,10 @@ Raw timing data and boundaries: [history storage comparison](benchmarks/2026-10-
 The final run includes an idempotency regression for legacy records with omitted
 optional fields; the preliminary run remains separate. No application/TeX latency
 or competitor advantage is inferred from this helper benchmark.
+
+
+## Project library and project navigation — issue #5
+
+Replaced fabricated recent-project cards with saved browser workspaces, title search, rename and revision-checked confirmed deletion. Blank, article, BibTeX and sample launchers create independent projects; archive import commits the new workspace before navigation. Editor title changes, project links and main-document persistence now use real local or authenticated Convex operations. Navigation saves the current source before leaving and shows failures. Corrupt local rows remain untouched and no longer hide healthy projects. Added a working help route and responsive, theme-aware dashboard.
+
+Validation on the combined project/control working tree: web unit suite 245 passed; all six packages typecheck; production build passed. Production Chromium project-library tests 2/2 and dashboard tests 5/5 passed, including import/reload, rename, search and cancel/confirm deletion. Eight backend-handler unit tests cover authentication, ownership and root updates. Live Clerk/Convex deployment was not exercised. Editor-control changes are delivered separately under issue #6.

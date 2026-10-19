@@ -82,7 +82,8 @@ export const deleteFile = mutation({
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.ownerId !== id.subject) throw new Error("Forbidden");
+    if (!project || project.ownerId !== id.subject)
+      throw new Error("Forbidden");
 
     const existing = await ctx.db
       .query("projectFiles")
@@ -93,9 +94,12 @@ export const deleteFile = mutation({
 
     if (existing) {
       await ctx.db.delete(existing._id);
-      await ctx.db.patch(args.projectId, { updatedAt: Date.now() });
+      await ctx.db.patch(args.projectId, {
+        updatedAt: Date.now(),
+        ...(project.mainFile === args.path ? { mainFile: undefined } : {}),
+      });
     }
-  }
+  },
 });
 
 export const renameFile = mutation({
@@ -108,7 +112,8 @@ export const renameFile = mutation({
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.ownerId !== id.subject) throw new Error("Forbidden");
+    if (!project || project.ownerId !== id.subject)
+      throw new Error("Forbidden");
 
     const existing = await ctx.db
       .query("projectFiles")
@@ -125,10 +130,22 @@ export const renameFile = mutation({
       .unique();
 
     if (existing && !conflict) {
-      await ctx.db.patch(existing._id, { path: args.newPath, updatedAt: Date.now() });
-      await ctx.db.patch(args.projectId, { updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, {
+        path: args.newPath,
+        updatedAt: Date.now(),
+      });
+      await ctx.db.patch(args.projectId, {
+        updatedAt: Date.now(),
+        ...((project.mainFile ?? "main.tex") === args.oldPath
+          ? {
+              mainFile: args.newPath.endsWith(".tex")
+                ? args.newPath
+                : undefined,
+            }
+          : {}),
+      });
     } else if (conflict) {
       throw new Error("A file with the new name already exists.");
     }
-  }
+  },
 });

@@ -8,7 +8,7 @@ test.describe("Dashboard / Landing Page", () => {
   test("loads the dashboard and renders hero", async ({ page }) => {
     await expect(page.locator("text=Write, compile, and polish")).toBeVisible();
     await expect(page.locator("text=Open Editor")).toBeVisible();
-    await expect(page.locator("text=New Project")).toBeVisible();
+    await expect(page.getByRole("link",{name:"New Project",exact:true}).first()).toBeVisible();
   });
 
   test("sidebar navigation is functional", async ({ page }) => {
@@ -37,20 +37,18 @@ test.describe("Dashboard / Landing Page", () => {
     await expect(page).toHaveURL(/\/editor/);
   });
 
-  test("recent projects displays the sample project", async ({ page }) => {
-    await expect(page.locator("text=Quantum Entanglement Review")).toBeVisible();
-    await expect(page.locator("text=main.tex").first()).toBeVisible();
+  test("saved projects replace fabricated sample history",async({page})=>{
+    await expect(page.getByText("No saved projects yet",{exact:true})).toBeVisible();
+    await expect(page.getByRole("searchbox",{name:"Search projects by title"})).toBeVisible();
+    await page.getByRole("link",{name:"View all",exact:true}).click();
+    await expect(page).toHaveURL(/\/projects$/);
   });
 
   test("pro tip can be dismissed", async ({ page }) => {
     const proTip = page.locator("text=Pro Tip");
     await expect(proTip).toBeVisible();
 
-    const tipContainer = page.locator("text=Pro Tip").locator("..");
-    const buttons = await tipContainer.locator("button").all();
-    if (buttons.length > 1) {
-      await buttons[1].click();
-      await expect(proTip).not.toBeVisible();
-    }
+    await page.getByRole("button",{name:"Dismiss writing tip",exact:true}).click();
+    await expect(proTip).not.toBeVisible();
   });
 });

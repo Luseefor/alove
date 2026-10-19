@@ -109,6 +109,8 @@ export interface WorkbenchState {
     save?: (path: string, content: string, expectedVersion?: number) => Promise<{ version: number; conflict?: boolean } | void>;
     delete?: (path: string) => Promise<void>;
     rename?: (oldPath: string, newPath: string) => Promise<void>;
+    renameProject?: (title: string) => Promise<void>;
+    setMainFile?: (path: string) => Promise<void>;
   };
 
   setSettingsModalOpen: (open: boolean) => void;
@@ -121,7 +123,7 @@ export interface WorkbenchState {
   setActiveBottomTab: (tab: WorkbenchState["activeBottomTab"]) => void;
   setActiveFile: (id: string | null) => void;
   setProjectTree: (tree: ProjectFile[]) => void;
-  setProjectTitle: (title: string) => void;
+  setProjectTitle: (title: string) => Promise<boolean>;
   setMainFile: (path: string) => void;
   stopCompilePolling: () => void;
   mergeRemoteProject: (args: { projectId: string; title?: string; files: RemoteProjectFile[] }) => void;
@@ -275,9 +277,25 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         });
       },
       setProjectTree: (tree) => set({ projectTree: tree }),
-      setProjectTitle: (title) => set({ projectTitle: title }),
+      setProjectTitle: async (title) => {
+        const name=title.trim();
+        if(!name || name.length>200)return false;
+        const {projectId,persistence}=get();
+        try {
+          await persistence.renameProject?.(name);
+          if(get().projectId!==projectId)return false;
+          set({projectTitle:name});
+          return true;
+        } catch {
+          if(get().projectId===projectId)set({saveMessage:"Project rename failed. The original name was kept."});
+          return false;
+        }
+      },
       setMainFile: (path) => {
-        if (path.endsWith(".tex") && Object.hasOwn(get().filesByPath, path)) set({ mainFile: path });
+        const {projectId,persistence}=get();
+        if (!path.endsWith(".tex") || !Object.hasOwn(get().filesByPath,path))return;
+        if(!persistence.setMainFile){set({mainFile:path});return;}
+        void persistence.setMainFile(path).then(()=>{if(get().projectId===projectId && Object.hasOwn(get().filesByPath,path))set({mainFile:path});}).catch(()=>{if(get().projectId===projectId)set({saveMessage:"Could not change the main document. Try again."});});
       },
       stopCompilePolling: () => {
         compileSequence += 1;
