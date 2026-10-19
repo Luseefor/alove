@@ -226,6 +226,8 @@ if '--plots' in sys.argv:
     axes[1].set(xlabel='Recovery latency (seconds)',ylabel='Verified runs',title='15 synthetic cases × 3 repeats')
     fig.suptitle('Local M3 Pro · amd64 Docker emulation · warm caches',fontsize=11)
     fig.savefig(folder/'latency.png',dpi=180)
-    fig.savefig(folder/'latency.svg')
+    svg_path = folder/'latency.svg'
+    fig.savefig(svg_path)
+    svg_path.write_text('\n'.join(line.rstrip() for line in svg_path.read_text().splitlines())+'\n')
     plt.close(fig)
 print(json.dumps({'strictMatched':strict,'runs':len(runs),'recovery':summary['verifiedRecoveryMs'],'report':str(folder/'README.md')},indent=2))
