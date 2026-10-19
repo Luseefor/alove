@@ -21,7 +21,15 @@ export interface CompileJobPayload {
   timeoutMs?: number;
 }
 
+export interface CompileEnvironment {
+  mode: "docker" | "host";
+  /** Resolved immutable Docker image ID; host runtimes are unverified. */
+  runtimeId: string;
+  platform: string;
+}
+
 export interface CompileJobResult {
+  environment?: CompileEnvironment;
   phase: BuildPhase;
   log: string;
   diagnostics: Diagnostic[];

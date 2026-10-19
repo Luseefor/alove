@@ -115,12 +115,34 @@ describe("worker process boundary", () => {
     expect(result.pdfBase64).toBeUndefined();
   });
 
+  it("runs the resolved Docker image identity and returns its fingerprint", async () => {
+    await installFakeLatexmk();
+    const docker = join(fixtureDirectory, "docker");
+    await writeFile(docker, `#!${process.execPath}
+import { writeFileSync } from "node:fs";
+if (process.argv[2] === "image") { console.log("sha256:" + "a".repeat(64) + "|linux/amd64"); process.exit(0); }
+if (process.argv[2] === "run") {
+  writeFileSync("main.pdf", "%PDF-fixture");
+  writeFileSync("main.log", JSON.stringify(process.argv.slice(2)));
+}
+`);
+    await chmod(docker, 0o755);
+    process.env.COMPILE_USE_DOCKER = "true";
+    process.env.COMPILE_DOCKER_IMAGE = "configured-image:mutable";
+    const result = await runCompileJob({ projectId: "local", mainFile: "main.tex", files: { "main.tex": "source" } });
+    expect(result.phase).toBe("ready");
+    expect(result.environment).toEqual({ mode: "docker", runtimeId: "sha256:" + "a".repeat(64), platform: "linux/amd64" });
+    expect(JSON.parse(result.log)).toContain(result.environment.runtimeId);
+    expect(JSON.parse(result.log)).not.toContain("configured-image:mutable");
+  });
+
   it("waits for Docker auto-removal racing with timeout cleanup", async () => {
     await installFakeLatexmk();
     const docker = join(fixtureDirectory, "docker");
     const marker = join(fixtureDirectory, "removing");
     await writeFile(docker, `#!${process.execPath}
 import { existsSync, writeFileSync } from "node:fs";
+if (process.argv[2] === "image") { console.log("sha256:" + "a".repeat(64) + "|linux/amd64"); process.exit(0); }
 if (process.argv[2] === "run") await Bun.sleep(5000);
 if (!existsSync(${JSON.stringify(marker)})) {
   writeFileSync(${JSON.stringify(marker)}, "1");

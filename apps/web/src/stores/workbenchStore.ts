@@ -1,4 +1,4 @@
-import type { Diagnostic } from "@alove/protocol";
+import { normalizeCompilePath, type Diagnostic } from "@alove/protocol";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { preferenceStorage } from "@/lib/preferenceStorage";
@@ -8,6 +8,9 @@ import { normalizeDiagnosticFile } from "@/lib/editorDiagnostics";
 import { BibliographyService } from "@/services/BibliographyService";
 import { ProjectService } from "@/services/ProjectService";
 import { OutlineService, type OutlineNode } from "@/services/OutlineService";
+
+import { createBuildRecord, type BuildRecord } from "@/lib/buildRecord";
+import { buildRecordRepository } from "@/lib/buildRecordRepository";
 
 function projectTreeFromFiles(filesByPath: Record<string, string>) {
   return ProjectService.buildTree(
@@ -49,6 +52,11 @@ export interface WorkbenchState {
   activeFileId: string | null;
   openFiles: string[];
 
+  lastBuildRecord: BuildRecord | null;
+  buildHistoryError: string | null;
+  buildRecoveryOpen: boolean;
+  setBuildRecoveryOpen: (open: boolean) => void;
+  applyRecoveryFile: (args: { projectId: string; mainFile: string; expectedFiles: Record<string, string>; engine: BuildRecord["engine"]; cleanAux: boolean; path: string; content: string | null }) => boolean;
   projectId: string | null;
   projectTitle: string;
   mainFile: string | null;
@@ -177,6 +185,31 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       activeBottomTab: "problems",
       activeFileId: null,
       openFiles: [],
+      lastBuildRecord: null,
+      buildHistoryError: null,
+      buildRecoveryOpen: false,
+      setBuildRecoveryOpen: (open) => set({ buildRecoveryOpen: open }),
+      applyRecoveryFile: (args) => {
+        const state = get();
+        if (normalizeCompilePath(args.path) !== args.path || state.projectId !== args.projectId || !args.projectId.startsWith("local") || state.mainFile !== args.mainFile ||
+            useIdeSettingsStore.getState().defaultCompilerEngine !== args.engine ||
+            useIdeSettingsStore.getState().compilerCleanAux !== args.cleanAux ||
+            state.buildStatus === "queued" || state.buildStatus === "running" ||
+            Object.keys(state.filesByPath).length !== Object.keys(args.expectedFiles).length ||
+            Object.entries(args.expectedFiles).some(([path, content]) => !Object.hasOwn(state.filesByPath, path) || state.filesByPath[path] !== content)) return false;
+        const files = { ...state.filesByPath };
+        if (args.content === null) delete files[args.path];
+        else files[args.path] = args.content;
+        if (!Object.hasOwn(files, args.mainFile)) return false;
+        const dirty = { ...state.dirtyByPath };
+        if (args.content === null) delete dirty[args.path];
+        else dirty[args.path] = true;
+        const activeFileId = state.activeFileId && Object.hasOwn(files, state.activeFileId) ? state.activeFileId : args.mainFile;
+        set({ filesByPath: files, dirtyByPath: dirty, projectTree: projectTreeFromFiles(files),
+          activeFileId, openFiles: state.openFiles.filter((path) => Object.hasOwn(files, path)),
+          saveStatus: "unsaved", saveMessage: null });
+        return true;
+      },
       projectId: null,
       projectTitle: "Deep Learning Survey",
       mainFile: null,
@@ -656,6 +689,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           set({ buildStatus: "failed", buildMessage: "Choose a main .tex document before building." });
           return;
         }
+        const startedAt = Date.now();
+        const request = { projectId: state.projectId ?? "local", mainFile, files: { ...state.filesByPath }, engine, cleanAux, timeoutMs: 120_000 };
         const controller = new AbortController();
         activeCompile = controller;
         const isCurrent = () => !controller.signal.aborted && sequence === compileSequence && get().projectId === state.projectId;
@@ -672,14 +707,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             signal: controller.signal,
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              projectId: state.projectId ?? "local",
-              mainFile,
-              files: state.filesByPath,
-              engine,
-              cleanAux,
-              timeoutMs: 120_000,
-            }),
+            body: JSON.stringify(request),
           });
           if (!isCurrent()) return;
           if (!res.ok) {
@@ -734,6 +762,13 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             } : {}),
             activeBottomTab: mergedDiagnostics.length > 0 ? "problems" : "log",
           });
+          try {
+            const record = await createBuildRecord(request, result, state.documentRevision, startedAt);
+            if (isCurrent()) set({ lastBuildRecord: record, buildHistoryError: null });
+            await buildRecordRepository.save(record);
+          } catch (historyError) {
+            if (isCurrent()) set({ buildHistoryError: historyError instanceof Error ? historyError.message : "Build history could not be saved." });
+          }
         } catch (error: unknown) {
           if (!isCurrent()) return;
           set({
@@ -843,6 +878,7 @@ useWorkbenchStore.subscribe((state, previous) => {
     activeCompile = null;
     useWorkbenchStore.setState({
       documentRevision: previous.documentRevision + 1,
+      lastBuildRecord: null, buildHistoryError: null, buildRecoveryOpen: false,
       pdfDataUrl: null, pdfSourceRevision: null, pdfMainFile: null,
       buildStatus: "idle", buildMessage: null, buildLog: "", diagnostics: [], diagnosticRevision: null,
     });

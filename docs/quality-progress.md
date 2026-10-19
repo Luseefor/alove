@@ -115,3 +115,23 @@ Next release gates remain C3 container resource/network/user/filesystem isolatio
 C4 ownership and server-only local-mode policy, C5 quotas/cancellation, and cloud
 conflict/history recovery. The real runner smoke closes the earlier Docker-
 unavailable verification gap; it does not establish safe public TeX hosting.
+
+## Regression debugger foundation
+
+Added immutable, bounded build records with canonical SHA-256 source fingerprints,
+recorded source revisions/settings/results, and transactional IndexedDB retention
+that preserves the latest successful baseline. Build-history failures do not
+turn a successful compile into a failure or discard source. The worker now resolves
+and executes the configured Docker image by its immutable local identity and
+returns that identity/platform in both successful and failed compilation results.
+
+The recovery engine validates recorded fingerprints/settings/runtime, rebuilds
+the good baseline, then tests up to five independent whole-file restorations.
+It never edits working source or replaces its preview. Runtime drift, timeouts,
+infra failures and exhausted budgets produce no verified recovery. Cancellation
+stops client waiting and further enqueueing, not a queued/running worker job.
+Apply/undo check source/root/project/settings again to preserve concurrent edits.
+The first real production browser scenario passed without compile mocks: restored
+a deleted macro, retained an unrelated prose change, reloaded durable evidence,
+exported trial results, applied/undid/reapplied, then compiled successfully.
+Full UI validation and final evidence follow with the UI delivery checkpoint.

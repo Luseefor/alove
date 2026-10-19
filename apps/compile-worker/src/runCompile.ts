@@ -18,6 +18,7 @@ import {
   type CompileJobPayload,
   type CompileJobResult,
   type Diagnostic,
+  type CompileEnvironment,
 } from "@alove/protocol";
 import { parseLatexLog } from "./logParse.js";
 import { decodeCompileFileData } from "./compileFileData.js";
@@ -140,6 +141,7 @@ function executionFailure(args: {
   diagnostics?: Diagnostic[];
   errorCode: CompileJobResult["errorCode"];
   timedOut?: boolean;
+  environment?: CompileEnvironment;
 }): CompileJobResult {
   return {
     phase: "failed",
@@ -152,6 +154,7 @@ function executionFailure(args: {
     errorCode: args.errorCode,
     texliveImage: args.texliveImage,
     timedOut: args.timedOut,
+    environment: args.environment,
   };
 }
 
@@ -387,6 +390,7 @@ export async function runCompileJob(
   const limits = resolveLimits(payload);
   const work = await mkdtemp(join(tmpdir(), "alove-tex-"));
   let dockerContainerName: string | null = null;
+  let environment: CompileEnvironment | undefined;
 
   try {
     const validated = validatePayload(payload, limits, image);
@@ -465,6 +469,15 @@ export async function runCompileJob(
           : isDarwinArm64
             ? "linux/amd64"
             : "";
+      const inspected = await runCmd("docker", ["image", "inspect", "--format", "{{.Id}}|{{.Os}}/{{.Architecture}}", image], work, {
+        signal: AbortSignal.timeout(10_000), maxOutputBytes: 4096,
+      });
+      const [imageId, imagePlatform] = inspected.stdout.trim().split("|");
+      if (inspected.code !== 0 || !/^sha256:[a-f0-9]{64}$/.test(imageId ?? "") || !imagePlatform) {
+        return executionFailure({ message: "Cannot resolve the configured Docker image. Pull or build it before compiling.",
+          log: inspected.stderr, texliveImage: image, errorCode: "DOCKER_ERROR" });
+      }
+      environment = { mode: "docker", runtimeId: imageId!, platform: imagePlatform };
       dockerContainerName = `alove-compile-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 10)}`;
@@ -473,7 +486,7 @@ export async function runCompileJob(
       if (dockerPlatform) {
         args.push("--platform", dockerPlatform);
       }
-      args.push("-v", `${work}:/work`, "-w", "/work", image, "latexmk");
+      args.push("-v", `${work}:/work`, "-w", "/work", imageId!, "latexmk");
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
@@ -499,6 +512,7 @@ export async function runCompileJob(
         clearTimeout(timer);
       }
     } else {
+      environment = { mode: "host", runtimeId: "unverified-host", platform: `${platform()}/${arch()}` };
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
       try {
@@ -549,6 +563,7 @@ export async function runCompileJob(
       return executionFailure({
         message: `Compile timed out after ${limits.timeoutMs} ms.`,
         texliveImage: image,
+        environment,
         log: trimmed.text,
         diagnostics: [
           ...diagnostics,
@@ -567,6 +582,7 @@ export async function runCompileJob(
         return executionFailure({
           message: `Compiled PDF is too large (${pdfStats.size} bytes). Limit is ${limits.maxPdfBytes} bytes.`,
           texliveImage: image,
+        environment,
           log: trimmed.text,
           diagnostics,
           errorCode: "OUTPUT_TOO_LARGE",
@@ -578,6 +594,7 @@ export async function runCompileJob(
         return executionFailure({
           message: "latexmk produced an invalid PDF signature",
           texliveImage: image,
+        environment,
           log: trimmed.text,
           diagnostics,
           errorCode: "LATEX_ERROR",
@@ -593,6 +610,7 @@ export async function runCompileJob(
             ? `latexmk exited with code ${exit}`
             : "latexmk produced no PDF",
         texliveImage: image,
+        environment,
         log: trimmed.text,
         diagnostics,
         errorCode:
@@ -607,12 +625,14 @@ export async function runCompileJob(
       pdfBase64,
       mainPdfRelPath: main.replace(/\.tex$/u, ".pdf"),
       texliveImage: image,
+        environment,
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     return executionFailure({
       message,
       texliveImage: image,
+        environment,
       log: message,
       diagnostics: [{ severity: "error", message }],
       errorCode: "INTERNAL_ERROR",

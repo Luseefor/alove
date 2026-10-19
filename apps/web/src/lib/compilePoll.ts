@@ -1,4 +1,4 @@
-import type { Diagnostic as ProtoDiagnostic } from "@alove/protocol";
+import type { CompileJobResult } from "@alove/protocol";
 
 function abortError(signal: AbortSignal): unknown {
   try {
@@ -81,13 +81,7 @@ export async function pollCompileJob(jobId: string, signal?: AbortSignal) {
     }
     const data = (await res.json()) as {
       state: string;
-      result?: {
-        phase: string;
-        pdfBase64?: string;
-        log?: string;
-        diagnostics?: ProtoDiagnostic[];
-        errorMessage?: string;
-      };
+      result?: CompileJobResult;
       error?: string;
     };
 
