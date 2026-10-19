@@ -5,7 +5,6 @@ import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import {
   X,
   Plus,
-  Check,
   Search
 } from "lucide-react";
 import React from "react";
@@ -44,6 +43,7 @@ export function EditorPane() {
   } = useWorkbenchStore();
   
   const spellcheckEnabled = useIdeSettingsStore((s) => s.spellcheckEnabled);
+  const editorCodeCheck = useIdeSettingsStore((s) => s.editorCodeCheck);
   const setSpellcheckEnabled = useIdeSettingsStore((s) => s.setSpellcheckEnabled);
   const editorAutoCloseBrackets = useIdeSettingsStore((s) => s.editorAutoCloseBrackets);
   const editorNonBlinkingCursor = useIdeSettingsStore((s) => s.editorNonBlinkingCursor);
@@ -266,7 +266,7 @@ export function EditorPane() {
               value={content}
               filePath={activeFileId ?? undefined}
               mainFile={mainFile}
-              diagnostics={diagnosticRevision === documentRevision ? diagnostics : undefined}
+              diagnostics={editorCodeCheck && diagnosticRevision === documentRevision ? diagnostics : undefined}
               onChange={updateActiveFileContent}
               readOnly={false}
               spellCheck={spellcheckEnabled}
@@ -285,6 +285,7 @@ export function EditorPane() {
             />
           ) : (
             <textarea
+              aria-label="LaTeX source editor"
               data-testid="latex-editor-textarea"
               ref={textareaRef}
               value={content}
@@ -311,10 +312,6 @@ export function EditorPane() {
            <span className="text-primary font-black">LaTeX</span>
         </div>
         <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-           <div className="flex items-center gap-1.5 text-success bg-success-bg px-1.5 py-0.5 rounded-sm border border-success-border">
-              <Check size={10} strokeWidth={3} />
-              <span>Synced</span>
-           </div>
             <button
               type="button"
               onClick={() => setSpellcheckEnabled(!spellcheckEnabled)}

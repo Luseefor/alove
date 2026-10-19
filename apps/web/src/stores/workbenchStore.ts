@@ -31,6 +31,8 @@ export type ProjectSearchResult = {
   preview: string;
 };
 
+export type RemoteProjectFile = { path: string; content: string; version: number };
+
 export type EditorCommandKind =
   | "undo"
   | "redo"
@@ -58,6 +60,7 @@ export interface WorkbenchState {
   projectTree: ProjectFile[];
   filesByPath: Record<string, string>;
   versionsByPath: Record<string, number>;
+  remoteFiles: RemoteProjectFile[] | null;
   dirtyByPath: Record<string, boolean>;
   outline: OutlineNode[];
   focusedLine: number | null;
@@ -113,6 +116,7 @@ export interface WorkbenchState {
   setProjectTitle: (title: string) => void;
   setMainFile: (path: string) => void;
   stopCompilePolling: () => void;
+  mergeRemoteProject: (args: { projectId: string; title?: string; files: RemoteProjectFile[] }) => void;
   initializeProject: (args: {
     projectId: string | null;
     title?: string;
@@ -184,6 +188,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       projectTree: [],
       filesByPath: {},
       versionsByPath: {},
+      remoteFiles: null,
       dirtyByPath: {},
       outline: [],
       focusedLine: null,
@@ -248,6 +253,82 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         if (get().buildStatus === "queued" || get().buildStatus === "running") set({ buildStatus: "idle", buildMessage: null });
       },
       setPersistenceHandlers: (handlers) => set({ persistence: handlers }),
+      mergeRemoteProject: ({ projectId, title, files }) => {
+        const state = get();
+        if (state.projectId !== projectId) {
+          get().initializeProject({ projectId, title, files });
+          set({ saveStatus: "saved", saveMessage: null, remoteFiles: files });
+          return;
+        }
+        const previous = new Map((state.remoteFiles ?? []).map((file) => [file.path, file]));
+        const incoming = new Map(files.map((file) => [file.path, file]));
+        const nextFiles = new Map(Object.entries(state.filesByPath));
+        const nextVersions = new Map(Object.entries(state.versionsByPath));
+        const nextDirty = new Map(Object.entries(state.dirtyByPath));
+        const conflicts: string[] = [];
+        let changed = false;
+        for (const path of new Set([...previous.keys(), ...incoming.keys()])) {
+          const before = previous.get(path);
+          const remote = incoming.get(path);
+          if (before?.content === remote?.content && before?.version === remote?.version) continue;
+          const local = nextFiles.get(path);
+          const localVersion = nextVersions.get(path) ?? 0;
+          // A mutation acknowledgement may arrive before its query echo.
+          if (remote && remote.version < localVersion && remote.version > (before?.version ?? 0)) continue;
+          if (remote && nextFiles.has(path) && local === remote.content) {
+            nextVersions.set(path, remote.version);
+            if (!pendingFileSaves.has(path)) nextDirty.set(path, false);
+            changed = true;
+          } else if ((!nextFiles.has(path) && !before) ||
+            (!before && !nextDirty.get(path) && remote && remote.version >= localVersion) ||
+            (before && local === before.content && !nextDirty.get(path))) {
+            if (remote) {
+              nextFiles.set(path, remote.content);
+              nextVersions.set(path, remote.version);
+              nextDirty.set(path, false);
+            } else {
+              nextFiles.delete(path);
+              nextVersions.delete(path);
+              nextDirty.delete(path);
+            }
+            changed = true;
+          } else if (nextFiles.has(path) || remote) {
+            // Preserve local changes and their expected version for the save CAS.
+            // Own in-flight save echoes are reconciled by the save acknowledgement.
+            if (!pendingFileSaves.has(path)) conflicts.push(path);
+          }
+        }
+        const fullySynced = pendingFileSaves.size === 0 && nextFiles.size === incoming.size &&
+          [...incoming].every(([path, file]) => nextFiles.has(path) && nextFiles.get(path) === file.content);
+        if (fullySynced && [...nextDirty.values()].some(Boolean)) {
+          for (const path of nextDirty.keys()) nextDirty.set(path, false);
+          changed = true;
+        }
+        const status = conflicts.length ? {
+          saveStatus: "conflict" as const,
+          saveMessage: `Remote changes to ${conflicts.join(", ")} arrived. Your local changes were kept; export source before reloading.`,
+        } : fullySynced ? { saveStatus: "saved" as const, saveMessage: null } : {};
+        if (!changed) {
+          set({ remoteFiles: files, ...(title !== undefined ? { projectTitle: title } : {}), ...status });
+          return;
+        }
+        const filesByPath = Object.fromEntries(nextFiles);
+        const openFiles = state.openFiles.filter((path) => nextFiles.has(path));
+        const activeFileId = state.activeFileId && nextFiles.has(state.activeFileId)
+          ? state.activeFileId : openFiles.at(-1) ?? nextFiles.keys().next().value ?? null;
+        if (activeFileId && !openFiles.includes(activeFileId)) openFiles.push(activeFileId);
+        const mainFile = state.mainFile && nextFiles.has(state.mainFile) ? state.mainFile
+          : nextFiles.has("main.tex") ? "main.tex" : [...nextFiles.keys()].find((path) => path.endsWith(".tex")) ?? null;
+        const content = activeFileId ? filesByPath[activeFileId] : "";
+        set({
+          filesByPath, versionsByPath: Object.fromEntries(nextVersions), dirtyByPath: Object.fromEntries(nextDirty),
+          remoteFiles: files,
+          projectTree: projectTreeFromFiles(filesByPath), mainFile, activeFileId, openFiles,
+          outline: OutlineService.parse(content), stats: calculateStats(content),
+          ...(title !== undefined ? { projectTitle: title } : {}),
+          ...status,
+        });
+      },
       initializeProject: ({ projectId, title, files, mainFile, activeFile, openFiles }) => {
         const filesByPath: Record<string, string> = {};
         const versionsByPath: Record<string, number> = {};
@@ -274,6 +355,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           filesByPath,
           projectTree: projectTreeFromFiles(filesByPath),
           versionsByPath,
+          remoteFiles: null,
           dirtyByPath,
           activeFileId: nextActive,
           openFiles: nextOpen,
@@ -722,6 +804,10 @@ function saveFileToPersistence(path: string, initialVersion?: number): Promise<v
       const result = await save(path, content, expected);
       const current = useWorkbenchStore.getState();
       if (current.projectId !== projectId || current.persistence.save !== save) return;
+      if (!Object.hasOwn(current.filesByPath, path)) {
+        if (current.saveStatus === "saving") useWorkbenchStore.setState({ saveStatus: "unsaved" });
+        return;
+      }
       if (result?.conflict) {
         useWorkbenchStore.setState({ saveStatus: "conflict", saveMessage: "The server has a newer version. Your edits are still here; export them before reloading." });
         return;
@@ -730,7 +816,7 @@ function saveFileToPersistence(path: string, initialVersion?: number): Promise<v
       const dirtyByPath = { ...current.dirtyByPath, [path]: !unchanged };
       useWorkbenchStore.setState({
         dirtyByPath,
-        versionsByPath: result?.version != null ? { ...current.versionsByPath, [path]: result.version } : current.versionsByPath,
+        versionsByPath: result?.version != null ? { ...current.versionsByPath, [path]: Math.max(current.versionsByPath[path] ?? 0, result.version) } : current.versionsByPath,
         saveStatus: Object.values(dirtyByPath).some(Boolean) ? "unsaved" : "saved",
       });
     } catch (error) {

@@ -3,11 +3,12 @@
 import {
   runLatexEditorCommand,
   type EditorTheme,
-  createLatexEditorState,
+  createLatexEditorExtensions,
   createLatexEditorView,
 } from "@alove/editor";
 import type { EditorKeybindings } from "@/stores/ideSettingsStore";
 import { EditorView } from "@codemirror/view";
+import { Compartment, EditorState, Annotation, Transaction, type Extension } from "@codemirror/state";
 import type { Diagnostic } from "@alove/protocol";
 import { setDiagnostics } from "@codemirror/lint";
 import { toCmDiagnostics } from "@/lib/editorDiagnostics";
@@ -51,6 +52,39 @@ function detectTheme(): EditorTheme {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
+type LatexSettings = {
+  readOnly: boolean;
+  spellCheck: boolean;
+  wordWrap: boolean;
+  autoCloseBrackets: boolean;
+  keybindings: EditorKeybindings;
+  ariaLabel: string;
+};
+
+// Marks controlled-prop / server refetch syncs so updateListener can
+// suppress the onChange echo without suppressing genuine user edits.
+const externalValueSyncAnnotation = Annotation.define<boolean>();
+
+function buildDynamicExtensions(
+  theme: EditorTheme,
+  settings: LatexSettings,
+): Extension[] {
+  return [
+    ...createLatexEditorExtensions(theme, {
+      vim: settings.keybindings === "vim",
+      lineNumbers: false,
+      closeBrackets: settings.autoCloseBrackets,
+      wordWrap: settings.wordWrap,
+    }),
+    EditorView.editable.of(!settings.readOnly),
+    EditorView.contentAttributes.of({
+      "aria-label": settings.ariaLabel,
+      spellcheck: String(settings.spellCheck),
+      "data-testid": "latex-editor-codemirror-content",
+    }),
+  ];
+}
+
 export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditorProps>(
   function LatexCodeEditor(
     {
@@ -84,21 +118,48 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
     onSelectionChangeRef.current = onSelectionChange;
     onFocusRef.current = onFocus;
 
+    const compartmentRef = useRef<Compartment | null>(null);
+    if (!compartmentRef.current) {
+      compartmentRef.current = new Compartment();
+    }
+    const settingsRef = useRef<LatexSettings>({
+      readOnly,
+      spellCheck,
+      wordWrap,
+      autoCloseBrackets,
+      keybindings,
+      ariaLabel,
+    });
+    settingsRef.current = {
+      readOnly,
+      spellCheck,
+      wordWrap,
+      autoCloseBrackets,
+      keybindings,
+      ariaLabel,
+    };
+    const themeRef = useRef<EditorTheme | null>(null);
+
     useEffect(() => {
       const host = hostRef.current;
-      if (!host) return;
+      const compartment = compartmentRef.current;
+      if (!host || !compartment) return;
 
-      const nextDoc = viewRef.current?.state.doc.toString() ?? initialValueRef.current;
-      viewRef.current?.destroy();
-      host.innerHTML = "";
+      const initialTheme = detectTheme();
+      themeRef.current = initialTheme;
+      const settings = settingsRef.current;
 
-      const state = createLatexEditorState(
-        nextDoc,
-        detectTheme(),
-        [
+      const state = EditorState.create({
+        doc: initialValueRef.current,
+        extensions: [
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
-              onChangeRef.current(update.state.doc.toString());
+              const isExternalSync = update.transactions.some((tr) =>
+                tr.annotation(externalValueSyncAnnotation),
+              );
+              if (!isExternalSync) {
+                onChangeRef.current(update.state.doc.toString());
+              }
             }
             if (update.selectionSet) {
               const range = update.state.selection.main;
@@ -108,34 +169,46 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
               });
             }
           }),
-          EditorView.editable.of(!readOnly),
-          EditorView.contentAttributes.of({
-            "aria-label": ariaLabel,
-            spellcheck: String(spellCheck),
-            "data-testid": "latex-editor-codemirror-content",
-          }),
           EditorView.domEventHandlers({
             focus() {
               onFocusRef.current?.();
               return false;
             },
           }),
+          compartment.of(buildDynamicExtensions(initialTheme, settings)),
         ],
-        {
-          vim: keybindings === "vim",
-          lineNumbers: false,
-          closeBrackets: autoCloseBrackets,
-          wordWrap,
-        },
-      );
+      });
 
-      viewRef.current = createLatexEditorView(host, state);
+      const view = createLatexEditorView(host, state);
+      viewRef.current = view;
       const diagnostic = diagnosticRef.current;
-      viewRef.current.dispatch(setDiagnostics(viewRef.current.state, toCmDiagnostics(viewRef.current.state.doc, diagnostic.diagnostics ?? [], diagnostic.filePath, diagnostic.mainFile)));
+      view.dispatch(setDiagnostics(view.state, toCmDiagnostics(view.state.doc, diagnostic.diagnostics ?? [], diagnostic.filePath, diagnostic.mainFile)));
       return () => {
-        viewRef.current?.destroy();
+        view.destroy();
         viewRef.current = null;
       };
+    }, []);
+
+    useEffect(() => {
+      const view = viewRef.current;
+      const compartment = compartmentRef.current;
+      if (!view || !compartment) return;
+      const theme = themeRef.current ?? detectTheme();
+      themeRef.current = theme;
+      view.dispatch({
+        effects: compartment.reconfigure(
+          buildDynamicExtensions(theme, {
+            readOnly,
+            spellCheck,
+            wordWrap,
+            autoCloseBrackets,
+            keybindings,
+            ariaLabel,
+          }),
+        ),
+      });
+      const diagnostic = diagnosticRef.current;
+      view.dispatch(setDiagnostics(view.state, toCmDiagnostics(view.state.doc, diagnostic.diagnostics ?? [], diagnostic.filePath, diagnostic.mainFile)));
     }, [
       ariaLabel,
       autoCloseBrackets,
@@ -146,12 +219,42 @@ export const LatexCodeEditor = forwardRef<LatexCodeEditorHandle, LatexCodeEditor
     ]);
 
     useEffect(() => {
+      const compartment = compartmentRef.current;
+      if (!compartment) return;
+      const observer = new MutationObserver(() => {
+        const next = detectTheme();
+        if (next === themeRef.current) return;
+        themeRef.current = next;
+        const view = viewRef.current;
+        if (!view) return;
+        view.dispatch({
+          effects: compartment.reconfigure(
+            buildDynamicExtensions(next, settingsRef.current),
+          ),
+        });
+        const diagnostic = diagnosticRef.current;
+        view.dispatch(setDiagnostics(view.state, toCmDiagnostics(view.state.doc, diagnostic.diagnostics ?? [], diagnostic.filePath, diagnostic.mainFile)));
+      });
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      return () => {
+        observer.disconnect();
+      };
+    }, []);
+
+    useEffect(() => {
       const view = viewRef.current;
       if (!view) return;
       const current = view.state.doc.toString();
       if (current === value) return;
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: value },
+        annotations: [
+          externalValueSyncAnnotation.of(true),
+          Transaction.addToHistory.of(false),
+        ],
       });
     }, [value]);
 

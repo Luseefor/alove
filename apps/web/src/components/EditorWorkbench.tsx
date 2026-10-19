@@ -21,7 +21,7 @@ function EditorWorkbenchConvex() {
   const renameFileMutation = useMutation(api.files.renameFile);
   const [projectId, setProjectId] = useState<Id<"projects"> | null>(null);
 
-  const initializeProject = useWorkbenchStore((s) => s.initializeProject);
+  const mergeRemoteProject = useWorkbenchStore((s) => s.mergeRemoteProject);
   const setPersistenceHandlers = useWorkbenchStore((s) => s.setPersistenceHandlers);
   
   useEffect(() => {
@@ -38,18 +38,15 @@ function EditorWorkbenchConvex() {
   );
 
   useEffect(() => {
-    if (rows) {
-      initializeProject({
-        projectId: projectId ?? null,
+    if (rows && projectId) {
+      const files = rows.map((r) => ({ path: r.path, content: r.content, version: r.version }));
+      mergeRemoteProject({
+        projectId,
         title: project?.name,
-        files: rows.map((r) => ({
-          path: r.path,
-          content: r.content,
-          version: r.version,
-        })),
+        files,
       });
     }
-  }, [rows, projectId, project?.name, initializeProject]);
+  }, [rows, projectId, project?.name, mergeRemoteProject]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -70,6 +67,17 @@ function EditorWorkbenchConvex() {
         await renameFileMutation({ projectId, oldPath, newPath });
       },
     });
+    const warnIfUnsaved = (event: BeforeUnloadEvent) => {
+      if (Object.values(useWorkbenchStore.getState().dirtyByPath).some(Boolean)) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warnIfUnsaved);
+    return () => {
+      window.removeEventListener("beforeunload", warnIfUnsaved);
+      setPersistenceHandlers({});
+    };
   }, [projectId, saveFile, deleteFile, renameFileMutation, setPersistenceHandlers]);
 
   return <LatexEditorApp />;

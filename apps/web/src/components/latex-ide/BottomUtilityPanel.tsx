@@ -18,6 +18,9 @@ export function BottomUtilityPanel() {
     buildLog,
     buildStatus,
     stats,
+    diagnosticRevision,
+    documentRevision,
+    jumpToDiagnostic,
   } = useWorkbenchStore();
   
   const editorCodeCheck = useIdeSettingsStore((s) => s.editorCodeCheck);
@@ -81,15 +84,18 @@ export function BottomUtilityPanel() {
 
           {activeBottomTab === "problems" && (
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-4 scrollbar-hide">
+               {visibleDiagnostics.length > 0 && diagnosticRevision !== documentRevision ? (
+                 <p className="text-xs text-amber-700 mb-2" role="status">These problems refer to an earlier source version. Rebuild to update them.</p>
+               ) : null}
                {visibleDiagnostics.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-3">
                      <CheckCircle2 size={32} className="text-success" />
-                     <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Clean build</p>
+                     <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">{buildStatus === "ready" ? "No problems reported" : buildStatus === "queued" || buildStatus === "running" ? "Build in progress" : "No diagnostics available"}</p>
                   </div>
                ) : (
                   visibleDiagnostics.map((d, i) => (
-                    <div key={i} className={cn(
-                      "flex items-start gap-3 p-2.5 rounded-xl border transition-all hover:bg-zinc-50 group",
+                    <button key={i} type="button" onClick={() => jumpToDiagnostic(d)} className={cn(
+                      "w-full text-left flex items-start gap-3 p-2.5 rounded-xl border transition-all hover:bg-zinc-50 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary",
                       d.severity === "error" ? "border-error/10 text-error-foreground bg-error-bg/30" : "border-warning/10 text-warning-foreground bg-warning-bg/30"
                     )}>
                        {d.severity === "error" ? <XCircle size={14} className="mt-0.5" /> : <AlertTriangle size={14} className="mt-0.5" />}
@@ -98,10 +104,10 @@ export function BottomUtilityPanel() {
                           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-tight opacity-50">
                              <span>{d.file}</span>
                              <span className="w-1 h-1 rounded-full bg-current opacity-40" />
-                             <span>Line {d.line}</span>
+                             {d.line != null ? <span>Line {d.line}</span> : null}
                           </div>
                        </div>
-                    </div>
+                    </button>
                   ))
                )}
             </div>

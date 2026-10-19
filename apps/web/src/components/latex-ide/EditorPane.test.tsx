@@ -7,6 +7,7 @@ import type {
 } from "@/components/latex-ide/LatexCodeEditor";
 import { EditorPane } from "@/components/latex-ide/EditorPane";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
+import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 
 const codeEditorRuntime = vi.hoisted(() => ({
   latestProps: null as LatexCodeEditorProps | null,
@@ -95,6 +96,7 @@ describe("EditorPane", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     seedStore();
+    useIdeSettingsStore.setState({ editorCodeCheck: true });
     codeEditorRuntime.latestProps = null;
     codeEditorRuntime.selection = { start: 2, end: 4 };
     codeEditorRuntime.focus.mockReset();
@@ -164,6 +166,19 @@ describe("EditorPane", () => {
     ) as HTMLTextAreaElement | null;
     expect(textarea).toBeTruthy();
     expect(textarea?.value).toContain("Initial content");
+  });
+
+  it("passes only current diagnostics and honors the code-check preference", () => {
+    const diagnostics = [{ file: "main.tex", line: 1, severity: "error" as const, message: "bad root" }];
+    useWorkbenchStore.setState({ diagnostics, diagnosticRevision: useWorkbenchStore.getState().documentRevision });
+    act(() => root.render(<EditorPane />));
+    expect(codeEditorRuntime.latestProps?.diagnostics).toEqual(diagnostics);
+    act(() => useIdeSettingsStore.setState({ editorCodeCheck: false }));
+    expect(codeEditorRuntime.latestProps?.diagnostics).toBeUndefined();
+    act(() => useIdeSettingsStore.setState({ editorCodeCheck: true }));
+    expect(codeEditorRuntime.latestProps?.diagnostics).toEqual(diagnostics);
+    act(() => useWorkbenchStore.getState().updateActiveFileContent("newer source"));
+    expect(codeEditorRuntime.latestProps?.diagnostics).toBeUndefined();
   });
 
   it("updates active file content and dirty state through shared update path", () => {
