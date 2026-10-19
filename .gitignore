@@ -9,3 +9,6 @@ dist
 .DS_Store
 coverage
 out
+
+# Local benchmark working files; published evidence lives in docs/benchmarks
+benchmark-results/

@@ -2,7 +2,10 @@
   "name": "alove",
   "private": true,
   "packageManager": "bun@1.3.10",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -18,7 +21,12 @@
     "docker:logs": "docker compose -f docker-compose.dev.yml logs -f",
     "docker:ps": "docker compose -f docker-compose.dev.yml ps",
     "docker:health": "curl -fsS http://localhost:3000/api/health",
-    "smoke:docker": "bash scripts/smoke-docker-stack.sh"
+    "smoke:docker": "bash scripts/smoke-docker-stack.sh",
+    "bench:recovery": "bun scripts/benchmarks/runRecoveryBenchmark.ts",
+    "bench:browser": "bun scripts/benchmarks/browserBenchmark.ts",
+    "test:benchmarks": "bun test ./scripts/benchmarks/*.test.ts",
+    "bench:report": "python3 scripts/benchmarks/reportBenchmark.py",
+    "bench:resources": "bun scripts/benchmarks/profileTexResources.ts"
   },
   "devDependencies": {
     "prettier": "^3.8.3",

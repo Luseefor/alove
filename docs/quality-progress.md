@@ -174,3 +174,51 @@ No Overleaf comparison has been executed and no superiority claim is made.
 Next feature slice: line/hunk-level candidates, multiple-failure handling and an
 executable reproduction bundle. Public-hosting C3/C4/C5 and cloud mutation/history
 work remain separate release gates.
+
+## Local recovery and performance baseline — 2026-10-19
+
+Measured the production application at 5316c09 on this Apple M3 Pro (11 logical
+CPUs, 18 GiB RAM), using dedicated loopback Redis 6381, one real worker and an
+amd64 Docker TeX image under arm64 emulation. Product source was unchanged.
+The compiler run followed the isolated browser run; no browser profiling overlapped
+its final latency measurements. Raw data, reproducible scripts, CSVs and figures:
+[local benchmark report](benchmarks/2026-10-19-local-m3-pro/README.md).
+
+The 20-fixture synthetic corpus produced 60/60 strict expected outcomes across
+three repeats: 45 compile-verified single-file recoveries, six unresolved controls
+and nine incompatible controls. All 45 preservation checks retained unrelated-file
+edits, and every verified candidate matched its expected path. This is 15 positive
+fixture types repeated three times, not 45 independent real manuscripts. Whole-file
+restoration can still reverse other edits within that file. No Overleaf comparison.
+
+Successful recovery median/p95: 1449.6/2168.1 ms (n=45), including baseline and
+candidate trial jobs, excluding original evidence builds, history writes and UI.
+One-page API medians: pdfLaTeX 713.9 ms, LuaLaTeX 1438.0 ms, XeLaTeX 2508.5 ms
+(n=5 each). Simple 100-page pdfLaTeX median 1080.0 ms (n=3). Three bounded
+four-client bursts with one worker completed 12/12 jobs, 95.2–110.4 jobs/min;
+this is not sustained capacity. All 206 final API jobs had complete queue metadata:
+153 ready PDFs, 49 LaTeX failures, three real timeouts, one validation failure.
+
+Chromium source hashing median was 1.55 ms at 1 MiB and 14.85 ms at 10 MiB.
+Later history-save medians (n=4) were 7.05/82.7 ms respectively, including growing
+history and retention. Actual editor keydown-to-next-animation-frame median/p95
+was 14.55/16.4 ms at about 1 MiB (n=20), with 40 ms gaps. This is a responsiveness
+proxy, not INP, actual paint completion or burst typing. Large history snapshots
+are the clearest measured optimization target.
+
+Separate direct-Docker 500-page profiles (three per engine) recorded largest
+process max-RSS values about 34/133/179 MiB for pdfLaTeX/LuaLaTeX/XeLaTeX.
+These exclude Docker VM/web app RAM and are not simultaneous container peaks.
+Streaming stats during a different API profiling phase were sparse; their CPU
+readings are inconclusive. Do not derive deployment capacity from either profile.
+
+Checks this turn: 22 benchmark tests passed (165 assertions); all-package typecheck
+passed via the existing cache; report recalculated from raw data and independently
+audited. Existing product tests were not rerun for benchmark-only additions.
+Calibration: 40 jobs, zero fixture errors. An incomplete compiler attempt overlapped
+browser profiling and was stopped/excluded, with raw data retained. Initial large
+contenteditable-fill preparation timed out; switching to real project import
+allowed the complete isolated browser run to pass. No true cold start, cache purge,
+remote staging, native Linux, sustained load or comparative competitor test occurred.
+Public C3/C4/C5 release gates remain open. Next: optimize history storage, then run
+this corpus on private staging before making public performance claims.

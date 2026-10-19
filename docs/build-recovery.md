@@ -121,3 +121,9 @@ identity, conservative trial search, non-minimality and safe recovery. The next
 algorithmic slice is change-hunk recovery with dependency-aware candidates and
 multiple-fault handling, followed by an exportable executable reproduction
 bundle. Those capabilities are not present in this first release.
+
+A local synthetic baseline is now available in the
+[October 19 performance report](benchmarks/2026-10-19-local-m3-pro/README.md):
+20 fixtures, three repeats, 60/60 expected outcomes, successful-recovery median
+1.45 seconds. It does not execute the comparative study proposed above or establish
+an advantage over Overleaf. Raw data, methods and limits accompany the report.
