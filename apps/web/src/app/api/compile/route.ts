@@ -1,18 +1,40 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import type { CompileJobPayload } from "@alove/protocol";
+import {
+  COMPILE_REQUEST_LIMITS,
+  validateCompileRequest,
+} from "@alove/protocol";
 import { getCompileQueue } from "@/lib/compileQueue";
 import { getCompileAuthPolicy } from "@/lib/compileAuth";
 
 export const runtime = "nodejs";
 
-function isValidCompilePayload(payload: unknown): payload is CompileJobPayload {
-  if (typeof payload !== "object" || payload === null) return false;
-  const record = payload as Record<string, unknown>;
-  if (typeof record.projectId !== "string" || record.projectId.trim() === "") return false;
-  if (typeof record.mainFile !== "string" || record.mainFile.trim() === "") return false;
-  if (typeof record.files !== "object" || record.files === null) return false;
-  return Object.values(record.files).every((value) => typeof value === "string");
+async function readBody(req: Request): Promise<unknown> {
+  const cap = COMPILE_REQUEST_LIMITS.maxRequestBytes;
+  const declared = req.headers.get("content-length");
+  if (declared && Number(declared) > cap)
+    throw new RangeError("Compile request is too large");
+  if (!req.body) throw new SyntaxError("Missing body");
+  const reader = req.body.getReader();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let bytes = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > cap) {
+        await reader.cancel();
+        throw new RangeError("Compile request is too large");
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+    return JSON.parse(text);
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 export async function POST(req: Request) {
@@ -27,23 +49,26 @@ export async function POST(req: Request) {
     }
   }
 
-  let body: CompileJobPayload;
+  let body: unknown;
   try {
-    body = (await req.json()) as CompileJobPayload;
-  } catch {
+    body = await readBody(req);
+  } catch (error) {
+    if (error instanceof RangeError)
+      return NextResponse.json({ error: error.message }, { status: 413 });
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
 
-  if (!isValidCompilePayload(body)) {
+  const validated = validateCompileRequest(body);
+  if (!validated.ok) {
     return NextResponse.json(
-      { error: "projectId, mainFile, and files (string map) are required" },
-      { status: 400 },
+      { error: validated.error },
+      { status: validated.status },
     );
   }
 
   try {
     const queue = getCompileQueue();
-    const job = await queue.add("build", body);
+    const job = await queue.add("build", validated.value);
     return NextResponse.json({ jobId: job.id });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

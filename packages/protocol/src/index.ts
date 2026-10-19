@@ -15,14 +15,10 @@ export interface CompileJobPayload {
   mainFile: string;
   files: Record<string, string>;
   engine?: "pdflatex" | "lualatex" | "xelatex";
-  /** Extra args passed to latexmk after engine flags (advanced). */
-  latexmkExtraArgs?: string[];
   /** Run `latexmk -c` before the main build to drop aux files in the work dir. */
   cleanAux?: boolean;
   /** Wall-clock cap for the TeX process (ms). Default 120_000. */
   timeoutMs?: number;
-  /** Recorded in responses for reproducibility messaging. */
-  texliveImage?: string;
 }
 
 export interface CompileJobResult {
@@ -41,4 +37,229 @@ export interface CompileJobResult {
     | "INTERNAL_ERROR";
   texliveImage?: string;
   timedOut?: boolean;
+}
+
+export const COMPILE_REQUEST_LIMITS = {
+  maxFiles: 250,
+  maxFileBytes: 1048576,
+  maxTotalBytes: 10485760,
+  maxRequestBytes: 22020096,
+  minTimeoutMs: 1000,
+  maxTimeoutMs: 120000,
+} as const;
+
+export type ValidateCompileRequestOk = {
+  ok: true;
+  value: CompileJobPayload;
+};
+
+export type ValidateCompileRequestErr = {
+  ok: false;
+  error: string;
+  status: 400 | 413;
+};
+
+export type ValidateCompileRequestResult =
+  | ValidateCompileRequestOk
+  | ValidateCompileRequestErr;
+
+const ALLOWED_FIELDS = new Set([
+  "projectId",
+  "mainFile",
+  "files",
+  "engine",
+  "cleanAux",
+  "timeoutMs",
+]);
+
+const ALLOWED_ENGINES = new Set(["pdflatex", "lualatex", "xelatex"]);
+
+const PROTOTYPE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+const MAX_PATH_BYTES = 1024;
+
+const utf8 = new TextEncoder();
+
+function utf8Bytes(s: string): number {
+  return utf8.encode(s).length;
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  if (typeof v !== "object" || v === null) return false;
+  if (Array.isArray(v)) return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
+export function normalizeCompilePath(path: unknown): string | null {
+  if (typeof path !== "string") return null;
+  if (path.length === 0) return null;
+  if (utf8Bytes(path) > MAX_PATH_BYTES) return null;
+  if (path.includes("\\")) return null;
+  if (path.includes(":")) return null;
+  if (path.startsWith("/")) return null;
+  for (let i = 0; i < path.length; i++) {
+    const c = path.charCodeAt(i);
+    if (c <= 0x1f || (c >= 0x7f && c <= 0x9f)) return null;
+  }
+  const segs = path.split("/");
+  for (const seg of segs) {
+    if (seg === "") return null;
+    if (seg === "." || seg === "..") return null;
+    if (PROTOTYPE_KEYS.has(seg)) return null;
+    if (seg.startsWith("-")) return null;
+    if (seg !== seg.trim()) return null;
+  }
+  return path;
+}
+
+function err(error: string, status: 400 | 413): ValidateCompileRequestErr {
+  return { ok: false, error, status };
+}
+
+export function validateCompileRequest(
+  input: unknown,
+): ValidateCompileRequestResult {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return err("request must be an object", 400);
+  }
+  const record = input as Record<string, unknown>;
+
+  for (const key of Object.keys(record)) {
+    if (!ALLOWED_FIELDS.has(key)) {
+      return err(`unknown field: ${key}`, 400);
+    }
+  }
+
+  const rawProjectId = Object.hasOwn(record, "projectId")
+    ? record["projectId"]
+    : undefined;
+  if (typeof rawProjectId !== "string") {
+    return err("projectId must be a string", 400);
+  }
+  const projectId = rawProjectId.trim();
+  if (projectId.length === 0) {
+    return err("projectId must be nonempty", 400);
+  }
+  if (projectId.length > 200) {
+    return err("projectId must be <= 200 chars", 400);
+  }
+
+  const rawFiles = Object.hasOwn(record, "files") ? record["files"] : undefined;
+  if (!isPlainObject(rawFiles)) {
+    return err("files must be an object map", 400);
+  }
+  const keys = Object.keys(rawFiles);
+  if (keys.length < 1 || keys.length > COMPILE_REQUEST_LIMITS.maxFiles) {
+    return err(
+      `files must contain 1..${COMPILE_REQUEST_LIMITS.maxFiles} entries`,
+      413,
+    );
+  }
+
+  const freshFiles: Record<string, string> = {};
+  let totalBytes = 0;
+  for (const k of keys) {
+    if (normalizeCompilePath(k) !== k) {
+      return err(`invalid file path: ${k}`, 400);
+    }
+    const v: unknown = (rawFiles as Record<string, unknown>)[k];
+    if (typeof v !== "string") {
+      return err(`file content must be a string: ${k}`, 400);
+    }
+    const n = utf8Bytes(v);
+    if (n > COMPILE_REQUEST_LIMITS.maxFileBytes) {
+      return err(`file too large: ${k}`, 413);
+    }
+    totalBytes += n;
+    if (totalBytes > COMPILE_REQUEST_LIMITS.maxTotalBytes) {
+      return err("total files too large", 413);
+    }
+  }
+
+  const seen = new Set(keys);
+  for (const p of keys) {
+    const parts = p.split("/");
+    let prefix = "";
+    for (let i = 0; i < parts.length - 1; i++) {
+      prefix = i === 0 ? parts[0] : `${prefix}/${parts[i]}`;
+      if (seen.has(prefix)) {
+        return err(`file conflicts with parent: ${p}`, 400);
+      }
+    }
+  }
+
+  for (const k of keys) {
+    freshFiles[k] = (rawFiles as Record<string, string>)[k];
+  }
+
+  const rawMain = Object.hasOwn(record, "mainFile")
+    ? record["mainFile"]
+    : undefined;
+  if (typeof rawMain !== "string") {
+    return err("mainFile must be a string", 400);
+  }
+  if (normalizeCompilePath(rawMain) !== rawMain) {
+    return err("mainFile must be a valid path", 400);
+  }
+  if (!rawMain.endsWith(".tex")) {
+    return err("mainFile must end with .tex", 400);
+  }
+  if (!Object.hasOwn(rawFiles, rawMain)) {
+    return err("mainFile must be a key in files", 400);
+  }
+
+  const rawEngine = Object.hasOwn(record, "engine")
+    ? record["engine"]
+    : undefined;
+  let engine: CompileJobPayload["engine"];
+  if (rawEngine === undefined) {
+    engine = "pdflatex";
+  } else if (typeof rawEngine === "string" && ALLOWED_ENGINES.has(rawEngine)) {
+    engine = rawEngine as NonNullable<CompileJobPayload["engine"]>;
+  } else {
+    return err("engine must be pdflatex, lualatex, or xelatex", 400);
+  }
+
+  const rawClean = Object.hasOwn(record, "cleanAux")
+    ? record["cleanAux"]
+    : undefined;
+  let cleanAux: boolean | undefined;
+  if (rawClean === undefined) {
+    cleanAux = undefined;
+  } else if (typeof rawClean === "boolean") {
+    cleanAux = rawClean;
+  } else {
+    return err("cleanAux must be a boolean", 400);
+  }
+
+  const rawTimeout = Object.hasOwn(record, "timeoutMs")
+    ? record["timeoutMs"]
+    : undefined;
+  let timeoutMs: number | undefined;
+  if (rawTimeout === undefined) {
+    timeoutMs = undefined;
+  } else if (
+    typeof rawTimeout === "number" &&
+    Number.isSafeInteger(rawTimeout) &&
+    rawTimeout >= COMPILE_REQUEST_LIMITS.minTimeoutMs &&
+    rawTimeout <= COMPILE_REQUEST_LIMITS.maxTimeoutMs
+  ) {
+    timeoutMs = rawTimeout;
+  } else {
+    return err(
+      `timeoutMs must be an integer ${COMPILE_REQUEST_LIMITS.minTimeoutMs}..${COMPILE_REQUEST_LIMITS.maxTimeoutMs}`,
+      400,
+    );
+  }
+
+  const value: CompileJobPayload = {
+    projectId,
+    mainFile: rawMain,
+    files: freshFiles,
+    engine,
+  };
+  if (cleanAux !== undefined) value.cleanAux = cleanAux;
+  if (timeoutMs !== undefined) value.timeoutMs = timeoutMs;
+  return { ok: true, value };
 }

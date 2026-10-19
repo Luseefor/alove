@@ -17,4 +17,8 @@ Pull once before first compile:
 
 To use a host-installed TeX Live instead (faster local iteration):
 
-`COMPILE_USE_DOCKER=false` on the compile-worker process.
+`COMPILE_USE_DOCKER=false COMPILE_TRUSTED_LOCAL=true bun run --filter compile-worker dev`. Host execution is refused when `NODE_ENV=production`.
+
+The API accepts project files, root, engine, clean-aux, and a bounded timeout. Image and command flags come from server policy; clients cannot override them. Project rc files and TeX shell escape are disabled. Use a pinned `COMPILE_DOCKER_IMAGE` digest for reproducible deployments; the local default remains `latest`.
+
+The request boundary caps projects at 250 files, 1 MiB per file, 10 MiB total file content, and 21 MiB encoded request bytes. Worker environment limits can restrict these further. Container isolation, tenant authorization, and quotas require their own deployment checks; argument validation alone does not establish public-hosting readiness.

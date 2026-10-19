@@ -3,14 +3,22 @@ import {
   access,
   mkdir,
   mkdtemp,
-  readFile,
+  open,
+  realpath,
   rm,
   stat,
   writeFile,
 } from "node:fs/promises";
 import { arch, platform, tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import type { CompileJobPayload, CompileJobResult, Diagnostic } from "@alove/protocol";
+import { constants } from "node:fs";
+import { dirname, join, relative, isAbsolute, sep } from "node:path";
+import {
+  normalizeCompilePath,
+  validateCompileRequest,
+  type CompileJobPayload,
+  type CompileJobResult,
+  type Diagnostic,
+} from "@alove/protocol";
 import { parseLatexLog } from "./logParse.js";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -60,7 +68,10 @@ function resolveLimits(payload: CompileJobPayload): CompileLimits {
 
   return {
     timeoutMs,
-    maxFiles: parsePositiveInt(process.env.COMPILE_MAX_FILES, DEFAULT_MAX_FILES),
+    maxFiles: parsePositiveInt(
+      process.env.COMPILE_MAX_FILES,
+      DEFAULT_MAX_FILES,
+    ),
     maxFileBytes: parsePositiveInt(
       process.env.COMPILE_MAX_FILE_BYTES,
       DEFAULT_MAX_FILE_BYTES,
@@ -87,28 +98,22 @@ function keepTailBytes(text: string, maxBytes: number): string {
   return buf.subarray(buf.byteLength - maxBytes).toString("utf8");
 }
 
-function appendBounded(current: string, chunk: string, maxBytes: number): string {
+function appendBounded(
+  current: string,
+  chunk: string,
+  maxBytes: number,
+): string {
   if (maxBytes <= 0) return "";
   return keepTailBytes(current + chunk, maxBytes);
 }
 
-function trimLog(log: string, maxLogBytes: number): { text: string; truncated: boolean } {
+function trimLog(
+  log: string,
+  maxLogBytes: number,
+): { text: string; truncated: boolean } {
   const fullBytes = Buffer.byteLength(log, "utf8");
   if (fullBytes <= maxLogBytes) return { text: log, truncated: false };
   return { text: keepTailBytes(log, maxLogBytes), truncated: true };
-}
-
-function normalizeRelativePath(rawPath: string): string | null {
-  const normalized = rawPath.trim().replace(/\\/g, "/");
-  if (!normalized || normalized.startsWith("/") || normalized.includes("\0")) return null;
-  const segments = normalized.split("/").filter((segment) => segment.length > 0);
-  if (segments.length === 0) return null;
-  if (segments.some((segment) => segment === "." || segment === "..")) return null;
-  return segments.join("/");
-}
-
-function shellEscape(value: string): string {
-  return `'${value.replace(/'/g, "'\"'\"'")}'`;
 }
 
 function validationFailure(
@@ -120,9 +125,7 @@ function validationFailure(
     phase: "failed",
     log: "",
     diagnostics:
-      diagnostics.length > 0
-        ? diagnostics
-        : [{ severity: "error", message }],
+      diagnostics.length > 0 ? diagnostics : [{ severity: "error", message }],
     errorMessage: message,
     errorCode: "VALIDATION_ERROR",
     texliveImage,
@@ -211,10 +214,22 @@ function validatePayload(
   payload: CompileJobPayload,
   limits: CompileLimits,
   texliveImage: string,
-): { ok: true; value: ValidatedPayload } | { ok: false; result: CompileJobResult } {
-  const entries = Object.entries(payload.files ?? {});
+):
+  | { ok: true; value: ValidatedPayload }
+  | { ok: false; result: CompileJobResult } {
+  const request = validateCompileRequest(payload);
+  if (!request.ok)
+    return {
+      ok: false,
+      result: validationFailure(request.error, texliveImage),
+    };
+  payload = request.value;
+  const entries = Object.entries(payload.files);
   if (entries.length === 0) {
-    return { ok: false, result: validationFailure("No files provided", texliveImage) };
+    return {
+      ok: false,
+      result: validationFailure("No files provided", texliveImage),
+    };
   }
   if (entries.length > limits.maxFiles) {
     return {
@@ -229,7 +244,7 @@ function validatePayload(
   let totalBytes = 0;
   const normalizedFiles = new Map<string, string>();
   for (const [rawPath, content] of entries) {
-    const normalizedPath = normalizeRelativePath(rawPath);
+    const normalizedPath = normalizeCompilePath(rawPath);
     if (!normalizedPath) {
       return {
         ok: false,
@@ -271,11 +286,14 @@ function validatePayload(
     normalizedFiles.set(normalizedPath, content);
   }
 
-  const normalizedMain = normalizeRelativePath(payload.mainFile);
+  const normalizedMain = normalizeCompilePath(payload.mainFile);
   if (!normalizedMain) {
     return {
       ok: false,
-      result: validationFailure(`Unsafe main file path: ${payload.mainFile}`, texliveImage),
+      result: validationFailure(
+        `Unsafe main file path: ${payload.mainFile}`,
+        texliveImage,
+      ),
     };
   }
   if (!normalizedFiles.has(normalizedMain)) {
@@ -315,15 +333,46 @@ async function ensureDockerContainerRemoved(
   }
 }
 
+async function readArtifact(
+  work: string,
+  path: string,
+  cap: number,
+  tail = false,
+): Promise<{ data: Buffer; truncated: boolean }> {
+  const resolved = await realpath(path);
+  const rel = relative(await realpath(work), resolved);
+  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel))
+    throw new Error("Artifact leaves compile directory");
+  const file = await open(resolved, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const info = await file.stat();
+    if (!info.isFile()) throw new Error("Artifact is not a regular file");
+    if (info.size > cap && !tail)
+      throw new Error(`Compiled PDF exceeds ${cap} bytes`);
+    const size = Math.min(info.size, cap);
+    const data = Buffer.alloc(size);
+    const { bytesRead } = await file.read(
+      data,
+      0,
+      size,
+      tail ? Math.max(0, info.size - size) : 0,
+    );
+    return { data: data.subarray(0, bytesRead), truncated: info.size > cap };
+  } finally {
+    await file.close();
+  }
+}
+
 export async function runCompileJob(
   payload: CompileJobPayload,
 ): Promise<CompileJobResult> {
-  const work = await mkdtemp(join(tmpdir(), "alove-tex-"));
   const image =
-    payload.texliveImage ??
-    process.env.COMPILE_DOCKER_IMAGE ??
-    "ghcr.io/xu-cheng/texlive-full:latest";
+    process.env.COMPILE_DOCKER_IMAGE ?? "ghcr.io/xu-cheng/texlive-full:latest";
+  const request = validateCompileRequest(payload);
+  if (!request.ok) return validationFailure(request.error, image);
+  payload = request.value;
   const limits = resolveLimits(payload);
+  const work = await mkdtemp(join(tmpdir(), "alove-tex-"));
   let dockerContainerName: string | null = null;
 
   try {
@@ -343,24 +392,33 @@ export async function runCompileJob(
       process.env.COMPILE_USE_DOCKER !== "0" &&
       process.env.COMPILE_USE_DOCKER !== "false";
 
-    const engineArgs = latexmkEngineArgs(payload.engine);
-    const extras = payload.latexmkExtraArgs ?? [];
-    const escapedMain = shellEscape(main);
-    const escapedExtras = extras.map(shellEscape).join(" ");
-    const escapedLatexmk = [
-      "latexmk",
-      ...engineArgs,
-      "-interaction=nonstopmode",
-      "-halt-on-error",
-      escapedExtras,
-      escapedMain,
-    ]
-      .filter((token) => token.length > 0)
-      .join(" ");
-    const escapedClean = payload.cleanAux
-      ? `latexmk -c -interaction=batchmode ${escapedMain} >/dev/null 2>&1 || true; `
-      : "";
-    const inner = `${escapedClean}${escapedLatexmk}`;
+    // Caller-provided previous outputs cannot stand in for this build's artifacts.
+    for (const extension of [".log", ".pdf"]) {
+      await rm(join(work, main.replace(/\.tex$/u, extension)), { force: true });
+    }
+    if (
+      !useDocker &&
+      (process.env.COMPILE_TRUSTED_LOCAL !== "true" ||
+        process.env.NODE_ENV === "production")
+    ) {
+      return validationFailure(
+        "Host TeX requires COMPILE_TRUSTED_LOCAL=true outside production. Use Docker for deployed workers.",
+        image,
+      );
+    }
+    const commands = [
+      ...(payload.cleanAux
+        ? [["-norc", "-c", "-interaction=batchmode", `./${main}`]]
+        : []),
+      [
+        "-norc",
+        ...latexmkEngineArgs(payload.engine),
+        "-no-shell-escape",
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        `./${main}`,
+      ],
+    ];
 
     let combined = "";
     let exit = 1;
@@ -383,27 +441,28 @@ export async function runCompileJob(
       if (dockerPlatform) {
         args.push("--platform", dockerPlatform);
       }
-      args.push(
-        "-v",
-        `${work}:/work`,
-        "-w",
-        "/work",
-        image,
-        "sh",
-        "-lc",
-        inner,
-      );
+      args.push("-v", `${work}:/work`, "-w", "/work", image, "latexmk");
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
       try {
-        const run = await runCmd("docker", args, work, {
-          signal: controller.signal,
-          maxOutputBytes: limits.maxLogBytes,
-        });
-        combined = `${run.stdout}\n${run.stderr}`;
-        exit = run.code;
-        timedOut = run.code === 124 || controller.signal.aborted;
+        for (const commandArgs of commands) {
+          if (controller.signal.aborted) {
+            timedOut = true;
+            break;
+          }
+          const run = await runCmd("docker", [...args, ...commandArgs], work, {
+            signal: controller.signal,
+            maxOutputBytes: limits.maxLogBytes,
+          });
+          combined = appendBounded(
+            combined,
+            `${run.stdout}\n${run.stderr}`,
+            limits.maxLogBytes,
+          );
+          exit = run.code;
+          timedOut = run.code === 124 || controller.signal.aborted;
+        }
       } finally {
         clearTimeout(timer);
       }
@@ -411,23 +470,40 @@ export async function runCompileJob(
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
       try {
-        const run = await runCmd("sh", ["-lc", inner], work, {
-          signal: controller.signal,
-          maxOutputBytes: limits.maxLogBytes,
-        });
-        combined = `${run.stdout}\n${run.stderr}`;
-        exit = run.code;
-        timedOut = run.code === 124 || controller.signal.aborted;
+        for (const commandArgs of commands) {
+          if (controller.signal.aborted) {
+            timedOut = true;
+            break;
+          }
+          const run = await runCmd("latexmk", commandArgs, work, {
+            signal: controller.signal,
+            maxOutputBytes: limits.maxLogBytes,
+          });
+          combined = appendBounded(
+            combined,
+            `${run.stdout}\n${run.stderr}`,
+            limits.maxLogBytes,
+          );
+          exit = run.code;
+          timedOut = run.code === 124 || controller.signal.aborted;
+        }
       } finally {
         clearTimeout(timer);
       }
     }
 
     const logPath = join(work, main.replace(/\.tex$/u, ".log"));
-    const logText =
-      (await pathExists(logPath)) ? await readFile(logPath, "utf8") : combined;
+    if (timedOut && dockerContainerName)
+      await ensureDockerContainerRemoved(dockerContainerName, work);
+    const artifactLog = (await pathExists(logPath))
+      ? await readArtifact(work, logPath, limits.maxLogBytes, true)
+      : null;
+    const logText = artifactLog ? artifactLog.data.toString("utf8") : combined;
     const parsedDiagnostics = parseLatexLog(logText);
-    const trimmed = trimLog(logText, limits.maxLogBytes);
+    const trimmed = {
+      text: trimLog(logText, limits.maxLogBytes).text,
+      truncated: artifactLog?.truncated ?? false,
+    };
     const diagnostics = [...parsedDiagnostics];
     if (trimmed.truncated) {
       diagnostics.push({
@@ -449,7 +525,8 @@ export async function runCompileJob(
           errorCode: "OUTPUT_TOO_LARGE",
         });
       }
-      const pdfBuffer = await readFile(pdfPath);
+      const pdfBuffer = (await readArtifact(work, pdfPath, limits.maxPdfBytes))
+        .data;
       pdfBase64 = pdfBuffer.toString("base64");
     }
 
@@ -470,9 +547,12 @@ export async function runCompileJob(
       });
     }
 
-    if (exit !== 0 && !pdfBase64) {
+    if (exit !== 0 || !pdfBase64) {
       return executionFailure({
-        message: `latexmk exited with code ${exit}`,
+        message:
+          exit !== 0
+            ? `latexmk exited with code ${exit}`
+            : "latexmk produced no PDF",
         texliveImage: image,
         log: trimmed.text,
         diagnostics,
@@ -515,7 +595,7 @@ export async function runCompileJob(
 
 export const __testOnly = {
   resolveLimits,
-  normalizeRelativePath,
+  normalizeRelativePath: normalizeCompilePath,
   validatePayload,
   trimLog,
 };
