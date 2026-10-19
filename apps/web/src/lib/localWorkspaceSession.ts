@@ -6,17 +6,22 @@ import {
   type createLocalWorkspaceRepository,
 } from "@/lib/localWorkspace";
 
-type Repository = ReturnType<typeof createLocalWorkspaceRepository>;
+type Repository = Pick<
+  ReturnType<typeof createLocalWorkspaceRepository>,
+  "load" | "save"
+>;
 
 /** One serialized save stream per mounted local project, after hydration. */
 export function createLocalWorkspaceSession({
   store,
   repository,
   seed,
+  createIfMissing = true,
 }: {
   store: StoreApi<WorkbenchState>;
   repository: Repository;
   seed: LocalWorkspaceInput;
+  createIfMissing?: boolean;
 }) {
   let disposed = false;
   let hydrated = false;
@@ -90,6 +95,8 @@ export function createLocalWorkspaceSession({
   const ready = (async () => {
     try {
       const loaded = await repository.load(seed.id);
+      if (!loaded && !createIfMissing)
+        throw new Error("Project does not exist");
       if (disposed) return;
       const initial = loaded ?? seed;
       revision = loaded?.revision ?? 0;
@@ -117,7 +124,14 @@ export function createLocalWorkspaceSession({
         persistence: { saveWorkspace: save },
       });
       unsubscribe = store.subscribe((state, previous) => {
-        if (state.filesByPath === previous.filesByPath && state.projectTitle === previous.projectTitle && state.mainFile === previous.mainFile && state.activeFileId === previous.activeFileId && state.openFiles === previous.openFiles) return;
+        if (
+          state.filesByPath === previous.filesByPath &&
+          state.projectTitle === previous.projectTitle &&
+          state.mainFile === previous.mainFile &&
+          state.activeFileId === previous.activeFileId &&
+          state.openFiles === previous.openFiles
+        )
+          return;
         const next = JSON.stringify(snapshot());
         if (next === observed) return;
         observed = next;
@@ -129,13 +143,11 @@ export function createLocalWorkspaceSession({
     } catch {
       if (disposed) return;
       // Failed reads must never seed over a workspace we could not inspect.
-      store
-        .getState()
-        .initializeProject({
-          projectId: seed.id,
-          title: "Workspace unavailable",
-          files: [],
-        });
+      store.getState().initializeProject({
+        projectId: seed.id,
+        title: "Workspace unavailable",
+        files: [],
+      });
       store.setState({
         saveStatus: "error",
         saveMessage:
