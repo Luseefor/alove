@@ -1,6 +1,7 @@
 import type { Diagnostic } from "@alove/protocol";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import { pollCompileJob } from "@/lib/compilePoll";
 import { BibliographyService } from "@/services/BibliographyService";
@@ -37,7 +38,7 @@ export type EditorCommandKind =
   | "copy"
   | "paste";
 
-interface WorkbenchState {
+export interface WorkbenchState {
   sidebarOpen: boolean;
   bottomPanelOpen: boolean;
   activeRail: "explorer" | "search" | "source-control" | "ai";
@@ -47,6 +48,9 @@ interface WorkbenchState {
 
   projectId: string | null;
   projectTitle: string;
+  mainFile: string | null;
+  saveStatus: "loading" | "unsaved" | "saving" | "saved" | "error" | "conflict";
+  saveMessage: string | null;
   projectTree: ProjectFile[];
   filesByPath: Record<string, string>;
   versionsByPath: Record<string, number>;
@@ -85,7 +89,8 @@ interface WorkbenchState {
     column: number;
   };
   persistence: {
-    save?: (path: string, content: string, expectedVersion?: number) => Promise<{ version: number } | void>;
+    saveWorkspace?: () => Promise<void>;
+    save?: (path: string, content: string, expectedVersion?: number) => Promise<{ version: number; conflict?: boolean } | void>;
     delete?: (path: string) => Promise<void>;
     rename?: (oldPath: string, newPath: string) => Promise<void>;
   };
@@ -104,11 +109,14 @@ interface WorkbenchState {
   initializeProject: (args: {
     projectId: string | null;
     title?: string;
+    mainFile?: string | null;
+    activeFile?: string | null;
+    openFiles?: string[];
     files: { path: string; content: string; version?: number }[];
   }) => void;
   updateActiveFileContent: (content: string) => void;
-  saveActiveFile: () => void;
-  saveAllDirtyFiles: () => void;
+  saveActiveFile: () => Promise<void>;
+  saveAllDirtyFiles: () => Promise<void>;
   setPersistenceHandlers: (handlers: WorkbenchState["persistence"]) => void;
   createFile: (path: string, content?: string, options?: { open?: boolean }) => void;
   deleteFile: (path: string) => void;
@@ -157,6 +165,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       openFiles: [],
       projectId: null,
       projectTitle: "Deep Learning Survey",
+      mainFile: null,
+      saveStatus: "unsaved",
+      saveMessage: null,
       projectTree: [],
       filesByPath: {},
       versionsByPath: {},
@@ -214,7 +225,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setProjectTree: (tree) => set({ projectTree: tree }),
       setProjectTitle: (title) => set({ projectTitle: title }),
       setPersistenceHandlers: (handlers) => set({ persistence: handlers }),
-      initializeProject: ({ projectId, title, files }) => {
+      initializeProject: ({ projectId, title, files, mainFile, activeFile, openFiles }) => {
         const filesByPath: Record<string, string> = {};
         const versionsByPath: Record<string, number> = {};
         const dirtyByPath: Record<string, boolean> = {};
@@ -224,15 +235,18 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           dirtyByPath[file.path] = false;
         }
         const current = get();
-        let nextActive = current.activeFileId;
+        let nextActive = activeFile === undefined ? current.activeFileId : activeFile;
         if (!nextActive || !(nextActive in filesByPath)) {
           nextActive = files.find((f) => f.path === "main.tex")?.path ?? files.find((f) => f.path.endsWith(".tex"))?.path ?? files[0]?.path ?? null;
         }
-        const nextOpen = current.openFiles.filter((f) => f in filesByPath);
+        const nextOpen = (openFiles ?? current.openFiles).filter((f) => f in filesByPath);
         if (nextActive && !nextOpen.includes(nextActive)) nextOpen.push(nextActive);
         const activeContent = nextActive ? filesByPath[nextActive] ?? "" : "";
         set({
           projectId,
+          mainFile: mainFile !== undefined && (mainFile === null || mainFile in filesByPath)
+            ? mainFile
+            : ("main.tex" in filesByPath ? "main.tex" : files.find((f) => f.path.endsWith(".tex"))?.path ?? null),
           projectTitle: title ?? current.projectTitle,
           filesByPath,
           projectTree: projectTreeFromFiles(filesByPath),
@@ -256,40 +270,20 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           stats: calculateStats(content),
         });
       },
-      saveActiveFile: () => {
-        const { activeFileId, persistence, filesByPath, versionsByPath } = get();
-        if (!activeFileId) return;
-        set((s) => ({
-          dirtyByPath: { ...s.dirtyByPath, [activeFileId]: false },
-        }));
-        if (persistence.save) {
-          void persistence
-            .save(activeFileId, filesByPath[activeFileId] ?? "", versionsByPath[activeFileId])
-            .then((result) => {
-              if (result?.version != null) {
-                set((s) => ({
-                  versionsByPath: { ...s.versionsByPath, [activeFileId]: result.version },
-                }));
-              }
-            });
+      saveActiveFile: async () => {
+        const { persistence, activeFileId } = get();
+        if (persistence.saveWorkspace) {
+          await persistence.saveWorkspace();
+        } else if (activeFileId) {
+          await saveFileToPersistence(activeFileId);
         }
       },
-      saveAllDirtyFiles: () => {
-        const { dirtyByPath, filesByPath, versionsByPath, persistence } = get();
-        const dirtyPaths = Object.keys(dirtyByPath).filter((p) => dirtyByPath[p]);
-        if (dirtyPaths.length === 0) return;
-        set((s) => {
-          const nextDirty = { ...s.dirtyByPath };
-          for (const p of dirtyPaths) nextDirty[p] = false;
-          return { dirtyByPath: nextDirty };
-        });
-        if (!persistence.save) return;
-        for (const path of dirtyPaths) {
-          void persistence.save(path, filesByPath[path] ?? "", versionsByPath[path]).then((result) => {
-            if (result?.version != null) {
-              set((s) => ({ versionsByPath: { ...s.versionsByPath, [path]: result.version } }));
-            }
-          });
+      saveAllDirtyFiles: async () => {
+        const { persistence, dirtyByPath } = get();
+        if (persistence.saveWorkspace) {
+          await persistence.saveWorkspace();
+        } else {
+          await Promise.all(Object.keys(dirtyByPath).filter((p) => dirtyByPath[p]).map((p) => saveFileToPersistence(p)));
         }
       },
       createFile: (path, content = "", options) => {
@@ -300,6 +294,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           const nextFiles = { ...s.filesByPath, [path]: content };
           const base = {
             filesByPath: nextFiles,
+            mainFile: s.mainFile ?? (path.endsWith(".tex") ? path : null),
             projectTree: projectTreeFromFiles(nextFiles),
             versionsByPath: { ...s.versionsByPath, [path]: 1 },
             dirtyByPath: { ...s.dirtyByPath, [path]: true },
@@ -312,17 +307,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             outline: OutlineService.parse(content),
           };
         });
-        const { persistence } = get();
-        if (persistence.save) {
-          void persistence.save(path, content, 0).then((result) => {
-            if (result?.version != null) {
-              set((s) => ({
-                versionsByPath: { ...s.versionsByPath, [path]: result.version },
-                dirtyByPath: { ...s.dirtyByPath, [path]: false },
-              }));
-            }
-          });
-        }
+        if (get().persistence.save) void saveFileToPersistence(path, 0);
       },
       deleteFile: (path) => {
         set((s) => {
@@ -337,6 +322,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             s.activeFileId === path ? openFiles[openFiles.length - 1] ?? null : s.activeFileId;
           return {
             filesByPath,
+            mainFile: s.mainFile === path ? Object.keys(filesByPath).find((p) => p.endsWith(".tex")) ?? null : s.mainFile,
             projectTree: projectTreeFromFiles(filesByPath),
             versionsByPath,
             dirtyByPath,
@@ -371,6 +357,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           const activeFileId = s.activeFileId === oldPath ? trimmed : s.activeFileId;
           return {
             filesByPath: nextFiles,
+            mainFile: s.mainFile === oldPath
+              ? (trimmed.endsWith(".tex") ? trimmed : Object.keys(filesRest).find((p) => p.endsWith(".tex")) ?? null)
+              : s.mainFile ?? (trimmed.endsWith(".tex") ? trimmed : null),
             versionsByPath: { ...verRest, [trimmed]: version },
             dirtyByPath: { ...dirtyRest, [trimmed]: dirty },
             projectTree: projectTreeFromFiles(nextFiles),
@@ -654,6 +643,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
     }),
     {
       name: "alove-workbench-v3",
+      storage: createJSONStorage(() => preferenceStorage),
       partialize: (state) => ({
         sidebarOpen: state.sidebarOpen,
         bottomPanelOpen: state.bottomPanelOpen,
@@ -665,3 +655,45 @@ export const useWorkbenchStore = create<WorkbenchState>()(
     }
   )
 );
+
+// Serialize writes per path. Acknowledgements only clean the content that was saved.
+const pendingFileSaves = new Map<string, Promise<void>>();
+function saveFileToPersistence(path: string, initialVersion?: number): Promise<void> {
+  const state = useWorkbenchStore.getState();
+  const content = state.filesByPath[path];
+  const projectId = state.projectId;
+  const save = state.persistence.save;
+  if (!save || content === undefined) {
+    useWorkbenchStore.setState({ saveStatus: "error", saveMessage: "Saving is unavailable. Export your source to keep a copy." });
+    return Promise.resolve();
+  }
+  const previous = pendingFileSaves.get(path) ?? Promise.resolve();
+  const pending = previous.then(async () => {
+    if (useWorkbenchStore.getState().projectId !== projectId) return;
+    useWorkbenchStore.setState({ saveStatus: "saving", saveMessage: null });
+    try {
+      const expected = initialVersion ?? useWorkbenchStore.getState().versionsByPath[path];
+      const result = await save(path, content, expected);
+      const current = useWorkbenchStore.getState();
+      if (current.projectId !== projectId || current.persistence.save !== save) return;
+      if (result?.conflict) {
+        useWorkbenchStore.setState({ saveStatus: "conflict", saveMessage: "The server has a newer version. Your edits are still here; export them before reloading." });
+        return;
+      }
+      const unchanged = current.filesByPath[path] === content;
+      const dirtyByPath = { ...current.dirtyByPath, [path]: !unchanged };
+      useWorkbenchStore.setState({
+        dirtyByPath,
+        versionsByPath: result?.version != null ? { ...current.versionsByPath, [path]: result.version } : current.versionsByPath,
+        saveStatus: Object.values(dirtyByPath).some(Boolean) ? "unsaved" : "saved",
+      });
+    } catch (error) {
+      if (useWorkbenchStore.getState().projectId === projectId) {
+        useWorkbenchStore.setState({ saveStatus: "error", saveMessage: error instanceof Error ? error.message : "Save failed. Your edits are still here." });
+      }
+    }
+  });
+  pendingFileSaves.set(path, pending);
+  void pending.then(() => { if (pendingFileSaves.get(path) === pending) pendingFileSaves.delete(path); });
+  return pending;
+}

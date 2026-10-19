@@ -9,7 +9,9 @@ import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { DEMO_FILES } from "@/demo/demoProject";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createLocalWorkspaceRepository } from "@/lib/localWorkspace";
+import { createLocalWorkspaceSession } from "@/lib/localWorkspaceSession";
 
 function EditorWorkbenchConvex() {
   useUser();
@@ -59,7 +61,7 @@ function EditorWorkbenchConvex() {
           content,
           expectedVersion,
         });
-        if ("version" in result) return { version: result.version };
+        return result;
       },
       delete: async (path) => {
         await deleteFile({ projectId, path });
@@ -74,34 +76,45 @@ function EditorWorkbenchConvex() {
 }
 
 function EditorWorkbenchLocal() {
-  const initializeProject = useWorkbenchStore((s) => s.initializeProject);
-  const setPersistenceHandlers = useWorkbenchStore((s) => s.setPersistenceHandlers);
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const requestedId = searchParams.get("project");
   const isNew = searchParams.get("new") === "true";
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (isNew) {
-      initializeProject({
-        projectId: "new-local-project",
-        title: "Untitled Project",
-        files: [
-          { path: "main.tex", content: "\\documentclass{article}\n\\begin{document}\n\n\\end{document}\n" }
-        ],
-      });
-    } else {
-      initializeProject({
-        projectId: null,
-        title: "Quantum Entanglement Review",
-        files: DEMO_FILES.filter((f) => f.type !== "folder").map((f) => ({
-          path: f.path,
-          content: f.content ?? "",
-        })),
-      });
+    setReady(false);
+    if (isNew && !requestedId) {
+      // Give every new project its own durable URL before initializing it.
+      router.replace(`/editor?new=true&project=local-${crypto.randomUUID()}`);
+      return;
     }
-    setPersistenceHandlers({});
-  }, [initializeProject, setPersistenceHandlers, isNew]);
+    const id = requestedId || "local";
+    const files = isNew
+      ? { "main.tex": "\\documentclass{article}\n\\begin{document}\n\n\\end{document}\n" }
+      : Object.fromEntries(DEMO_FILES.filter((f) => f.type !== "folder").map((f) => [f.path, f.content ?? ""]));
+    const session = createLocalWorkspaceSession({
+      store: useWorkbenchStore,
+      repository: createLocalWorkspaceRepository(),
+      seed: { id, title: isNew ? "Untitled Project" : "Quantum Entanglement Review", files, mainFile: "main.tex", activeFile: "main.tex", openFiles: ["main.tex"] },
+    });
+    let active = true;
+    void session.ready.then(() => { if (active) setReady(true); });
+    const warnIfUnsaved = (event: BeforeUnloadEvent) => {
+      if (useWorkbenchStore.getState().saveStatus !== "saved") {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warnIfUnsaved);
+    return () => {
+      active = false;
+      window.removeEventListener("beforeunload", warnIfUnsaved);
+      session.dispose();
+    };
+  }, [requestedId, isNew, router]);
 
-  return <LatexEditorApp />;
+  return ready ? <LatexEditorApp /> : <div role="status" className="flex h-[100dvh] items-center justify-center">Opening workspace…</div>;
 }
 
 export function EditorWorkbench() {

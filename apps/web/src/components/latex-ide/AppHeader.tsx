@@ -13,7 +13,10 @@ import {
   Download,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { serializeWorkspaceSource, parseWorkspaceSource } from "@/lib/workspaceArchive";
+import { createLocalWorkspaceRepository } from "@/lib/localWorkspace";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +47,8 @@ function IconButton({ icon: Icon, title, onClick, disabled, className }: { icon:
 export function AppHeader() {
   const {
     projectTitle,
+    saveStatus,
+    saveMessage,
     runCompile,
     buildStatus,
     saveActiveFile,
@@ -56,9 +61,41 @@ export function AppHeader() {
   } = useWorkbenchStore();
   
   const hasDirty = useMemo(() => Object.values(dirtyByPath).some(Boolean), [dirtyByPath]);
+  const hasUnsaved = hasDirty || saveStatus !== "saved";
   const localMode = isLocalStandalone();
+  const router = useRouter();
+  const importInput = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const exportSource = () => {
+    const state = useWorkbenchStore.getState();
+    const source = serializeWorkspaceSource({ title: state.projectTitle, files: state.filesByPath, mainFile: state.mainFile });
+    const url = URL.createObjectURL(new Blob([source], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${state.projectTitle.replace(/[^a-z0-9_-]+/gi, "-") || "project"}.alove.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const importSource = async (file?: File) => {
+    if (!file) return;
+    setImportError(null);
+    try {
+      if (file.size > 20 * 1024 * 1024) throw new Error("Archive too large (maximum 20 MB).");
+      const source = parseWorkspaceSource(await file.text());
+      const id = `local-${crypto.randomUUID()}`;
+      const mainFile = source.mainFile ?? Object.keys(source.files).find((path) => path.endsWith(".tex")) ?? null;
+      const activeFile = mainFile ?? Object.keys(source.files)[0] ?? null;
+      await createLocalWorkspaceRepository().save({ ...source, id, mainFile, activeFile, openFiles: activeFile ? [activeFile] : [] }, 0);
+      router.push(`/editor?project=${encodeURIComponent(id)}`);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Could not import project. Your current project is unchanged.");
+    }
+  };
 
   return (
+    <>
     <header className="h-14 border-b bg-white flex items-center justify-between px-4 shrink-0 z-[60] select-none shadow-sm">
       <div className="flex items-center gap-6">
         {/* Logo */}
@@ -91,15 +128,15 @@ export function AppHeader() {
             <span className="text-[14px] font-bold text-zinc-900 tracking-tight">{projectTitle}</span>
             <div className={cn(
               "w-2 h-2 rounded-full",
-              hasDirty ? "bg-warning animate-pulse" : "bg-success shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+              hasUnsaved ? "bg-warning animate-pulse" : "bg-success shadow-[0_0_8px_rgba(16,185,129,0.4)]"
             )} />
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className={cn(
               "text-[9px] font-black uppercase tracking-[0.1em]",
-              hasDirty ? "text-warning" : "text-success"
+              hasUnsaved ? "text-warning" : "text-success"
             )}>
-              {hasDirty ? "Unsaved Changes" : "Project Saved"}
+              {saveStatus === "error" ? "Save failed" : saveStatus === "conflict" ? "Save conflict" : saveStatus === "loading" ? "Opening…" : saveStatus === "saving" ? "Saving…" : hasDirty || saveStatus === "unsaved" ? "Unsaved Changes" : "Project Saved"}
             </span>
           </div>
         </div>
@@ -151,10 +188,11 @@ export function AppHeader() {
                 <FileText className="w-4 h-4 text-primary" />
                 Download PDF
               </DropdownMenuItem>
-              <DropdownMenuItem disabled className="rounded-lg font-semibold text-xs gap-3 p-2.5">
+              <DropdownMenuItem onSelect={exportSource} className="rounded-lg font-semibold text-xs gap-3 p-2.5 cursor-pointer">
                 <FileText className="w-4 h-4 text-zinc-400" />
-                Download Source (.zip)
+                Download Source (.alove.json)
               </DropdownMenuItem>
+              {localMode && <DropdownMenuItem onSelect={() => importInput.current?.click()} className="rounded-lg font-semibold text-xs p-2.5 cursor-pointer">Import Source as New Project</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -173,5 +211,16 @@ export function AppHeader() {
 
       <IdeSettingsDialog open={settingsModalOpen} onOpenChange={setSettingsModalOpen} />
     </header>
+    <input ref={importInput} className="hidden" type="file" accept=".json,.alove.json,application/json" aria-label="Import project source" onChange={(event) => { void importSource(event.target.files?.[0]); event.target.value = ""; }} />
+    {importError && <div role="alert" className="border-b bg-amber-50 px-4 py-2 text-sm text-amber-950">{importError}</div>}
+    {saveMessage && (
+      <div role="alert" className="flex flex-wrap items-center gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950">
+        <span className="flex-1">{saveMessage}</span>
+        {saveStatus === "error" && <button className="underline" onClick={() => void saveActiveFile()}>Retry save</button>}
+        <button className="underline" onClick={exportSource}>Export source</button>
+        <button className="underline" onClick={() => window.location.reload()}>Reload workspace</button>
+      </div>
+    )}
+    </>
   );
 }

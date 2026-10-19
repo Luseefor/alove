@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export type CompilerEngine = "pdflatex" | "xelatex" | "lualatex";
 export type EditorKeybindings = "none" | "vim" | "emacs";
@@ -52,6 +53,6 @@ export const useIdeSettingsStore = create<IdeSettingsState>()(
       setDefaultCompilerEngine: (v) => set({ defaultCompilerEngine: v }),
       setCompilerCleanAux: (v) => set({ compilerCleanAux: v }),
     }),
-    { name: "alove-ide-settings-v1" },
+    { name: "alove-ide-settings-v1", storage: createJSONStorage(() => preferenceStorage) },
   ),
 );
