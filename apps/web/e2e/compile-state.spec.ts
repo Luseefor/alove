@@ -34,7 +34,7 @@ test("builds the configured root and retains the last PDF on failure", async ({ 
   await expect(page.locator(".cm-lintRange-error")).toHaveCount(1);
 
   // Root selection is explicit and durable, independent of the active tab.
-  await page.getByRole("button", { name: "File actions", exact: true }).last().click();
+  await page.getByRole("button", { name: "File actions for untitled.tex", exact: true }).last().click();
   await page.getByRole("menuitem", { name: "Set as Main Document", exact: true }).click();
   await page.getByRole("button", { name: "Build", exact: true }).first().click();
   await expect.poll(() => roots.at(-1)).toBe("untitled.tex");

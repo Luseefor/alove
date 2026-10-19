@@ -1,6 +1,7 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import { PdfPreviewPane } from "@/components/latex-ide/PdfPreviewPane";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import type { WorkbenchState } from "@/stores/workbenchStore";
@@ -21,7 +22,10 @@ type FixtureOverrides = {
   pdfMainFile?: string | null;
 };
 
-function seedStore(skeleton: SkeletonOverrides = {}, fixture: FixtureOverrides = {}) {
+function seedStore(
+  skeleton: SkeletonOverrides = {},
+  fixture: FixtureOverrides = {},
+) {
   // Step 1: reset to initial state.
   useWorkbenchStore.setState(useWorkbenchStore.getInitialState(), true);
   // Step 2: seed the project skeleton FIRST. The store's project-change
@@ -31,7 +35,10 @@ function seedStore(skeleton: SkeletonOverrides = {}, fixture: FixtureOverrides =
     projectId: "project-1",
     activeFileId: "main.tex",
     openFiles: ["main.tex"],
-    filesByPath: { "main.tex": "\\documentclass{article}\\begin{document}hello\\end{document}" },
+    filesByPath: {
+      "main.tex":
+        "\\documentclass{article}\\begin{document}hello\\end{document}",
+    },
     versionsByPath: { "main.tex": 1 },
     dirtyByPath: { "main.tex": false },
     mainFile: "main.tex",
@@ -45,7 +52,10 @@ function seedStore(skeleton: SkeletonOverrides = {}, fixture: FixtureOverrides =
   useWorkbenchStore.setState({ ...fixture });
 }
 
-function seedReadyPdf(extraFixture: FixtureOverrides = {}, skeleton: SkeletonOverrides = {}) {
+function seedReadyPdf(
+  extraFixture: FixtureOverrides = {},
+  skeleton: SkeletonOverrides = {},
+) {
   seedStore(skeleton, {
     buildStatus: "ready",
     buildMessage: "Compiled successfully",
@@ -73,6 +83,7 @@ describe("PdfPreviewPane", () => {
   let root: Root;
 
   beforeEach(() => {
+    useIdeSettingsStore.setState({ pdfViewerStyle: "embedded" });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -92,11 +103,15 @@ describe("PdfPreviewPane", () => {
       root.render(<PdfPreviewPane />);
     });
 
-    const initialFrame = container.querySelector('iframe[title="Compiled PDF"]');
+    const initialFrame = container.querySelector(
+      'iframe[title="Compiled PDF"]',
+    );
     expect(initialFrame).toBeTruthy();
     expect(initialFrame?.getAttribute("src")).toBe(PDF_URL);
     expect(
-      container.querySelector('[data-testid="pdf-preview-pane"]')?.getAttribute("data-status"),
+      container
+        .querySelector('[data-testid="pdf-preview-pane"]')
+        ?.getAttribute("data-status"),
     ).toBe("ready");
 
     act(() => {
@@ -111,7 +126,9 @@ describe("PdfPreviewPane", () => {
     act(() => {
       useWorkbenchStore.setState({ buildStatus: "running" });
     });
-    const runningFrame = container.querySelector('iframe[title="Compiled PDF"]');
+    const runningFrame = container.querySelector(
+      'iframe[title="Compiled PDF"]',
+    );
     expect(runningFrame).toBeTruthy();
     expect(runningFrame?.getAttribute("src")).toBe(PDF_URL);
     expect(container.textContent).toMatch(/Compiling/i);
@@ -123,7 +140,9 @@ describe("PdfPreviewPane", () => {
     act(() => {
       root.render(<PdfPreviewPane />);
     });
-    expect(container.querySelector('iframe[title="Compiled PDF"]')).toBeTruthy();
+    expect(
+      container.querySelector('iframe[title="Compiled PDF"]'),
+    ).toBeTruthy();
 
     act(() => {
       useWorkbenchStore.setState({
@@ -147,13 +166,19 @@ describe("PdfPreviewPane", () => {
       root.render(<PdfPreviewPane />);
     });
 
-    expect(container.querySelector('iframe[title="Compiled PDF"]')).toBeTruthy();
+    expect(
+      container.querySelector('iframe[title="Compiled PDF"]'),
+    ).toBeTruthy();
     expect(container.textContent).toMatch(/Stale preview/i);
   });
 
   it("displays the real root filename with .tex replaced by .pdf", () => {
     seedReadyPdf(
-      { pdfMainFile: "chapters/thesis.tex", documentRevision: 3, pdfSourceRevision: 3 },
+      {
+        pdfMainFile: "chapters/thesis.tex",
+        documentRevision: 3,
+        pdfSourceRevision: 3,
+      },
       { mainFile: "main.tex" },
     );
 
@@ -176,7 +201,12 @@ describe("PdfPreviewPane", () => {
   it("shows the no-PDF empty state when pdfDataUrl is null", () => {
     seedStore(
       { mainFile: "main.tex" },
-      { buildStatus: "idle", buildMessage: null, pdfDataUrl: null, pdfMainFile: null },
+      {
+        buildStatus: "idle",
+        buildMessage: null,
+        pdfDataUrl: null,
+        pdfMainFile: null,
+      },
     );
 
     act(() => {
@@ -189,7 +219,11 @@ describe("PdfPreviewPane", () => {
   });
 
   it("disables Build/Retry while queued or running", () => {
-    seedReadyPdf({ buildStatus: "queued", documentRevision: 1, pdfSourceRevision: 1 });
+    seedReadyPdf({
+      buildStatus: "queued",
+      documentRevision: 1,
+      pdfSourceRevision: 1,
+    });
 
     act(() => {
       root.render(<PdfPreviewPane />);
@@ -227,5 +261,38 @@ describe("PdfPreviewPane", () => {
     expect(download).toBeTruthy();
     expect(download?.getAttribute("href")).toBe(PDF_URL);
     expect(download?.getAttribute("download")).toBe("paper.pdf");
+  });
+  it("uses the fit-width native viewer preference", () => {
+    seedReadyPdf();
+    useIdeSettingsStore.setState({ pdfViewerStyle: "overleaf" });
+    act(() => root.render(<PdfPreviewPane />));
+    expect(container.querySelector("iframe")?.getAttribute("src")).toBe(
+      PDF_URL + "#view=FitH&toolbar=0",
+    );
+  });
+  it("opens a browser-view PDF through a revocable object URL", () => {
+    seedReadyPdf();
+    useIdeSettingsStore.setState({ pdfViewerStyle: "browser" });
+    const create = vi.fn((blob: Blob) => {
+      void blob;
+      return "blob:test-pdf";
+    });
+    const revoke = vi.fn();
+    const originalCreate = URL.createObjectURL,
+      originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = create;
+    URL.revokeObjectURL = revoke;
+    try {
+      act(() => root.render(<PdfPreviewPane />));
+      const link = container.querySelector('a[target="_blank"]');
+      expect(link?.getAttribute("href")).toBe("blob:test-pdf");
+      expect(create.mock.calls[0][0]).toBeInstanceOf(Blob);
+      expect(container.querySelector("iframe")).toBeNull();
+      act(() => useWorkbenchStore.setState({ pdfDataUrl: null }));
+      expect(revoke).toHaveBeenCalledWith("blob:test-pdf");
+    } finally {
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+    }
   });
 });

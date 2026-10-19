@@ -11,7 +11,9 @@ import {
 } from "@codemirror/view";
 import {
   defaultKeymap,
+  emacsStyleKeymap,
   history,
+  historyField,
   historyKeymap,
   indentWithTab,
   redo,
@@ -44,14 +46,18 @@ import { editorExtrasKeymap } from "./keymapExtras";
 
 export { parseLatexOutline, type OutlineHeading };
 export { parseInputRefs, type InputRef } from "./inputRefs";
+export { historyField };
 
 export type EditorTheme = "light" | "dark";
 
 export type LatexEditorOptions = {
   vim?: boolean;
+  emacs?: boolean;
   lineNumbers?: boolean;
   closeBrackets?: boolean;
   wordWrap?: boolean;
+  autocomplete?: boolean;
+  nonBlinkingCursor?: boolean;
 };
 
 export type LatexEditorCommand = "undo" | "redo" | "selectAll";
@@ -123,6 +129,8 @@ export function createLatexEditorExtensions(
 ): Extension[] {
   const shouldShowLineNumbers = options.lineNumbers !== false;
   const shouldCloseBrackets = options.closeBrackets !== false;
+  const shouldAutocomplete = options.autocomplete !== false;
+  const nonBlinkingCursor = options.nonBlinkingCursor === true;
   return [
     EditorState.allowMultipleSelections.of(true),
     indentOnInput(),
@@ -130,7 +138,7 @@ export function createLatexEditorExtensions(
     ...(options.wordWrap ? [EditorView.lineWrapping] : []),
     highlightActiveLine(),
     highlightSpecialChars(),
-    drawSelection(),
+    drawSelection(nonBlinkingCursor ? { cursorBlinkRate: 0 } : undefined),
     rectangularSelection(),
     crosshairCursor(),
     history(),
@@ -140,9 +148,10 @@ export function createLatexEditorExtensions(
     bracketMatching(),
     ...(shouldCloseBrackets ? [closeBrackets()] : []),
     StreamLanguage.define(stex),
-    latexAutocomplete,
+    ...(shouldAutocomplete ? [latexAutocomplete] : []),
     lintGutter(),
     keymap.of([
+      ...(options.emacs ? emacsStyleKeymap : []),
       ...(shouldCloseBrackets ? closeBracketsKeymap : []),
       ...defaultKeymap,
       ...historyKeymap,
