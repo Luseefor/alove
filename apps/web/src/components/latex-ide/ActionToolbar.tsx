@@ -7,7 +7,6 @@ import {
   Search,
   Layout,
   Table as TableIcon,
-  Play,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,8 +25,8 @@ interface ToolbarGroupProps {
 
 function ToolbarGroup({ label, children }: ToolbarGroupProps) {
   return (
-    <div className="flex flex-col gap-1 px-4 border-r border-zinc-100 last:border-r-0">
-      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest leading-none">
+    <div className="flex min-w-0 shrink-0 flex-row items-center gap-1 border-r border-border px-2 last:border-r-0">
+      <span className="hidden whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground lg:inline">
         {label}
       </span>
       <div className="flex items-center gap-1">
@@ -60,24 +59,27 @@ function ToolbarButton({
 }: ToolbarButtonProps) {
   return (
     <button
+      type="button"
       data-testid={dataTestId}
       onClick={onClick}
       disabled={disabled}
+      title={label}
+      aria-label={label}
       className={cn(
-        "flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all active:scale-95 group disabled:opacity-30 disabled:cursor-not-allowed",
+        "group inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-30",
         variant === "primary" 
-          ? "bg-primary text-white shadow-sm shadow-primary/20 hover:bg-primary/90" 
+          ? "bg-primary text-primary-foreground hover:bg-primary/90"
           : active 
             ? "bg-primary/10 text-primary font-bold" 
-            : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
-      <Icon className={cn(
-        "w-4 h-4",
-        variant === "primary" ? "text-white" : active ? "text-primary" : "text-zinc-400 group-hover:text-zinc-600"
+      <Icon aria-hidden="true" className={cn(
+        "h-4 w-4 shrink-0",
+        variant === "primary" ? "text-primary-foreground" : active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
       )} />
-      <span className="text-[12px] font-bold tracking-tight">{label}</span>
-      {hasDropdown && <ChevronDown className="w-3 h-3 opacity-40 group-hover:opacity-100 transition-opacity" />}
+      <span className="whitespace-nowrap text-[12px] font-bold tracking-tight">{label}</span>
+      {hasDropdown && <ChevronDown aria-hidden="true" className="h-3 w-3 shrink-0 opacity-40 transition-opacity group-hover:opacity-100" />}
     </button>
   );
 }
@@ -85,8 +87,6 @@ function ToolbarButton({
 export function ActionToolbar() {
   const {
     appendToActiveFile,
-    runCompile,
-    buildStatus,
     requestEditorFindBar,
     filesByPath,
   } = useWorkbenchStore();
@@ -96,7 +96,7 @@ export function ActionToolbar() {
     .flatMap(([, content]) => BibliographyService.parse(content));
 
   return (
-    <div className="h-14 border-b bg-white flex items-center px-2 shrink-0 z-40 shadow-sm overflow-x-auto scrollbar-hide">
+    <div className="z-40 flex h-11 w-full min-w-0 shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-border bg-background px-2 text-foreground scrollbar-hide">
       <ToolbarGroup label="Citations">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -109,11 +109,11 @@ export function ActionToolbar() {
               />
             </div>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-72 overflow-auto rounded-xl shadow-xl p-1.5 border-zinc-100 bg-white">
+          <DropdownMenuContent align="start" className="max-h-72 overflow-auto rounded-md border-border bg-background p-1.5">
             {bibEntries.length === 0 ? (
               <DropdownMenuItem
                 data-testid="snippet-button-cite"
-                className="rounded-lg font-semibold text-xs p-2 cursor-pointer"
+                className="rounded-md font-semibold text-xs p-2 cursor-pointer"
                 onClick={() => appendToActiveFile("\\cite{your_reference_key}")}
               >
                 Insert cite placeholder
@@ -122,7 +122,7 @@ export function ActionToolbar() {
               bibEntries.slice(0, 150).map((entry) => (
                 <DropdownMenuItem
                   key={entry.id}
-                  className="rounded-lg font-semibold text-xs p-2 cursor-pointer"
+                  className="rounded-md font-semibold text-xs p-2 cursor-pointer"
                   onClick={() => appendToActiveFile(`\\cite{${entry.id}}`)}
                 >
                   {entry.id}{entry.year ? ` (${entry.year})` : ""}
@@ -158,17 +158,6 @@ export function ActionToolbar() {
           label="Find" 
           dataTestId="find-button"
           onClick={requestEditorFindBar}
-        />
-      </ToolbarGroup>
-
-      <ToolbarGroup label="Compile">
-        <ToolbarButton 
-          icon={Play} 
-          label="Build" 
-          variant="primary"
-          dataTestId="compile-button"
-          disabled={buildStatus === "running" || buildStatus === "queued"}
-          onClick={() => void runCompile()}
         />
       </ToolbarGroup>
     </div>

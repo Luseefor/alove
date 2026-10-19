@@ -34,16 +34,16 @@ export function BottomUtilityPanel() {
   // Only show bottom panel content if there is something to show
   if (buildStatus === "idle" && visibleDiagnostics.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center text-zinc-400 font-bold text-[11px] uppercase tracking-[0.2em] opacity-30">
+      <div className="h-full flex items-center justify-center text-muted-foreground font-bold text-[11px] uppercase tracking-[0.2em] opacity-30">
         Workspace idle
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-white overflow-hidden border-t border-zinc-100 shadow-[0_-4px_24px_rgba(0,0,0,0.02)]">
+    <div className="h-full flex flex-col bg-background overflow-hidden border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.02)]">
       {/* Tab Bar */}
-      <div className="h-10 flex items-center px-4 bg-white border-b border-zinc-100 shrink-0">
+      <div className="h-10 flex items-center px-4 bg-background border-b border-border shrink-0">
         <div className="flex h-full gap-8">
           {tabs.map(t => {
             const isActive = activeBottomTab === t.id;
@@ -53,7 +53,7 @@ export function BottomUtilityPanel() {
                 onClick={() => setActiveBottomTab(t.id)}
                 className={cn(
                   "flex items-center gap-2 h-full text-[11px] font-black uppercase tracking-[0.15em] transition-all relative",
-                  isActive ? "text-primary" : "text-zinc-400 hover:text-zinc-600"
+                  isActive ? "text-primary" : "text-muted-foreground hover:text-muted-foreground"
                 )}
               >
                 {t.label}
@@ -64,19 +64,19 @@ export function BottomUtilityPanel() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden bg-white px-6 py-4 gap-8">
+      <div className="flex-1 flex overflow-hidden bg-background px-6 py-4 gap-8">
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {activeBottomTab === "log" && (
             <div className="flex-1 overflow-y-auto pr-4 scrollbar-hide">
                {buildLog ? (
-                  <pre className="text-[11px] font-mono text-zinc-600 whitespace-pre-wrap leading-relaxed select-text">
+                  <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed select-text">
                     {buildLog}
                   </pre>
                ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-3">
-                     <Clock size={32} className="text-zinc-400" />
-                     <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">No build history</p>
+                     <Clock size={32} className="text-muted-foreground" />
+                     <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">No build history</p>
                   </div>
                )}
             </div>
@@ -90,12 +90,12 @@ export function BottomUtilityPanel() {
                {visibleDiagnostics.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-3">
                      <CheckCircle2 size={32} className="text-success" />
-                     <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500">{buildStatus === "ready" ? "No problems reported" : buildStatus === "queued" || buildStatus === "running" ? "Build in progress" : "No diagnostics available"}</p>
+                     <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">{buildStatus === "ready" ? "No problems reported" : buildStatus === "queued" || buildStatus === "running" ? "Build in progress" : "No diagnostics available"}</p>
                   </div>
                ) : (
                   visibleDiagnostics.map((d, i) => (
                     <button key={i} type="button" onClick={() => jumpToDiagnostic(d)} className={cn(
-                      "w-full text-left flex items-start gap-3 p-2.5 rounded-xl border transition-all hover:bg-zinc-50 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary",
+                      "w-full text-left flex items-start gap-3 p-2.5 rounded-xl border transition-all hover:bg-muted group focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary",
                       d.severity === "error" ? "border-error/10 text-error-foreground bg-error-bg/30" : "border-warning/10 text-warning-foreground bg-warning-bg/30"
                     )}>
                        {d.severity === "error" ? <XCircle size={14} className="mt-0.5" /> : <AlertTriangle size={14} className="mt-0.5" />}
@@ -115,9 +115,9 @@ export function BottomUtilityPanel() {
         </div>
 
         {/* Status Cards Area */}
-        <div className="w-[520px] flex gap-5 shrink-0 h-full">
+        <div className="hidden w-[420px] shrink-0 gap-4 h-full min-[1280px]:flex">
            {/* Build Status Card */}
-           <div className="flex-1 bg-white border border-border rounded-[24px] p-5 shadow-sm flex flex-col relative overflow-hidden group/card border shadow-sm">
+           <div className="flex-1 bg-background border border-border rounded-[24px] p-5 shadow-sm flex flex-col relative overflow-hidden group/card border shadow-sm">
               <div className="flex items-center gap-3 mb-5">
                  <div className={cn(
                     "w-10 h-10 rounded-2xl border flex items-center justify-center shadow-sm transition-colors",
@@ -128,10 +128,10 @@ export function BottomUtilityPanel() {
                     {buildStatus === "ready" ? <CheckCircle2 size={20} /> : buildStatus === "failed" ? <XCircle size={20} /> : <Clock size={20} className="animate-pulse" />}
                  </div>
                  <div className="space-y-0.5">
-                    <h3 className="text-[14px] font-black text-zinc-900 leading-tight uppercase tracking-tight">
+                    <h3 className="text-[14px] font-black text-foreground leading-tight uppercase tracking-tight">
                        {buildStatus === "ready" ? "Build Successful" : buildStatus === "failed" ? "Build Failed" : buildStatus === "running" ? "Building..." : "Queued"}
                     </h3>
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.15em]">
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.15em]">
                        {buildStatus === "ready" ? "Ready to preview" : buildStatus === "failed" ? "Check problems" : "Compiling document"}
                     </p>
                  </div>
@@ -155,7 +155,7 @@ export function BottomUtilityPanel() {
            <div className="flex-1 bg-zinc-900 text-white rounded-[24px] p-5 shadow-xl flex flex-col relative overflow-hidden ring-1 ring-white/5 h-full">
               <div className="flex items-center gap-3 mb-5 opacity-80">
                  <FileText size={16} className="text-primary" />
-                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Document Stats</h3>
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Document Stats</h3>
               </div>
 
               <div className="space-y-2">
@@ -178,7 +178,7 @@ function StatItem({ label, value, color }: { label: string, value: string | numb
   return (
     <div className="space-y-0.5">
        <div className={cn("text-lg font-black tracking-tighter leading-none", color)}>{value}</div>
-       <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none">{label}</div>
+       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{label}</div>
     </div>
   );
 }
@@ -186,7 +186,7 @@ function StatItem({ label, value, color }: { label: string, value: string | numb
 function DocStatRow({ label, value }: { label: string, value: string | number }) {
   return (
     <div className="flex items-center justify-between text-[11px] font-bold py-1 border-b border-white/5 last:border-0 group cursor-default">
-       <span className="text-zinc-500 group-hover:text-zinc-300 transition-colors uppercase tracking-widest text-[9px]">{label}</span>
+       <span className="text-muted-foreground group-hover:text-zinc-300 transition-colors uppercase tracking-widest text-[9px]">{label}</span>
        <span className="text-zinc-100 font-black tabular-nums">{value}</span>
     </div>
   );

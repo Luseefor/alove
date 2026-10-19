@@ -25,11 +25,12 @@ function RailItem({ icon: Icon, label, active, onClick, disabled }: RailItemProp
       onClick={onClick}
       disabled={disabled}
       title={label}
+      aria-label={label}
       className={cn(
         "w-12 h-12 flex items-center justify-center transition-all group relative disabled:opacity-20 disabled:cursor-not-allowed",
         active 
           ? "text-primary" 
-          : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50"
+          : "text-muted-foreground hover:text-muted-foreground hover:bg-muted"
       )}
     >
       <Icon size={20} strokeWidth={active ? 2.5 : 2} className="transition-transform group-hover:scale-110" />
@@ -40,7 +41,7 @@ function RailItem({ icon: Icon, label, active, onClick, disabled }: RailItemProp
   );
 }
 
-export function ActivityRail() {
+export function ActivityRail({ onOpenSidebar, onToggleSidebar }: { onOpenSidebar?: () => void; onToggleSidebar?: () => void }) {
   const {
     activeRail,
     setActiveRail,
@@ -50,19 +51,19 @@ export function ActivityRail() {
   } = useWorkbenchStore();
 
   return (
-    <nav className="relative z-[45] isolate w-12 border-r bg-white flex flex-col items-center shrink-0 select-none shadow-[1px_0_0_rgba(0,0,0,0.02)]">
+    <nav className="relative z-[45] isolate w-12 border-r bg-background flex flex-col items-center shrink-0 select-none shadow-[1px_0_0_rgba(0,0,0,0.02)]">
       <div className="flex flex-col flex-1 w-full items-center">
         <RailItem 
           icon={FileText} 
           label="Project" 
           active={activeRail === "explorer" && sidebarOpen}
-          onClick={() => setActiveRail("explorer")}
+          onClick={() => { setActiveRail("explorer"); onOpenSidebar?.(); }}
         />
         <RailItem 
           icon={SearchIcon} 
           label="Search" 
           active={activeRail === "search" && sidebarOpen}
-          onClick={() => setActiveRail("search")}
+          onClick={() => { setActiveRail("search"); onOpenSidebar?.(); }}
         />
       </div>
 
@@ -73,11 +74,12 @@ export function ActivityRail() {
           active={false}
           onClick={() => setSettingsModalOpen(true)}
         />
-        <div className="w-8 h-px bg-zinc-100 my-2" />
+        <div className="w-8 h-px bg-muted my-2" />
         <button
           type="button"
-          onClick={toggleSidebar}
-          className="size-10 rounded-xl flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 transition-all active:scale-95"
+          aria-label="Toggle file browser"
+          onClick={onToggleSidebar ?? toggleSidebar}
+          className="size-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95"
         >
           <Menu size={20} />
         </button>

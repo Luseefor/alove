@@ -149,9 +149,9 @@ export function ProjectSidebar() {
 
   if (activeRail === "search") {
     return (
-      <aside className="w-full h-full flex flex-col bg-white select-none border-r shrink-0">
-        <div className="h-10 border-b px-3 flex items-center justify-between bg-zinc-50/50">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">Global Search</span>
+      <aside className="w-full h-full flex flex-col bg-background select-none border-r shrink-0">
+        <div className="h-10 border-b px-3 flex items-center justify-between bg-muted/50">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Global Search</span>
           <button
             onClick={clearProjectSearch}
             className="text-[10px] font-bold text-primary hover:underline"
@@ -162,12 +162,12 @@ export function ProjectSidebar() {
         <div className="p-3 space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1 group">
-               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400 group-focus-within:text-primary transition-colors" />
+               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                <input
                  value={projectSearchInput}
                  onChange={(e) => setProjectSearchInput(e.target.value)}
                  placeholder="Search text in project..."
-                 className="h-8 w-full rounded-lg border border-zinc-200 bg-white pl-8 pr-3 text-xs outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
+                 className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-xs outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                />
             </div>
             <button
@@ -183,8 +183,8 @@ export function ProjectSidebar() {
               Find
             </button>
           </div>
-          <div className="flex items-center gap-4 text-[10px] font-bold text-zinc-400 uppercase tracking-wide px-1">
-            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-zinc-600 transition-colors">
+          <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-1">
+            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-muted-foreground transition-colors">
               <input
                 type="checkbox"
                 checked={searchRegex}
@@ -193,7 +193,7 @@ export function ProjectSidebar() {
               />
               Regex
             </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-zinc-600 transition-colors">
+            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-muted-foreground transition-colors">
               <input
                 type="checkbox"
                 checked={searchCaseSensitive}
@@ -204,17 +204,17 @@ export function ProjectSidebar() {
             </label>
           </div>
         </div>
-        <div className="px-3 py-2 text-[10px] font-bold text-zinc-500 bg-zinc-50/50 border-y border-zinc-100 flex justify-between">
+        <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground bg-muted/50 border-y border-border flex justify-between">
           <span>{projectSearchResults.length} matches</span>
           {projectSearchQuery && <span className="truncate max-w-[150px]">for &quot;{projectSearchQuery}&quot;</span>}
         </div>
-        <div className="flex-1 overflow-auto p-2 space-y-1 bg-white">
+        <div className="flex-1 overflow-auto p-2 space-y-1 bg-background">
           {projectSearchResults.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-3">
-               <div className="w-12 h-12 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-300 border border-zinc-100">
+               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-zinc-300 border border-border">
                   <Search className="w-6 h-6" />
                </div>
-               <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
                  No results yet. Enter a query and click Find to search across all files.
                </p>
             </div>
@@ -231,13 +231,13 @@ export function ProjectSidebar() {
                     column: r.column,
                   })
                 }
-                className="w-full text-left rounded-xl border border-zinc-100 p-3 hover:bg-zinc-50 hover:border-primary/20 transition-all group shadow-sm mb-2"
+                className="w-full text-left rounded-xl border border-border p-3 hover:bg-muted hover:border-primary/20 transition-all group shadow-sm mb-2"
               >
                 <div className="flex justify-between items-start mb-1">
-                   <div className="text-[11px] font-bold text-zinc-900 group-hover:text-primary transition-colors truncate pr-2">{r.path}</div>
-                   <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-tight shrink-0">Ln {r.line}</div>
+                   <div className="text-[11px] font-bold text-foreground group-hover:text-primary transition-colors truncate pr-2">{r.path}</div>
+                   <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight shrink-0">Ln {r.line}</div>
                 </div>
-                <div className="text-[11px] text-zinc-500 font-medium line-clamp-2 leading-relaxed bg-zinc-50/50 p-2 rounded-lg border border-zinc-100/50 italic group-hover:bg-white transition-colors">{r.preview}</div>
+                <div className="text-[11px] text-muted-foreground font-medium line-clamp-2 leading-relaxed bg-muted/50 p-2 rounded-lg border border-border/50 italic group-hover:bg-background transition-colors">{r.preview}</div>
               </button>
             ))
           )}
@@ -247,11 +247,11 @@ export function ProjectSidebar() {
   }
 
   return (
-    <aside className="w-full h-full flex flex-col bg-white select-none border-r shrink-0">
+    <aside className="w-full h-full flex flex-col bg-background select-none border-r shrink-0">
       {/* Project Header */}
-      <div className="h-12 border-b flex items-center justify-between px-4 shrink-0 bg-white">
+      <div className="h-12 border-b flex items-center justify-between px-4 shrink-0 bg-background">
         <div className="flex items-center gap-2">
-          <span className="text-[12px] font-black uppercase tracking-widest text-zinc-500">Project</span>
+          <span className="text-[12px] font-black uppercase tracking-widest text-muted-foreground">Project</span>
         </div>
         <div className="flex items-center gap-1">
           <IconButton icon={Search} title="Search Files" onClick={() => setActiveRail("search")} />
@@ -262,11 +262,11 @@ export function ProjectSidebar() {
       {/* File Tree Section */}
       <div className="flex-[3] flex flex-col min-h-0">
         {/* Tree Toolbar */}
-        <div className="h-9 flex items-center justify-between px-3 shrink-0 bg-zinc-50/30 border-b border-zinc-100">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-zinc-900 tracking-tight">{projectTitle}</span>
+        <div className="h-9 flex items-center justify-between px-3 shrink-0 bg-muted/30 border-b border-border">
+          <div className="flex min-w-0 flex-1 items-center gap-2 pr-2">
+            <span className="truncate text-[11px] font-medium text-foreground" title={projectTitle}>{projectTitle}</span>
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-0.5">
             <SidebarAction icon={FilePlus} title="New file" onClick={() => setNewFileOpen(true)} />
             <SidebarAction icon={FolderPlus} title="New folder" onClick={() => setNewFolderOpen(true)} />
             <SidebarAction icon={Upload} title="Upload files" onClick={() => uploadInputRef.current?.click()} />
@@ -289,13 +289,13 @@ export function ProjectSidebar() {
           <div className="px-3 py-1.5 text-[11px] text-error border-b bg-error-bg border-error-border">{uploadError}</div>
         ) : null}
 
-        <div className="flex-1 overflow-y-auto pt-1 min-h-0 bg-white">
+        <div className="flex-1 overflow-y-auto pt-1 min-h-0 bg-background">
           {filteredTree.length === 0 ? (
             <div className="px-6 py-12 text-center space-y-3">
-               <div className="w-10 h-10 mx-auto rounded-full bg-zinc-50 flex items-center justify-center text-zinc-300 border border-zinc-100">
+               <div className="w-10 h-10 mx-auto rounded-full bg-muted flex items-center justify-center text-zinc-300 border border-border">
                   <FileText className="w-5 h-5" />
                </div>
-               <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">No files match your search.</p>
+               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">No files match your search.</p>
             </div>
           ) : (
             filteredTree.map((file) => <FileRow key={file.id} file={file} level={0} />)
@@ -304,8 +304,8 @@ export function ProjectSidebar() {
       </div>
 
       {/* Combined Snippets + Outline Section */}
-      <div className="flex-[2] min-h-0 border-t flex flex-col bg-white">
-        <div className="h-10 px-1 border-b flex items-center bg-zinc-50/50">
+      <div className="flex-[2] min-h-0 border-t flex flex-col bg-background">
+        <div className="h-10 px-1 border-b flex items-center bg-muted/50">
            <SidebarTab 
              active={sidebarTab === "snippets"} 
              onClick={() => setSidebarTab("snippets")}
@@ -321,43 +321,43 @@ export function ProjectSidebar() {
         <div className="flex-1 overflow-hidden flex flex-col">
            {sidebarTab === "snippets" ? (
              <div className="flex-1 flex flex-col min-h-0">
-                <div className="p-2 border-b border-zinc-100 flex gap-2 bg-white">
+                <div className="p-2 border-b border-border flex gap-2 bg-background">
                    <div className="relative flex-1 group">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-zinc-400 group-focus-within:text-primary transition-colors" />
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground group-focus-within:text-primary transition-colors" />
                       <input 
                         value={snippetSearch}
                         onChange={(e) => setSnippetSearch(e.target.value)}
                         placeholder="Search snippets..."
-                        className="w-full bg-zinc-100/50 hover:bg-zinc-100 focus:bg-white rounded-lg h-7 pl-7 pr-3 text-[11px] outline-none border border-transparent focus:border-zinc-200 transition-all font-medium"
+                        className="w-full bg-muted/50 hover:bg-muted focus:bg-background rounded-lg h-7 pl-7 pr-3 text-[11px] outline-none border border-transparent focus:border-border transition-all font-medium"
                       />
                    </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-white">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-background">
                    {snippets.length === 0 ? (
-                      <p className="text-[10px] text-zinc-400 text-center py-4 font-medium italic">No snippets found.</p>
+                      <p className="text-[10px] text-muted-foreground text-center py-4 font-medium italic">No snippets found.</p>
                    ) : (
                       snippets.map((s, i) => (
                         <button 
                           key={i}
                           data-testid={`sidebar-snippet-${s.label}`}
                           onClick={() => s.wrap ? wrapSelectionOrInsert(s.wrap[0], s.wrap[1], s.code) : appendToActiveFile(s.code)}
-                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-zinc-50 border border-transparent hover:border-zinc-100 group transition-all active:scale-[0.98]"
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-muted border border-transparent hover:border-border group transition-all active:scale-[0.98]"
                         >
-                           <div className="w-5 h-5 bg-zinc-100 rounded-md flex items-center justify-center text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                           <div className="w-5 h-5 bg-muted rounded-md flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                               <s.icon size={11} />
                            </div>
-                           <span className="text-[11px] font-bold text-zinc-600 group-hover:text-zinc-900 transition-colors">{s.label}</span>
+                           <span className="text-[11px] font-bold text-muted-foreground group-hover:text-foreground transition-colors">{s.label}</span>
                         </button>
                       ))
                    )}
                 </div>
              </div>
            ) : (
-             <div className="flex-1 overflow-y-auto py-2 px-2 bg-white">
+             <div className="flex-1 overflow-y-auto py-2 px-2 bg-background">
                {outline.length === 0 ? (
                  <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-2 opacity-40">
-                    <Layout className="w-6 h-6 text-zinc-400" />
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">No outline data</p>
+                    <Layout className="w-6 h-6 text-muted-foreground" />
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">No outline data</p>
                  </div>
                ) : (
                  <div className="space-y-0.5">
@@ -398,7 +398,7 @@ export function ProjectSidebar() {
         <input
           value={newFilePath}
           onChange={(e) => setNewFilePath(e.target.value)}
-          className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
           autoFocus
         />
       </ConfirmDialog>
@@ -419,7 +419,7 @@ export function ProjectSidebar() {
           value={newFolderPath}
           onChange={(e) => setNewFolderPath(e.target.value)}
           placeholder="figures"
-          className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
           autoFocus
         />
       </ConfirmDialog>
@@ -432,7 +432,7 @@ function IconButton({ icon: Icon, title, onClick }: { icon: LucideIcon, title?: 
     <button 
       onClick={onClick}
       title={title}
-      className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all active:scale-95"
+      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95"
     >
       <Icon className="w-4 h-4" />
     </button>
@@ -445,7 +445,7 @@ function SidebarTab({ active, onClick, label }: { active: boolean, onClick: () =
       onClick={onClick}
       className={cn(
         "px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] transition-all relative",
-        active ? "text-primary" : "text-zinc-400 hover:text-zinc-600"
+        active ? "text-primary" : "text-muted-foreground hover:text-muted-foreground"
       )}
     >
       {label}
@@ -481,7 +481,7 @@ function SidebarAction({ icon: Icon, onClick, title }: { icon: LucideIcon; onCli
       type="button"
       title={title}
       onClick={onClick}
-      className="p-1 hover:bg-zinc-100 rounded transition-colors text-zinc-400 hover:text-zinc-700"
+      className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"
     >
       <Icon size={14} />
     </button>
@@ -496,14 +496,14 @@ function OutlineItem({ label, level, onClick }: { label: string; level: number; 
       onClick={onClick}
       className={cn(
         "group relative min-h-7 flex items-center text-[11px] cursor-pointer rounded-lg px-2 transition-all",
-        "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 hover:pl-3"
+        "text-muted-foreground hover:bg-muted hover:text-foreground hover:pl-3"
       )}
       style={{ paddingLeft: `${indent + 8}px` }}
     >
       {depth > 0 && (
         <span
           aria-hidden
-          className="absolute top-0 bottom-0 w-px bg-zinc-100 left-2"
+          className="absolute top-0 bottom-0 w-px bg-muted left-2"
           style={{ left: `${indent + 4}px` }}
         />
       )}
@@ -553,7 +553,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
           "relative w-full min-h-8 flex items-center transition-all rounded-lg cursor-pointer group/row",
           isActive 
             ? "bg-primary/5 text-primary border border-primary/10 shadow-sm" 
-            : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
         )}
         style={{ paddingLeft: `${indent + 6}px` }}
         onClick={() => (isFolder ? setIsOpen(!isOpen) : openFile(file.path))}
@@ -562,12 +562,12 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
           {isFolder && (
             <ChevronRight
               size={12}
-              className={cn("mr-0.5 transition-transform text-zinc-400", isOpen && "rotate-90")}
+              className={cn("mr-0.5 transition-transform text-muted-foreground", isOpen && "rotate-90")}
             />
           )}
-          <Icon size={14} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-primary" : "text-zinc-400 group-hover/row:text-zinc-600")} />
+          <Icon size={14} strokeWidth={isActive ? 2.5 : 2} className={cn(isActive ? "text-primary" : "text-muted-foreground group-hover/row:text-muted-foreground")} />
         </div>
-        <span className={cn("text-[12px] font-bold truncate flex-1", isActive && "text-primary")}>{file.name}</span>
+        <span title={file.path} className={cn("min-w-0 text-[12px] font-medium truncate flex-1", isActive && "text-primary")}>{file.name}</span>
         
         {file.path.endsWith(".tex") && (
           <span className="text-[9px] font-black uppercase tracking-tighter text-primary/40 mr-1.5 bg-primary/5 px-1 rounded-sm border border-primary/5">{mainFile === file.path ? "MAIN" : "TEX"}</span>
@@ -584,14 +584,14 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
                 aria-label="File actions"
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  "shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 outline-none transition-all",
-                  "opacity-0 group-hover/row:opacity-100 hover:bg-white hover:text-zinc-900 shadow-sm border border-transparent hover:border-zinc-100",
+                  "shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-all",
+                  "opacity-0 group-hover/row:opacity-100 hover:bg-background hover:text-foreground shadow-sm border border-transparent hover:border-border",
                 )}
               >
                 <MoreVertical size={12} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[9rem] rounded-xl shadow-xl p-1.5 border-zinc-100">
+            <DropdownMenuContent align="end" className="min-w-[9rem] rounded-xl shadow-xl p-1.5 border-border">
               {file.path.endsWith(".tex") && <DropdownMenuItem disabled={mainFile === file.path} onSelect={(event) => { event.stopPropagation(); setMainFile(file.path); }}>Set as Main Document</DropdownMenuItem>}
               <DropdownMenuItem
                 className="rounded-lg font-semibold text-xs gap-3 p-2 cursor-pointer"
@@ -601,10 +601,10 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
                   setRenameOpen(true);
                 }}
               >
-                <Pencil size={14} className="text-zinc-400" />
+                <Pencil size={14} className="text-muted-foreground" />
                 Rename…
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-zinc-100" />
+              <DropdownMenuSeparator className="bg-muted" />
               <DropdownMenuItem
                 className="rounded-lg font-semibold text-xs gap-3 p-2 text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
                 onSelect={(e) => {
@@ -638,7 +638,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
             <input
               value={renamePathInput}
               onChange={(e) => setRenamePathInput(e.target.value)}
-              className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
+              className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary shadow-sm"
               autoFocus
             />
           </ConfirmDialog>

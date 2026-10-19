@@ -170,13 +170,13 @@ export function EditorPane() {
 
   if (!activeFileId) {
     return (
-      <div className="h-full bg-white flex flex-col items-center justify-center text-center p-8 space-y-4" data-testid="latex-editor">
-        <div className="w-16 h-16 rounded-[24px] bg-zinc-50 flex items-center justify-center text-zinc-300 border border-zinc-100 shadow-sm">
+      <div className="h-full bg-background flex flex-col items-center justify-center text-center p-8 space-y-4" data-testid="latex-editor">
+        <div className="w-16 h-16 rounded-[24px] bg-muted flex items-center justify-center text-zinc-300 border border-border shadow-sm">
            <FileTextIcon className="w-8 h-8" />
         </div>
         <div className="space-y-1">
-           <h3 className="text-sm font-bold text-zinc-900">No file active</h3>
-           <p className="text-[12px] text-zinc-500 max-w-[200px] leading-relaxed">
+           <h3 className="text-sm font-bold text-foreground">No file active</h3>
+           <p className="text-[12px] text-muted-foreground max-w-[200px] leading-relaxed">
              Select a file from the sidebar to begin writing your research.
            </p>
         </div>
@@ -185,9 +185,9 @@ export function EditorPane() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white overflow-hidden shadow-[inset_1px_1px_3px_rgba(0,0,0,0.02)]" data-testid="latex-editor">
+    <div className="h-full flex flex-col bg-background overflow-hidden shadow-[inset_1px_1px_3px_rgba(0,0,0,0.02)]" data-testid="latex-editor">
       {/* Tabs Bar */}
-      <div className="h-10 border-b flex items-center bg-zinc-50/30 shrink-0 overflow-x-auto scrollbar-hide pr-12 relative group/tabs">
+      <div className="h-10 border-b flex items-center bg-muted/30 shrink-0 overflow-x-auto scrollbar-hide pr-12 relative group/tabs">
         {openFiles.map((path) => {
           const isActive = path === activeFileId;
           const name = path.split("/").pop() ?? path;
@@ -197,10 +197,10 @@ export function EditorPane() {
               key={path}
               onClick={() => openFile(path)}
               className={cn(
-                "group h-10 px-4 flex items-center gap-2 border-r border-zinc-100 cursor-pointer transition-all relative min-w-[120px] max-w-[200px]",
+                "group h-10 px-4 flex items-center gap-2 border-r border-border cursor-pointer transition-all relative min-w-[120px] max-w-[200px]",
                 isActive
-                  ? "bg-white text-zinc-900 font-bold shadow-[0_1px_2px_rgba(0,0,0,0.05)] z-10"
-                  : "text-zinc-500 hover:bg-zinc-50/80 hover:text-zinc-700"
+                  ? "bg-background text-foreground font-bold shadow-[0_1px_2px_rgba(0,0,0,0.05)] z-10"
+                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               )}
             >
               <span className={cn(
@@ -215,7 +215,7 @@ export function EditorPane() {
                   closeFile(path);
                 }}
                 className={cn(
-                  "p-0.5 rounded-md hover:bg-zinc-100 transition-all ml-1",
+                  "p-0.5 rounded-md hover:bg-muted transition-all ml-1",
                   isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 )}
               >
@@ -229,29 +229,29 @@ export function EditorPane() {
           type="button"
           title="New file"
           onClick={createNewFile}
-          className="h-10 w-10 flex items-center justify-center text-zinc-400 hover:text-primary hover:bg-zinc-50 transition-all border-r border-zinc-100"
+          className="h-10 w-10 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-all border-r border-border"
         >
            <Plus size={16} />
         </button>
       </div>
 
       {/* Editor Content Area */}
-      <div className="flex-1 overflow-hidden relative flex flex-col bg-white">
+      <div className="flex-1 overflow-hidden relative flex flex-col bg-background">
         {findOpen && (
           <div className="absolute top-0 right-4 z-50 p-2">
-             <div className="bg-white border border-zinc-200 shadow-2xl rounded-xl p-1.5 flex items-center gap-2 ring-4 ring-zinc-50/50">
-               <div className="flex items-center bg-zinc-50 rounded-lg px-2.5 py-1 gap-2 border border-transparent focus-within:border-primary/20 focus-within:bg-white transition-all w-48">
-                  <Search className="w-3.5 h-3.5 text-zinc-400" />
+             <div className="bg-background border border-border shadow-2xl rounded-xl p-1.5 flex items-center gap-2 ring-4 ring-zinc-50/50">
+               <div className="flex items-center bg-muted rounded-lg px-2.5 py-1 gap-2 border border-transparent focus-within:border-primary/20 focus-within:bg-background transition-all w-48">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground" />
                   <input
                     autoFocus
                     data-testid="find-input"
                     value={findQuery}
                     onChange={(e) => setFindQuery(e.target.value)}
                     placeholder="Find in file..."
-                    className="bg-transparent border-none text-[11px] text-zinc-900 placeholder:text-zinc-400 focus:ring-0 w-full p-0 font-medium"
+                    className="bg-transparent border-none text-[11px] text-foreground placeholder:text-muted-foreground focus:ring-0 w-full p-0 font-medium"
                   />
                </div>
-               <button className="p-1.5 text-zinc-400 hover:text-zinc-900 transition-colors" onClick={() => setFindOpen(false)}>
+               <button className="p-1.5 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setFindOpen(false)}>
                   <X size={14} />
                </button>
              </div>
@@ -279,7 +279,7 @@ export function EditorPane() {
               }}
               aria-label="LaTeX source editor"
               className={cn(
-                "h-full w-full bg-white leading-[22px] text-zinc-900",
+                "h-full w-full bg-background leading-[22px] text-foreground",
                 editorNonBlinkingCursor && "ide-caret-noblink",
               )}
             />
@@ -293,7 +293,7 @@ export function EditorPane() {
               spellCheck={spellcheckEnabled}
               wrap={editorWordWrap ? "soft" : "off"}
               className={cn(
-                "h-full w-full resize-none bg-white p-6 leading-[22px] outline-none text-zinc-900 font-mono text-[13px]",
+                "h-full w-full resize-none bg-background p-6 leading-[22px] outline-none text-foreground font-mono text-[13px]",
                 !editorWordWrap && "whitespace-pre overflow-x-auto",
                 editorNonBlinkingCursor && "ide-caret-noblink",
               )}
@@ -303,19 +303,19 @@ export function EditorPane() {
       </div>
 
       {/* Editor Status Bar */}
-      <div className="h-8 border-t bg-zinc-50/50 flex items-center justify-between px-4 shrink-0 select-none">
-        <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-           <span className="text-zinc-600">Ln {cursor.line}, Col {cursor.column}</span>
-           <span>Spaces: 2</span>
-           <span>UTF-8</span>
-           <span>LF</span>
-           <span className="text-primary font-black">LaTeX</span>
+      <div className="h-7 overflow-hidden border-t border-border bg-muted/50 flex items-center justify-between gap-2 px-3 shrink-0 select-none whitespace-nowrap">
+        <div className="flex min-w-0 items-center gap-3 text-[10px] text-muted-foreground">
+           <span className="text-muted-foreground">Ln {cursor.line}, Col {cursor.column}</span>
+           <span className="hidden sm:inline">Spaces: 2</span>
+           <span className="hidden sm:inline">UTF-8</span>
+           <span className="hidden xl:inline">LF</span>
+           <span className="hidden xl:inline text-primary">LaTeX</span>
         </div>
-        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+        <div className="flex shrink-0 items-center text-[10px] text-muted-foreground">
             <button
               type="button"
               onClick={() => setSpellcheckEnabled(!spellcheckEnabled)}
-              className="flex items-center gap-1.5 hover:text-zinc-600 transition-colors"
+              className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
               title={`Spellcheck ${spellcheckEnabled ? "on" : "off"}`}
             >
                <span>Spell: {spellcheckEnabled ? "On" : "Off"}</span>
