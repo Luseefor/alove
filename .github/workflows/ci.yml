@@ -18,3 +18,14 @@ jobs:
       - run: bun run build
       - run: bun run lint
       - run: bun run test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose Config
+        run: docker compose -f docker-compose.dev.yml config
+      - name: Build Web Image
+        run: docker build -f apps/web/Dockerfile .
+      - name: Build Compile Worker Image
+        run: docker build -f apps/compile-worker/Dockerfile .

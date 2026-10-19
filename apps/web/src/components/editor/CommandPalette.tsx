@@ -23,7 +23,7 @@ type CommandPaletteProps = {
 export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) {
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const { cyclePreference, cyclePaletteId, preference, paletteId } = useTheme();
+  const { cycleAppearance, cyclePaletteId, appearance, paletteId } = useTheme();
 
   useEffect(() => {
     if (!open) {
@@ -51,10 +51,10 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
       id: "theme-cycle",
       group: "View",
       label: "Cycle appearance (system → light → dark)",
-      hint: `Current: ${preference}`,
+      hint: `Current: ${appearance}`,
       keys: ["⇧", "T"],
       run: () => {
-        cyclePreference();
+        cycleAppearance();
       },
     };
     const paletteAction: CommandPaletteAction = {
@@ -67,7 +67,7 @@ export function CommandPalette({ open, onClose, actions }: CommandPaletteProps) 
       },
     };
     return [...actions, themeAction, paletteAction];
-  }, [actions, cyclePreference, cyclePaletteId, preference, paletteId]);
+  }, [actions, cycleAppearance, cyclePaletteId, appearance, paletteId]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();

@@ -1,6 +1,6 @@
 # alove
 
-**alove** is a web LaTeX workspace you run yourself. Write in the browser, compile with a full TeX Live install in Docker, and preview the PDF next to your source. Default local mode needs no account. Optional Clerk + Convex collaboration is there when you want a shared cloud workspace.
+**alove** is a web LaTeX workspace you run yourself. Write in the browser, compile with a full TeX Live install in Docker, and preview the PDF next to your source. Default local mode needs no account. Optional Clerk + Convex provides an authenticated cloud workspace; public multi-user release gates remain open.
 
 There is no public hosted demo; clone the repo and run it.
 
@@ -15,11 +15,22 @@ Overleaf is a hosted service. alove is software you clone and run:
 
 ## Features
 
-- Split CodeMirror 6 LaTeX editor + PDF preview (outline, folding, snippets, search, optional Vim)
-- Auto-compile, engine picker, log tail, and inline diagnostics
-- Multi-file projects, article templates, command palette, zen mode, themes
-- Local compile snapshots in the browser (IndexedDB)
-- Optional live presence and file sync (cloud mode)
+- CodeMirror 6 source editor, PDF preview, outline, folding, snippets and search
+- Durable browser workspaces with revision conflicts and portable source archives
+- Source-aware builds that retain the last successful PDF and mark stale previews
+- Immutable build receipts and bounded, compile-tested whole-file recovery
+- Validated compile requests, bounded process execution and real Docker checks
+
+See [build recovery](docs/build-recovery.md) and the [local benchmark report](docs/benchmarks/2026-10-19-local-m3-pro/README.md). The local numbers do not establish an advantage over Overleaf.
+
+## Quick start with Docker
+
+```bash
+cp .env.example .env
+bun run docker:dev
+```
+
+Visit `http://localhost:3000`. See [Docker deployment](docs/deployment/docker.md).
 
 ## Try it
 

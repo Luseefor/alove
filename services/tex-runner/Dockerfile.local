@@ -1,0 +1,4 @@
+# Small pinned runtime for the bundled project on development machines.
+# The full TeX Live image remains available through COMPILE_DOCKER_IMAGE.
+FROM ghcr.io/xu-cheng/texlive-small@sha256:2f81f71846f6416526c63f3fbbbc59733c2cdf7e69fcb7aa99adba186ccb2f09
+RUN tlmgr update --self && tlmgr install physics cleveref

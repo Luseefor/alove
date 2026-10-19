@@ -15,13 +15,18 @@ import {
   PALETTE_STORAGE_KEY,
   SITE_PALETTES,
   THEME_STORAGE_KEY,
+  DENSITY_STORAGE_KEY,
+  FONT_SIZE_STORAGE_KEY,
+  PREVIEW_BG_STORAGE_KEY,
   type ResolvedTheme,
   type SitePaletteId,
+  type AppearancePreference,
+  type DensityPreference,
+  type EditorFontSizePreference,
+  type PreviewBackgroundPreference,
 } from "@/theme";
 
 export type { ResolvedTheme } from "@/theme";
-
-export type ThemePreference = "system" | "light" | "dark";
 
 export type PaletteOption = {
   id: SitePaletteId;
@@ -30,38 +35,37 @@ export type PaletteOption = {
 };
 
 type ThemeContextValue = {
-  preference: ThemePreference;
+  appearance: AppearancePreference;
   resolved: ResolvedTheme;
-  setPreference: (p: ThemePreference) => void;
-  cyclePreference: () => void;
+  setAppearance: (p: AppearancePreference) => void;
+  cycleAppearance: () => void;
+
   paletteId: SitePaletteId;
   setPaletteId: (id: SitePaletteId) => void;
-  /** Cycles through `SITE_PALETTES` order (keyboard / command palette). */
   cyclePaletteId: () => void;
   paletteOptions: readonly PaletteOption[];
+
+  density: DensityPreference;
+  setDensity: (d: DensityPreference) => void;
+
+  editorFontSize: EditorFontSizePreference;
+  setEditorFontSize: (size: EditorFontSizePreference) => void;
+
+  previewBackground: PreviewBackgroundPreference;
+  setPreviewBackground: (bg: PreviewBackgroundPreference) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function readStoredTheme(): ThemePreference | null {
-  if (typeof window === "undefined") return null;
-  const v = localStorage.getItem(THEME_STORAGE_KEY);
-  if (v === "light" || v === "dark" || v === "system") return v;
-  return null;
-}
-
-function initialPreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
-  return readStoredTheme() ?? "system";
-}
-
-function initialSystemDark(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+function readStored<T extends string>(key: string, valid: T[], fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  const v = localStorage.getItem(key);
+  if (v && valid.includes(v as T)) return v as T;
+  return fallback;
 }
 
 function resolve(
-  preference: ThemePreference,
+  preference: AppearancePreference,
   systemDark: boolean,
 ): ResolvedTheme {
   if (preference === "dark") return "dark";
@@ -70,58 +74,83 @@ function resolve(
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState(initialPreference);
-  const [systemDark, setSystemDark] = useState(initialSystemDark);
+  const [appearance, setAppearanceState] = useState<AppearancePreference>(() =>
+    readStored(THEME_STORAGE_KEY, ["system", "light", "dark"], "system"),
+  );
+  const [systemDark, setSystemDark] = useState(false);
+  
   const [paletteId, setPaletteIdState] = useState<SitePaletteId>(() =>
     readStoredPaletteId(),
+  );
+  
+  const [density, setDensityState] = useState<DensityPreference>(() =>
+    readStored(DENSITY_STORAGE_KEY, ["comfortable", "compact"], "comfortable"),
+  );
+  
+  const [editorFontSize, setEditorFontSizeState] = useState<EditorFontSizePreference>(() =>
+    readStored(FONT_SIZE_STORAGE_KEY, ["small", "medium", "large"], "medium"),
+  );
+  
+  const [previewBackground, setPreviewBackgroundState] = useState<PreviewBackgroundPreference>(() =>
+    readStored(PREVIEW_BG_STORAGE_KEY, ["charcoal", "neutral", "paper"], "charcoal"),
   );
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemDark(mq.matches);
     const onChange = () => setSystemDark(mq.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
   const resolved = useMemo(
-    () => resolve(preference, systemDark),
-    [preference, systemDark],
+    () => resolve(appearance, systemDark),
+    [appearance, systemDark],
   );
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", resolved === "dark");
+    document.documentElement.dataset.theme = resolved;
   }, [resolved]);
 
   useEffect(() => {
     applyPaletteVars(paletteId, resolved);
   }, [paletteId, resolved]);
 
-  const setPreference = useCallback((p: ThemePreference) => {
-    setPreferenceState(p);
+  useEffect(() => {
+    document.documentElement.dataset.density = density;
+  }, [density]);
+  
+  useEffect(() => {
+    document.documentElement.dataset.fontSize = editorFontSize;
+  }, [editorFontSize]);
+  
+  useEffect(() => {
+    document.documentElement.dataset.previewBg = previewBackground;
+  }, [previewBackground]);
+
+  const setAppearance = useCallback((p: AppearancePreference) => {
+    setAppearanceState(p);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, p);
-    } catch {
-      /* private mode */
-    }
+    } catch {}
     const sd = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.classList.toggle("dark", resolve(p, sd) === "dark");
+    const res = resolve(p, sd);
+    document.documentElement.classList.toggle("dark", res === "dark");
+    document.documentElement.dataset.theme = res;
   }, []);
 
-  const cyclePreference = useCallback(() => {
-    setPreferenceState((prev) => {
-      const order: ThemePreference[] = ["system", "light", "dark"];
-      const i = order.indexOf(prev);
-      const next = order[(i + 1) % order.length] ?? "system";
+  const cycleAppearance = useCallback(() => {
+    setAppearanceState((prev: AppearancePreference) => {
+      const order: AppearancePreference[] = ["system", "light", "dark"];
+      const next = order[(order.indexOf(prev) + 1) % order.length];
       try {
         localStorage.setItem(THEME_STORAGE_KEY, next);
-      } catch {
-        /* ignore */
-      }
+      } catch {}
       const sd = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      document.documentElement.classList.toggle(
-        "dark",
-        resolve(next, sd) === "dark",
-      );
+      const res = resolve(next, sd);
+      document.documentElement.classList.toggle("dark", res === "dark");
+      document.documentElement.dataset.theme = res;
       return next;
     });
   }, []);
@@ -130,23 +159,39 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setPaletteIdState(id);
     try {
       localStorage.setItem(PALETTE_STORAGE_KEY, id);
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }, []);
 
   const cyclePaletteId = useCallback(() => {
     const ids = SITE_PALETTES.map((p) => p.id);
     setPaletteIdState((prev) => {
-      const i = ids.indexOf(prev);
-      const next = ids[(i + 1) % ids.length] ?? prev;
+      const next = ids[(ids.indexOf(prev) + 1) % ids.length] ?? prev;
       try {
         localStorage.setItem(PALETTE_STORAGE_KEY, next);
-      } catch {
-        /* ignore */
-      }
+      } catch {}
       return next;
     });
+  }, []);
+
+  const setDensity = useCallback((d: DensityPreference) => {
+    setDensityState(d);
+    try {
+      localStorage.setItem(DENSITY_STORAGE_KEY, d);
+    } catch {}
+  }, []);
+  
+  const setEditorFontSize = useCallback((s: EditorFontSizePreference) => {
+    setEditorFontSizeState(s);
+    try {
+      localStorage.setItem(FONT_SIZE_STORAGE_KEY, s);
+    } catch {}
+  }, []);
+  
+  const setPreviewBackground = useCallback((b: PreviewBackgroundPreference) => {
+    setPreviewBackgroundState(b);
+    try {
+      localStorage.setItem(PREVIEW_BG_STORAGE_KEY, b);
+    } catch {}
   }, []);
 
   const paletteOptions = useMemo(
@@ -161,24 +206,36 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      preference,
+      appearance,
       resolved,
-      setPreference,
-      cyclePreference,
+      setAppearance,
+      cycleAppearance,
       paletteId,
       setPaletteId,
       cyclePaletteId,
       paletteOptions,
+      density,
+      setDensity,
+      editorFontSize,
+      setEditorFontSize,
+      previewBackground,
+      setPreviewBackground,
     }),
     [
-      preference,
+      appearance,
       resolved,
-      setPreference,
-      cyclePreference,
+      setAppearance,
+      cycleAppearance,
       paletteId,
       setPaletteId,
       cyclePaletteId,
       paletteOptions,
+      density,
+      setDensity,
+      editorFontSize,
+      setEditorFontSize,
+      previewBackground,
+      setPreviewBackground,
     ],
   );
 

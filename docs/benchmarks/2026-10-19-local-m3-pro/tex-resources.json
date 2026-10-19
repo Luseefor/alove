@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "imageId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+  "measuredAt": "2026-10-19T19:15:52.018Z",
+  "methodology": "Separate direct Docker profiling with BusyBox time -v around latexmk, 500 synthetic pages. Same flags/image as worker; bypasses HTTP/Redis/polling and is NOT an API latency sample. User/system time and max resident size come from the timed process group/descendants per BusyBox time; not total Docker VM or deployment RAM. Emulation can distort CPU accounting.",
+  "samples": [
+    {
+      "engine": "pdflatex",
+      "repeat": 1,
+      "status": 0,
+      "wallMs": 1180.164834,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -pdf -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 0.76\n\tSystem time (seconds): 0.07\n\tPercent of CPU this job got: 91%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 0.91s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 34860\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 17452\n\tVoluntary context switches: 2576\n\tInvoluntary context switches: 105\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 591\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 142862,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "pdflatex",
+      "repeat": 2,
+      "status": 0,
+      "wallMs": 1070.6985000000002,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -pdf -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 0.74\n\tSystem time (seconds): 0.07\n\tPercent of CPU this job got: 92%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 0.88s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 34856\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 17389\n\tVoluntary context switches: 2577\n\tInvoluntary context switches: 144\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 591\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 142862,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "pdflatex",
+      "repeat": 3,
+      "status": 0,
+      "wallMs": 1128.157208,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -pdf -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 0.77\n\tSystem time (seconds): 0.05\n\tPercent of CPU this job got: 92%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 0.90s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 34856\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 17502\n\tVoluntary context switches: 2573\n\tInvoluntary context switches: 113\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 591\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 142862,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "lualatex",
+      "repeat": 1,
+      "status": 0,
+      "wallMs": 2425.1569999999997,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -lualatex -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 1.87\n\tSystem time (seconds): 0.16\n\tPercent of CPU this job got: 91%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 2.22s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 135788\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 99813\n\tVoluntary context switches: 7090\n\tInvoluntary context switches: 110\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 1296\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 141758,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "lualatex",
+      "repeat": 2,
+      "status": 0,
+      "wallMs": 2414.5190839999996,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -lualatex -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 1.89\n\tSystem time (seconds): 0.12\n\tPercent of CPU this job got: 91%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 2.20s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 131380\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 98983\n\tVoluntary context switches: 7089\n\tInvoluntary context switches: 102\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 1296\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 141758,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "lualatex",
+      "repeat": 3,
+      "status": 0,
+      "wallMs": 2384.434707999999,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -lualatex -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 1.88\n\tSystem time (seconds): 0.12\n\tPercent of CPU this job got: 91%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 2.19s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 135788\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 99784\n\tVoluntary context switches: 7089\n\tInvoluntary context switches: 107\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 1296\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 141758,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "xelatex",
+      "repeat": 1,
+      "status": 0,
+      "wallMs": 2758.4147080000002,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -xelatex -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 2.23\n\tSystem time (seconds): 0.26\n\tPercent of CPU this job got: 97%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 2.56s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 182960\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 280343\n\tVoluntary context switches: 943\n\tInvoluntary context switches: 123\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 11970\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 148230,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "xelatex",
+      "repeat": 2,
+      "status": 0,
+      "wallMs": 2761.2038329999996,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -xelatex -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 2.21\n\tSystem time (seconds): 0.26\n\tPercent of CPU this job got: 97%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 2.55s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 183000\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 280702\n\tVoluntary context switches: 944\n\tInvoluntary context switches: 143\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 11970\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 148230,
+      "pdfSignature": "%PDF-"
+    },
+    {
+      "engine": "xelatex",
+      "repeat": 3,
+      "status": 0,
+      "wallMs": 2705.286082999999,
+      "resourceText": "\tCommand being timed: \"latexmk -norc -xelatex -no-shell-escape -outdir=./. -interaction=nonstopmode -halt-on-error ./main.tex\"\n\tUser time (seconds): 2.19\n\tSystem time (seconds): 0.24\n\tPercent of CPU this job got: 97%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0m 2.50s\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 182960\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 280229\n\tVoluntary context switches: 943\n\tInvoluntary context switches: 160\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 11970\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+      "pdfBytes": 148230,
+      "pdfSignature": "%PDF-"
+    }
+  ]
+}

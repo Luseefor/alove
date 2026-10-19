@@ -1,0 +1,1228 @@
+{
+  "schema": 1,
+  "runId": "bench-1792436931778",
+  "startedAt": "2026-10-19T19:08:51.778Z",
+  "completed": false,
+  "methodology": {
+    "phase": "all",
+    "repeats": 3,
+    "pollIntervalMs": 350,
+    "concurrency": 1,
+    "coldDefinition": "First observed request only; Docker/OS/image caches were NOT reset. Every job has a fresh container and working directory.",
+    "timingBoundary": "HTTP request serialization through production API + Redis + Docker worker + application polling; excludes UI rendering, typing and IndexedDB.",
+    "samples": "All attempted cases and trials retained, including fixture failures; no Overleaf comparison."
+  },
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "25.6.0",
+    "cpu": "Apple M3 Pro",
+    "logicalCpus": 11,
+    "memoryBytes": 19327352832,
+    "bun": "1.4.3"
+  },
+  "applicationRevision": "5316c09acd83c127b055d8256d24e2c73fac95c0",
+  "dirtyPaths": "?? apps/web/scripts/benchmarkBrowser.ts\n?? benchmark-results/\n?? scripts/benchmarks/",
+  "docker": "\"28.3.2\" 11 8217890816",
+  "compileSamples": [
+    {
+      "label": "first-observed/pdflatex",
+      "jobId": "63",
+      "totalMs": 715.5519160000001,
+      "serializeMs": 0.0037080000000742075,
+      "submitMs": 3.203624999999988,
+      "pollMs": 712.3445830000001,
+      "queueWaitMs": 0,
+      "workerMs": 633,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/pdflatex/1",
+      "jobId": "64",
+      "totalMs": 712.9832909999998,
+      "serializeMs": 0.0039999999999054126,
+      "submitMs": 1.5174580000000333,
+      "pollMs": 711.4618329999998,
+      "queueWaitMs": 0,
+      "workerMs": 563,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/pdflatex/2",
+      "jobId": "65",
+      "totalMs": 710.4922079999997,
+      "serializeMs": 0.00420799999983501,
+      "submitMs": 2.049916999999823,
+      "pollMs": 708.438083,
+      "queueWaitMs": 1,
+      "workerMs": 574,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/pdflatex/3",
+      "jobId": "66",
+      "totalMs": 711.8533750000001,
+      "serializeMs": 0.003208000000086031,
+      "submitMs": 1.8319169999999758,
+      "pollMs": 710.0182500000001,
+      "queueWaitMs": 1,
+      "workerMs": 568,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/pdflatex/4",
+      "jobId": "67",
+      "totalMs": 712.74775,
+      "serializeMs": 0.004124999999930878,
+      "submitMs": 2.233874999999898,
+      "pollMs": 710.5097500000002,
+      "queueWaitMs": 0,
+      "workerMs": 560,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/pdflatex/5",
+      "jobId": "68",
+      "totalMs": 712.9382500000002,
+      "serializeMs": 0.004249999999956344,
+      "submitMs": 2.3403750000006767,
+      "pollMs": 710.5936249999995,
+      "queueWaitMs": 0,
+      "workerMs": 593,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/lualatex/1",
+      "jobId": "69",
+      "totalMs": 1423.999417,
+      "serializeMs": 0.0035419999994701357,
+      "submitMs": 1.8951660000002448,
+      "pollMs": 1422.1007090000003,
+      "queueWaitMs": 1,
+      "workerMs": 1140,
+      "polls": 5,
+      "phase": "ready",
+      "pdfBytes": 4760,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/lualatex/2",
+      "jobId": "70",
+      "totalMs": 1419.2525420000002,
+      "serializeMs": 0.00408400000014808,
+      "submitMs": 1.8644580000000133,
+      "pollMs": 1417.384,
+      "queueWaitMs": 0,
+      "workerMs": 1089,
+      "polls": 5,
+      "phase": "ready",
+      "pdfBytes": 4760,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/lualatex/3",
+      "jobId": "71",
+      "totalMs": 1423.5945829999991,
+      "serializeMs": 0.005332999999154708,
+      "submitMs": 2.3673750000007203,
+      "pollMs": 1421.2218749999993,
+      "queueWaitMs": 1,
+      "workerMs": 1083,
+      "polls": 5,
+      "phase": "ready",
+      "pdfBytes": 4760,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/lualatex/4",
+      "jobId": "72",
+      "totalMs": 1421.5957500000004,
+      "serializeMs": 0.0041250000012951205,
+      "submitMs": 1.817124999999578,
+      "pollMs": 1419.7744999999995,
+      "queueWaitMs": 0,
+      "workerMs": 1119,
+      "polls": 5,
+      "phase": "ready",
+      "pdfBytes": 4760,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/lualatex/5",
+      "jobId": "73",
+      "totalMs": 1418.8767499999994,
+      "serializeMs": 0.0037080000001878943,
+      "submitMs": 1.6002919999991718,
+      "pollMs": 1417.27275,
+      "queueWaitMs": 0,
+      "workerMs": 1122,
+      "polls": 5,
+      "phase": "ready",
+      "pdfBytes": 4760,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/xelatex/1",
+      "jobId": "74",
+      "totalMs": 2837.849958999999,
+      "serializeMs": 0.0034589999995660037,
+      "submitMs": 1.7160409999996773,
+      "pollMs": 2836.130459,
+      "queueWaitMs": 0,
+      "workerMs": 2672,
+      "polls": 9,
+      "phase": "ready",
+      "pdfBytes": 4401,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/xelatex/2",
+      "jobId": "75",
+      "totalMs": 2483.253125000001,
+      "serializeMs": 0.005000000001018634,
+      "submitMs": 1.827041000000463,
+      "pollMs": 2481.4210839999996,
+      "queueWaitMs": 0,
+      "workerMs": 2320,
+      "polls": 8,
+      "phase": "ready",
+      "pdfBytes": 4400,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/xelatex/3",
+      "jobId": "76",
+      "totalMs": 2483.180375,
+      "serializeMs": 0.006457999999838648,
+      "submitMs": 2.1214170000021113,
+      "pollMs": 2481.052499999998,
+      "queueWaitMs": 1,
+      "workerMs": 2290,
+      "polls": 8,
+      "phase": "ready",
+      "pdfBytes": 4400,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/xelatex/4",
+      "jobId": "77",
+      "totalMs": 2481.0682500000003,
+      "serializeMs": 0.0037080000001878943,
+      "submitMs": 1.7944170000009763,
+      "pollMs": 2479.270124999999,
+      "queueWaitMs": 0,
+      "workerMs": 2436,
+      "polls": 8,
+      "phase": "ready",
+      "pdfBytes": 4400,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "engine/xelatex/5",
+      "jobId": "78",
+      "totalMs": 2482.6647919999996,
+      "serializeMs": 0.00487500000235741,
+      "submitMs": 2.0813749999979336,
+      "pollMs": 2480.5785419999993,
+      "queueWaitMs": 0,
+      "workerMs": 2352,
+      "polls": 8,
+      "phase": "ready",
+      "pdfBytes": 4401,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "scale/10-pages/1",
+      "jobId": "79",
+      "totalMs": 711.8954589999994,
+      "serializeMs": 0.013167000000976259,
+      "submitMs": 1.9061670000010054,
+      "pollMs": 709.9761249999974,
+      "queueWaitMs": 0,
+      "workerMs": 670,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 20278,
+      "fileCount": 1,
+      "sourceBytes": 7127,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "scale/10-pages/2",
+      "jobId": "80",
+      "totalMs": 712.8869169999998,
+      "serializeMs": 0.013082999998005107,
+      "submitMs": 1.6042919999999867,
+      "pollMs": 711.2695420000018,
+      "queueWaitMs": 0,
+      "workerMs": 694,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 20278,
+      "fileCount": 1,
+      "sourceBytes": 7127,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "scale/10-pages/3",
+      "jobId": "81",
+      "totalMs": 709.3209170000009,
+      "serializeMs": 0.010541999999986729,
+      "submitMs": 1.8797919999997248,
+      "pollMs": 707.4305830000012,
+      "queueWaitMs": 1,
+      "workerMs": 672,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 20278,
+      "fileCount": 1,
+      "sourceBytes": 7127,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "scale/100-pages/1",
+      "jobId": "82",
+      "totalMs": 1070.0290410000016,
+      "serializeMs": 0.06929099999979371,
+      "submitMs": 2.141125000001921,
+      "pollMs": 1067.8186249999999,
+      "queueWaitMs": 0,
+      "workerMs": 800,
+      "polls": 4,
+      "phase": "ready",
+      "pdfBytes": 51816,
+      "fileCount": 1,
+      "sourceBytes": 70848,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "scale/100-pages/2",
+      "jobId": "83",
+      "totalMs": 1076.816999999999,
+      "serializeMs": 0.0657500000015716,
+      "submitMs": 3.360708000000159,
+      "pollMs": 1073.3905419999974,
+      "queueWaitMs": 1,
+      "workerMs": 759,
+      "polls": 4,
+      "phase": "ready",
+      "pdfBytes": 51816,
+      "fileCount": 1,
+      "sourceBytes": 70848,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "scale/100-pages/3",
+      "jobId": "84",
+      "totalMs": 1086.3671670000003,
+      "serializeMs": 0.10337499999877764,
+      "submitMs": 8.986417000000074,
+      "pollMs": 1077.2773750000015,
+      "queueWaitMs": 2,
+      "workerMs": 799,
+      "polls": 4,
+      "phase": "ready",
+      "pdfBytes": 51816,
+      "fileCount": 1,
+      "sourceBytes": 70848,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "deadline/1",
+      "jobId": "85",
+      "totalMs": 1435.2464580000014,
+      "serializeMs": 0.005042000000685221,
+      "submitMs": 6.222915999998804,
+      "pollMs": 1429.018500000002,
+      "queueWaitMs": 1,
+      "workerMs": 1306,
+      "polls": 5,
+      "phase": "failed",
+      "errorCode": "TIMEOUT",
+      "pdfBytes": 0,
+      "fileCount": 1,
+      "sourceBytes": 72,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "deadline/2",
+      "jobId": "86",
+      "totalMs": 1431.905834000001,
+      "serializeMs": 0.008000000001629815,
+      "submitMs": 4.741041999997833,
+      "pollMs": 1427.1567920000016,
+      "queueWaitMs": 0,
+      "workerMs": 1290,
+      "polls": 5,
+      "phase": "failed",
+      "errorCode": "TIMEOUT",
+      "pdfBytes": 0,
+      "fileCount": 1,
+      "sourceBytes": 72,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "deadline/3",
+      "jobId": "87",
+      "totalMs": 1431.9798750000045,
+      "serializeMs": 0.006667000001471024,
+      "submitMs": 2.7868749999979627,
+      "pollMs": 1429.186333000005,
+      "queueWaitMs": 1,
+      "workerMs": 1307,
+      "polls": 5,
+      "phase": "failed",
+      "errorCode": "TIMEOUT",
+      "pdfBytes": 0,
+      "fileCount": 1,
+      "sourceBytes": 72,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-1/job-1",
+      "jobId": "88",
+      "totalMs": 728.260166,
+      "serializeMs": 0.01041599999734899,
+      "submitMs": 8.909334000003582,
+      "pollMs": 719.3404159999991,
+      "queueWaitMs": 0,
+      "workerMs": 564,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-1/job-2",
+      "jobId": "89",
+      "totalMs": 1459.2953750000015,
+      "serializeMs": 0.0030420000039157458,
+      "submitMs": 12.094874999995227,
+      "pollMs": 1447.1974580000024,
+      "queueWaitMs": 561,
+      "workerMs": 666,
+      "polls": 5,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-1/job-3",
+      "jobId": "90",
+      "totalMs": 2170.198540999998,
+      "serializeMs": 0.017332999996142462,
+      "submitMs": 16.494542000000365,
+      "pollMs": 2153.6866660000014,
+      "queueWaitMs": 1223,
+      "workerMs": 623,
+      "polls": 7,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-1/job-4",
+      "jobId": "91",
+      "totalMs": 2523.402167,
+      "serializeMs": 0.0021249999990686774,
+      "submitMs": 18.38533300000563,
+      "pollMs": 2505.0147089999955,
+      "queueWaitMs": 1842,
+      "workerMs": 573,
+      "polls": 8,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-2/job-1",
+      "jobId": "92",
+      "totalMs": 735.9136670000007,
+      "serializeMs": 0.005791999996290542,
+      "submitMs": 5.905125000004773,
+      "pollMs": 730.0027499999997,
+      "queueWaitMs": 0,
+      "workerMs": 554,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-2/job-2",
+      "jobId": "93",
+      "totalMs": 1091.424500000001,
+      "serializeMs": 0.0032080000019050203,
+      "submitMs": 5.910875000001397,
+      "pollMs": 1085.5104169999977,
+      "queueWaitMs": 553,
+      "workerMs": 521,
+      "polls": 4,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-2/job-3",
+      "jobId": "94",
+      "totalMs": 1802.8989589999983,
+      "serializeMs": 0.0022089999984018505,
+      "submitMs": 5.907416000001831,
+      "pollMs": 1796.989333999998,
+      "queueWaitMs": 1073,
+      "workerMs": 532,
+      "polls": 6,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-2/job-4",
+      "jobId": "95",
+      "totalMs": 2158.151666000005,
+      "serializeMs": 0.0019160000010742806,
+      "submitMs": 5.904374999998254,
+      "pollMs": 2152.245375000006,
+      "queueWaitMs": 1604,
+      "workerMs": 500,
+      "polls": 7,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-3/job-1",
+      "jobId": "96",
+      "totalMs": 732.281332999999,
+      "serializeMs": 0.01358299999992596,
+      "submitMs": 7.375917000004847,
+      "pollMs": 724.8918329999942,
+      "queueWaitMs": 1,
+      "workerMs": 574,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-3/job-2",
+      "jobId": "97",
+      "totalMs": 1447.2366669999974,
+      "serializeMs": 0.004208999998809304,
+      "submitMs": 7.220290999997815,
+      "pollMs": 1440.0121670000008,
+      "queueWaitMs": 573,
+      "workerMs": 508,
+      "polls": 5,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-3/job-3",
+      "jobId": "98",
+      "totalMs": 1807.4811249999984,
+      "serializeMs": 0.003457999999227468,
+      "submitMs": 7.271250000005239,
+      "pollMs": 1800.206416999994,
+      "queueWaitMs": 1080,
+      "workerMs": 507,
+      "polls": 6,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "burst-3/job-4",
+      "jobId": "99",
+      "totalMs": 2165.3377919999984,
+      "serializeMs": 0.006667000001471024,
+      "submitMs": 7.2419169999993755,
+      "pollMs": 2158.0892079999976,
+      "queueWaitMs": 1586,
+      "workerMs": 505,
+      "polls": 7,
+      "phase": "ready",
+      "pdfBytes": 15221,
+      "fileCount": 1,
+      "sourceBytes": 763,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/setup-good",
+      "jobId": "100",
+      "totalMs": 722.3883750000023,
+      "serializeMs": 0.007458000000042375,
+      "submitMs": 5.031875000000582,
+      "pollMs": 717.3490420000016,
+      "queueWaitMs": 1,
+      "workerMs": 603,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 17314,
+      "fileCount": 3,
+      "sourceBytes": 305,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/setup-failed",
+      "jobId": "101",
+      "totalMs": 721.0562079999945,
+      "serializeMs": 0.004957999997714069,
+      "submitMs": 5.531333999999333,
+      "pollMs": 715.5199159999975,
+      "queueWaitMs": 1,
+      "workerMs": 500,
+      "polls": 3,
+      "phase": "failed",
+      "errorCode": "LATEX_ERROR",
+      "pdfBytes": 0,
+      "fileCount": 3,
+      "sourceBytes": 297,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/recovery-1/trial-0",
+      "jobId": "102",
+      "totalMs": 726.5387919999994,
+      "serializeMs": 0.005707999996957369,
+      "submitMs": 4.309542000002693,
+      "pollMs": 722.2235419999997,
+      "queueWaitMs": 1,
+      "workerMs": 554,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 17314,
+      "fileCount": 3,
+      "sourceBytes": 305,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/recovery-1/trial-1",
+      "jobId": "103",
+      "totalMs": 722.2486669999998,
+      "serializeMs": 0.006667000001471024,
+      "submitMs": 4.836583000003884,
+      "pollMs": 717.4054169999945,
+      "queueWaitMs": 1,
+      "workerMs": 603,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 17812,
+      "fileCount": 3,
+      "sourceBytes": 340,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/recovery-2/trial-0",
+      "jobId": "104",
+      "totalMs": 723.487083,
+      "serializeMs": 0.004457999995793216,
+      "submitMs": 5.168917000002693,
+      "pollMs": 718.3137080000015,
+      "queueWaitMs": 1,
+      "workerMs": 580,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 17314,
+      "fileCount": 3,
+      "sourceBytes": 305,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/recovery-2/trial-1",
+      "jobId": "105",
+      "totalMs": 726.5320000000065,
+      "serializeMs": 0.007042000004730653,
+      "submitMs": 4.723540999999386,
+      "pollMs": 721.8014170000024,
+      "queueWaitMs": 0,
+      "workerMs": 573,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 17812,
+      "fileCount": 3,
+      "sourceBytes": 340,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/recovery-3/trial-0",
+      "jobId": "106",
+      "totalMs": 727.744166000004,
+      "serializeMs": 0.003958000001148321,
+      "submitMs": 5.376792000002752,
+      "pollMs": 722.3634160000001,
+      "queueWaitMs": 2,
+      "workerMs": 586,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 17314,
+      "fileCount": 3,
+      "sourceBytes": 305,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    },
+    {
+      "label": "verified-removed-macro/recovery-3/trial-1",
+      "jobId": "107",
+      "totalMs": 715.758249999999,
+      "serializeMs": 0.0076249999983701855,
+      "submitMs": 4.655124999997497,
+      "pollMs": 711.0955000000031,
+      "queueWaitMs": 1,
+      "workerMs": 592,
+      "polls": 3,
+      "phase": "ready",
+      "pdfBytes": 17812,
+      "fileCount": 3,
+      "sourceBytes": 340,
+      "environment": {
+        "mode": "docker",
+        "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+        "platform": "linux/amd64"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "verified-removed-macro",
+      "label": "Removed macro definition in main",
+      "category": "single-file",
+      "expected": "verified",
+      "expectedPath": "main.tex",
+      "good": {
+        "schema": 1,
+        "id": "ed2aaefd-7937-4dd5-a605-242ac47aec2f",
+        "projectId": "bench-1792436931778-verified-removed-macro",
+        "revision": 1,
+        "startedAt": 1792436973060,
+        "completedAt": 1792436974505,
+        "files": {
+          "main.tex": "\\documentclass{article}\n\\newcommand{\\proofword}{Verified recovery}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+          "sections/intro.tex": "Intro prose for the removed macro case. It remains stable.\n",
+          "sections/body.tex": "Body uses the macro \\proofword{} in a sentence.\n"
+        },
+        "mainFile": "main.tex",
+        "engine": "pdflatex",
+        "cleanAux": false,
+        "sourceHash": "5709afea695c5cc525b2a3be260d97f5db0710b1617e788151cc424f458b4b1f",
+        "result": {
+          "ok": true,
+          "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\n (./sections/intro.tex) (./sections/body.tex) [1\n\n{/opt/texlive/texdir/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./main.aux\n)\n ***********\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 453 strings out of 468531\n 8493 string characters out of 5444042\n 439367 words of memory out of 5000000\n 29697 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,5n,38p,167b,124s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</opt/texlive/texdir/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>\nOutput written on main.pdf (1 page, 17314 bytes).\nPDF statistics:\n 13 PDF objects out of 1000 (max. 8388607)\n 7 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 1 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n",
+          "diagnostics": [],
+          "environment": {
+            "mode": "docker",
+            "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+            "platform": "linux/amd64"
+          }
+        }
+      },
+      "failed": {
+        "schema": 1,
+        "id": "72404074-7d62-436b-8a8d-b3a69133a52d",
+        "projectId": "bench-1792436931778-verified-removed-macro",
+        "revision": 2,
+        "startedAt": 1792436974505,
+        "completedAt": 1792436974505,
+        "files": {
+          "main.tex": "\\documentclass{article}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+          "sections/intro.tex": "Intro prose for the removed macro case. It remains stable.\n",
+          "sections/body.tex": "Body uses the macro \\proofword{} in a sentence. Legal edit adds one more sentence.\n"
+        },
+        "mainFile": "main.tex",
+        "engine": "pdflatex",
+        "cleanAux": false,
+        "sourceHash": "5ba6d42c2304b19be8b38fc60715f0294753d4d30386ab05d0a5d6b7b807dac6",
+        "result": {
+          "ok": false,
+          "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 2.\nLaTeX Font Info:    ... okay on input line 2.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 2.\nLaTeX Font Info:    ... okay on input line 2.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 2.\nLaTeX Font Info:    ... okay on input line 2.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 2.\nLaTeX Font Info:    ... okay on input line 2.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 2.\nLaTeX Font Info:    ... okay on input line 2.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 2.\nLaTeX Font Info:    ... okay on input line 2.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 2.\nLaTeX Font Info:    ... okay on input line 2.\n (./sections/intro.tex) (./sections/body.tex\n! Undefined control sequence.\nl.1 Body uses the macro \\proofword\n                                  {} in a sentence. Legal edit adds one more...\nThe control sequence at the end of the top line\nof your error message was never \\def'ed. If you have\nmisspelled it (e.g., `\\hobx'), type `I' and the correct\nspelling (e.g., `I\\hbox'). Otherwise just continue,\nand I'll forget about whatever was undefined.\n\n \nHere is how much of TeX's memory you used:\n 444 strings out of 468531\n 8353 string characters out of 5444042\n 438367 words of memory out of 5000000\n 29692 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,0n,38p,147b,37s stack positions out of 10000i,1000n,20000p,200000b,200000s\n!  ==> Fatal error occurred, no output PDF file produced!\n",
+          "diagnostics": [
+            {
+              "severity": "error",
+              "message": "! Undefined control sequence."
+            },
+            {
+              "severity": "error",
+              "message": "Body uses the macro \\proofword",
+              "line": 1
+            },
+            {
+              "severity": "error",
+              "message": "!  ==> Fatal error occurred, no output PDF file produced!"
+            }
+          ],
+          "errorCode": "LATEX_ERROR",
+          "message": "latexmk exited with code 12",
+          "environment": {
+            "mode": "docker",
+            "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+            "platform": "linux/amd64"
+          }
+        }
+      },
+      "runs": [
+        {
+          "repeat": 1,
+          "elapsedMs": 1451.9901249999966,
+          "actual": "verified",
+          "matched": true,
+          "preserved": true,
+          "queuedTrials": 2,
+          "report": {
+            "schema": 1,
+            "goodId": "ed2aaefd-7937-4dd5-a605-242ac47aec2f",
+            "failedId": "72404074-7d62-436b-8a8d-b3a69133a52d",
+            "changes": [
+              {
+                "path": "main.tex",
+                "kind": "modified",
+                "before": "\\documentclass{article}\n\\newcommand{\\proofword}{Verified recovery}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+                "after": "\\documentclass{article}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+                "firstChangedLine": 2
+              },
+              {
+                "path": "sections/body.tex",
+                "kind": "modified",
+                "before": "Body uses the macro \\proofword{} in a sentence.\n",
+                "after": "Body uses the macro \\proofword{} in a sentence. Legal edit adds one more sentence.\n",
+                "firstChangedLine": 1
+              }
+            ],
+            "trials": [
+              {
+                "path": null,
+                "ok": true,
+                "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\n (./sections/intro.tex) (./sections/body.tex) [1\n\n{/opt/texlive/texdir/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./main.aux\n)\n ***********\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 453 strings out of 468531\n 8493 string characters out of 5444042\n 439367 words of memory out of 5000000\n 29697 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,5n,38p,167b,124s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</opt/texlive/texdir/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>\nOutput written on main.pdf (1 page, 17314 bytes).\nPDF statistics:\n 13 PDF objects out of 1000 (max. 8388607)\n 7 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 1 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n",
+                "environment": {
+                  "mode": "docker",
+                  "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+                  "platform": "linux/amd64"
+                }
+              },
+              {
+                "path": "main.tex",
+                "ok": true,
+                "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\n (./sections/intro.tex) (./sections/body.tex) [1\n\n{/opt/texlive/texdir/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./main.aux\n)\n ***********\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 453 strings out of 468531\n 8493 string characters out of 5444042\n 439367 words of memory out of 5000000\n 29697 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,5n,38p,167b,124s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</opt/texlive/texdir/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>\nOutput written on main.pdf (1 page, 17812 bytes).\nPDF statistics:\n 13 PDF objects out of 1000 (max. 8388607)\n 7 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 1 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n",
+                "environment": {
+                  "mode": "docker",
+                  "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+                  "platform": "linux/amd64"
+                }
+              }
+            ],
+            "candidate": {
+              "path": "main.tex",
+              "kind": "modified",
+              "before": "\\documentclass{article}\n\\newcommand{\\proofword}{Verified recovery}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+              "after": "\\documentclass{article}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+              "firstChangedLine": 2
+            },
+            "status": "verified",
+            "message": "Restoring main.tex made this source snapshot compile. Other files were kept unchanged."
+          }
+        },
+        {
+          "repeat": 2,
+          "elapsedMs": 1451.8424169999998,
+          "actual": "verified",
+          "matched": true,
+          "preserved": true,
+          "queuedTrials": 2,
+          "report": {
+            "schema": 1,
+            "goodId": "ed2aaefd-7937-4dd5-a605-242ac47aec2f",
+            "failedId": "72404074-7d62-436b-8a8d-b3a69133a52d",
+            "changes": [
+              {
+                "path": "main.tex",
+                "kind": "modified",
+                "before": "\\documentclass{article}\n\\newcommand{\\proofword}{Verified recovery}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+                "after": "\\documentclass{article}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+                "firstChangedLine": 2
+              },
+              {
+                "path": "sections/body.tex",
+                "kind": "modified",
+                "before": "Body uses the macro \\proofword{} in a sentence.\n",
+                "after": "Body uses the macro \\proofword{} in a sentence. Legal edit adds one more sentence.\n",
+                "firstChangedLine": 1
+              }
+            ],
+            "trials": [
+              {
+                "path": null,
+                "ok": true,
+                "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\n (./sections/intro.tex) (./sections/body.tex) [1\n\n{/opt/texlive/texdir/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./main.aux\n)\n ***********\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 453 strings out of 468531\n 8493 string characters out of 5444042\n 439367 words of memory out of 5000000\n 29697 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,5n,38p,167b,124s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</opt/texlive/texdir/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>\nOutput written on main.pdf (1 page, 17314 bytes).\nPDF statistics:\n 13 PDF objects out of 1000 (max. 8388607)\n 7 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 1 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n",
+                "environment": {
+                  "mode": "docker",
+                  "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+                  "platform": "linux/amd64"
+                }
+              },
+              {
+                "path": "main.tex",
+                "ok": true,
+                "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\n (./sections/intro.tex) (./sections/body.tex) [1\n\n{/opt/texlive/texdir/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./main.aux\n)\n ***********\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 453 strings out of 468531\n 8493 string characters out of 5444042\n 439367 words of memory out of 5000000\n 29697 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,5n,38p,167b,124s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</opt/texlive/texdir/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>\nOutput written on main.pdf (1 page, 17812 bytes).\nPDF statistics:\n 13 PDF objects out of 1000 (max. 8388607)\n 7 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 1 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n",
+                "environment": {
+                  "mode": "docker",
+                  "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+                  "platform": "linux/amd64"
+                }
+              }
+            ],
+            "candidate": {
+              "path": "main.tex",
+              "kind": "modified",
+              "before": "\\documentclass{article}\n\\newcommand{\\proofword}{Verified recovery}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+              "after": "\\documentclass{article}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+              "firstChangedLine": 2
+            },
+            "status": "verified",
+            "message": "Restoring main.tex made this source snapshot compile. Other files were kept unchanged."
+          }
+        },
+        {
+          "repeat": 3,
+          "elapsedMs": 1444.7932499999952,
+          "actual": "verified",
+          "matched": true,
+          "preserved": true,
+          "queuedTrials": 2,
+          "report": {
+            "schema": 1,
+            "goodId": "ed2aaefd-7937-4dd5-a605-242ac47aec2f",
+            "failedId": "72404074-7d62-436b-8a8d-b3a69133a52d",
+            "changes": [
+              {
+                "path": "main.tex",
+                "kind": "modified",
+                "before": "\\documentclass{article}\n\\newcommand{\\proofword}{Verified recovery}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+                "after": "\\documentclass{article}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+                "firstChangedLine": 2
+              },
+              {
+                "path": "sections/body.tex",
+                "kind": "modified",
+                "before": "Body uses the macro \\proofword{} in a sentence.\n",
+                "after": "Body uses the macro \\proofword{} in a sentence. Legal edit adds one more sentence.\n",
+                "firstChangedLine": 1
+              }
+            ],
+            "trials": [
+              {
+                "path": null,
+                "ok": true,
+                "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\n (./sections/intro.tex) (./sections/body.tex) [1\n\n{/opt/texlive/texdir/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./main.aux\n)\n ***********\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 453 strings out of 468531\n 8493 string characters out of 5444042\n 439367 words of memory out of 5000000\n 29697 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,5n,38p,167b,124s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</opt/texlive/texdir/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>\nOutput written on main.pdf (1 page, 17314 bytes).\nPDF statistics:\n 13 PDF objects out of 1000 (max. 8388607)\n 7 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 1 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n",
+                "environment": {
+                  "mode": "docker",
+                  "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+                  "platform": "linux/amd64"
+                }
+              },
+              {
+                "path": "main.tex",
+                "ok": true,
+                "log": "This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.10.1)  19 OCT 2026 19:09\nentering extended mode\n %&-line parsing enabled.\n**./main.tex\n(./main.tex\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/article.cls\nDocument Class: article 2025/01/22 v1.4n Standard LaTeX document class\n(/opt/texlive/texdir/texmf-dist/tex/latex/base/size10.clo\nFile: size10.clo 2025/01/22 v1.4n Standard LaTeX file (size option)\n)\n\\c@part=\\count276\n\\c@section=\\count277\n\\c@subsection=\\count278\n\\c@subsubsection=\\count279\n\\c@paragraph=\\count280\n\\c@subparagraph=\\count281\n\\c@figure=\\count282\n\\c@table=\\count283\n\\abovecaptionskip=\\skip49\n\\belowcaptionskip=\\skip50\n\\bibindent=\\dimen150\n)\n(/opt/texlive/texdir/texmf-dist/tex/latex/l3kernel/l3backend-pdftex.def\nFile: l3backend-pdftex.def 2026-09-09 L3 backend support: PDF output (pdfTeX)\n\\l__color_backend_stack_int=\\count284\n)\n(./main.aux)\n\\openout1 = `main.aux'.\n\nLaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\nLaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 3.\nLaTeX Font Info:    ... okay on input line 3.\n (./sections/intro.tex) (./sections/body.tex) [1\n\n{/opt/texlive/texdir/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] (./main.aux\n)\n ***********\nLaTeX2e <2026-06-01>\nL3 programming layer <2026-09-09>\n ***********\n ) \nHere is how much of TeX's memory you used:\n 453 strings out of 468531\n 8493 string characters out of 5444042\n 439367 words of memory out of 5000000\n 29697 multiletter control sequences out of 15000+600000\n 628489 words of font info for 40 fonts, out of 8000000 for 9000\n 319 hyphenation exceptions out of 8191\n 35i,5n,38p,167b,124s stack positions out of 10000i,1000n,20000p,200000b,200000s\n</opt/texlive/texdir/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>\nOutput written on main.pdf (1 page, 17812 bytes).\nPDF statistics:\n 13 PDF objects out of 1000 (max. 8388607)\n 7 compressed objects within 1 object stream\n 0 named destinations out of 1000 (max. 500000)\n 1 words of extra memory for PDF output out of 10000 (max. 10000000)\n\n",
+                "environment": {
+                  "mode": "docker",
+                  "runtimeId": "sha256:0161962c4b18cedb6b04c286f5ef391de49a4df519b37121c6a0000df5e2247b",
+                  "platform": "linux/amd64"
+                }
+              }
+            ],
+            "candidate": {
+              "path": "main.tex",
+              "kind": "modified",
+              "before": "\\documentclass{article}\n\\newcommand{\\proofword}{Verified recovery}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+              "after": "\\documentclass{article}\n\\begin{document}\nHello world. This benchmark checks macro restoration.\n\\input{sections/intro}\n\\input{sections/body}\n\\end{document}\n",
+              "firstChangedLine": 2
+            },
+            "status": "verified",
+            "message": "Restoring main.tex made this source snapshot compile. Other files were kept unchanged."
+          }
+        }
+      ]
+    }
+  ],
+  "initialQueue": {
+    "waiting": 0,
+    "active": 0,
+    "paused": 0
+  },
+  "boundedBursts": {
+    "clientConcurrency": 4,
+    "workerConcurrency": 1,
+    "batches": [
+      {
+        "batch": 1,
+        "jobs": 4,
+        "elapsedMs": 2524.169167,
+        "jobsPerMinute": 95.08079059742353,
+        "successful": 4
+      },
+      {
+        "batch": 2,
+        "jobs": 4,
+        "elapsedMs": 2158.8454590000038,
+        "jobsPerMinute": 111.17053284173946,
+        "successful": 4
+      },
+      {
+        "batch": 3,
+        "jobs": 4,
+        "elapsedMs": 2166.179624999997,
+        "jobsPerMinute": 110.79413601261268,
+        "successful": 4
+      }
+    ],
+    "notes": "Three bounded four-job bursts, not a sustained-capacity test."
+  },
+  "excludedReason": "Aborted while the browser benchmark overlapped initial speed samples; not included in final latency results."
+}

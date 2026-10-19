@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { EditorWorkbench } from "@/components/EditorWorkbench";
 import { isLocalStandalone } from "@/lib/localStandalone";
 import { RedirectToSignIn, useAuth } from "@clerk/nextjs";
@@ -23,8 +24,9 @@ function EditorPageCloud() {
 }
 
 export default function EditorPage() {
-  if (isLocalStandalone()) {
-    return <EditorWorkbench />;
-  }
-  return <EditorPageCloud />;
+  return (
+    <Suspense fallback={<div role="status">Opening workspace…</div>}>
+      {isLocalStandalone() ? <EditorWorkbench /> : <EditorPageCloud />}
+    </Suspense>
+  );
 }

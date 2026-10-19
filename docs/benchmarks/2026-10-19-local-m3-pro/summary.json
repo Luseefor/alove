@@ -1,0 +1,636 @@
+{
+  "applicationRevision": "5316c09acd83c127b055d8256d24e2c73fac95c0",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "25.6.0",
+    "cpu": "Apple M3 Pro",
+    "logicalCpus": 11,
+    "memoryBytes": 19327352832,
+    "bun": "1.4.3"
+  },
+  "compileJobs": 206,
+  "uniqueFixtures": 20,
+  "runs": 60,
+  "strictMatched": 60,
+  "verified": 45,
+  "unresolved": 6,
+  "incompatible": 9,
+  "unexpectedPaths": 0,
+  "lostEdits": 0,
+  "missingJobMetadata": 0,
+  "verifiedRecoveryMs": {
+    "n": 45,
+    "median": 1449.585957999996,
+    "p95": 2168.0575830000016,
+    "min": 1429.0095000000001,
+    "max": 2512.1486250000016
+  },
+  "engineAndScale": [
+    {
+      "workload": "engine/pdflatex",
+      "n": 5,
+      "min": 713.667042,
+      "median": 713.9338340000004,
+      "p95": 726.5013330000002,
+      "max": 726.5013330000002,
+      "mean": 717.0798168000002,
+      "workerMedianMs": 592,
+      "queueMedianMs": 0
+    },
+    {
+      "workload": "engine/lualatex",
+      "n": 5,
+      "min": 1430.9788330000001,
+      "median": 1438.0413329999992,
+      "p95": 1443.1769999999997,
+      "max": 1443.1769999999997,
+      "mean": 1437.6353163999997,
+      "workerMedianMs": 1093,
+      "queueMedianMs": 1
+    },
+    {
+      "workload": "engine/xelatex",
+      "n": 5,
+      "min": 2503.2190420000006,
+      "median": 2508.481541000001,
+      "p95": 2513.5243329999994,
+      "max": 2513.5243329999994,
+      "mean": 2508.0368582,
+      "workerMedianMs": 2233,
+      "queueMedianMs": 1
+    },
+    {
+      "workload": "scale/10-pages",
+      "n": 3,
+      "min": 711.9703330000011,
+      "median": 729.8828329999997,
+      "p95": 1084.9114579999987,
+      "max": 1084.9114579999987,
+      "mean": 842.2548746666665,
+      "workerMedianMs": 709,
+      "queueMedianMs": 0
+    },
+    {
+      "workload": "scale/100-pages",
+      "n": 3,
+      "min": 1079.9207920000008,
+      "median": 1080.0482499999998,
+      "p95": 1085.2160000000003,
+      "max": 1085.2160000000003,
+      "mean": 1081.7283473333337,
+      "workerMedianMs": 797,
+      "queueMedianMs": 1
+    },
+    {
+      "workload": "deadline",
+      "n": 3,
+      "min": 1431.092709000004,
+      "median": 1435.3033749999995,
+      "p95": 1435.4882500000022,
+      "max": 1435.4882500000022,
+      "mean": 1433.9614446666685,
+      "workerMedianMs": 1293,
+      "queueMedianMs": 1
+    },
+    {
+      "workload": "bounded-burst",
+      "n": 12,
+      "min": 729.4474169999958,
+      "median": 1635.4295415000015,
+      "p95": 2521.0174999999945,
+      "max": 2521.0174999999945,
+      "mean": 1576.778319416666,
+      "workerMedianMs": 515.5,
+      "queueMedianMs": 867
+    }
+  ],
+  "processing": [
+    {
+      "bytes": 10240,
+      "hash": {
+        "n": 100,
+        "median": 0.0,
+        "p95": 0.10000002384185791,
+        "min": 0,
+        "max": 0.699999988079071
+      },
+      "diff": {
+        "n": 100,
+        "median": 0.0,
+        "p95": 0,
+        "min": 0,
+        "max": 0.10000002384185791
+      },
+      "firstSaveMs": 1.699999988079071,
+      "laterSaves": {
+        "n": 4,
+        "median": 0.2999999523162842,
+        "p95": 0.2999999523162842,
+        "min": 0.2999999523162842,
+        "max": 0.2999999523162842
+      },
+      "list": {
+        "n": 5,
+        "median": 0.19999998807907104,
+        "p95": 0.20000004768371582,
+        "min": 0,
+        "max": 0.20000004768371582
+      }
+    },
+    {
+      "bytes": 102400,
+      "hash": {
+        "n": 100,
+        "median": 0.10000002384185791,
+        "p95": 0.20000004768371582,
+        "min": 0,
+        "max": 2.400000035762787
+      },
+      "diff": {
+        "n": 100,
+        "median": 0.0,
+        "p95": 0.10000002384185791,
+        "min": 0,
+        "max": 0.10000002384185791
+      },
+      "firstSaveMs": 3.400000035762787,
+      "laterSaves": {
+        "n": 4,
+        "median": 0.6500000059604645,
+        "p95": 1.5999999642372131,
+        "min": 0.3999999761581421,
+        "max": 1.5999999642372131
+      },
+      "list": {
+        "n": 5,
+        "median": 0.3999999761581421,
+        "p95": 0.9000000357627869,
+        "min": 0.19999998807907104,
+        "max": 0.9000000357627869
+      }
+    },
+    {
+      "bytes": 1048576,
+      "hash": {
+        "n": 20,
+        "median": 1.5499999821186066,
+        "p95": 1.699999988079071,
+        "min": 1.199999988079071,
+        "max": 2.100000023841858
+      },
+      "diff": {
+        "n": 20,
+        "median": 0.19999998807907104,
+        "p95": 0.20000004768371582,
+        "min": 0,
+        "max": 0.20000004768371582
+      },
+      "firstSaveMs": 5.400000035762787,
+      "laterSaves": {
+        "n": 4,
+        "median": 7.050000011920929,
+        "p95": 8.900000035762787,
+        "min": 4,
+        "max": 8.900000035762787
+      },
+      "list": {
+        "n": 5,
+        "median": 3.399999976158142,
+        "p95": 5.300000011920929,
+        "min": 1.0999999642372131,
+        "max": 5.300000011920929
+      }
+    },
+    {
+      "bytes": 10485760,
+      "hash": {
+        "n": 20,
+        "median": 14.850000023841858,
+        "p95": 15.800000011920929,
+        "min": 13.400000035762787,
+        "max": 16
+      },
+      "diff": {
+        "n": 20,
+        "median": 0.19999998807907104,
+        "p95": 0.30000001192092896,
+        "min": 0,
+        "max": 0.30000001192092896
+      },
+      "firstSaveMs": 26.100000023841858,
+      "laterSaves": {
+        "n": 4,
+        "median": 82.69999998807907,
+        "p95": 112,
+        "min": 46.30000001192093,
+        "max": 112
+      },
+      "list": {
+        "n": 5,
+        "median": 35.700000047683716,
+        "p95": 48.69999998807907,
+        "min": 10.300000011920929,
+        "max": 48.69999998807907
+      }
+    }
+  ],
+  "typing": [
+    {
+      "bytes": 10261,
+      "importMs": 105.530125,
+      "n": 20,
+      "median": 6.300000011920929,
+      "p95": 8.599999964237213,
+      "min": 4.799999952316284,
+      "max": 10.900000035762787
+    },
+    {
+      "bytes": 102421,
+      "importMs": 90.64170800000011,
+      "n": 20,
+      "median": 6.8499999940395355,
+      "p95": 8.200000047683716,
+      "min": 6.100000023841858,
+      "max": 10.200000047683716
+    },
+    {
+      "bytes": 1048597,
+      "importMs": 153.43508399999973,
+      "n": 20,
+      "median": 14.550000011920929,
+      "p95": 16.399999976158142,
+      "min": 13.5,
+      "max": 20
+    }
+  ],
+  "burstJobsPerMinute": {
+    "n": 3,
+    "median": 109.92824794546463,
+    "p95": 110.3516114451785,
+    "min": 95.15483004182697,
+    "max": 110.3516114451785
+  },
+  "perCase": [
+    {
+      "id": "verified-removed-macro",
+      "label": "Removed macro definition in main",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1450.2732079999987,
+      "p95": 1450.825125000003,
+      "min": 1449.7590419999979,
+      "max": 1450.825125000003,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-amsmath-removed",
+      "label": "Removed amsmath package with align in use",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1440.9904590000006,
+      "p95": 1443.9475420000017,
+      "min": 1433.5168750000012,
+      "max": 1443.9475420000017,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-typo-command",
+      "label": "Typo in body command",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1444.4802080000009,
+      "p95": 1452.1749580000032,
+      "min": 1444.0842909999992,
+      "max": 1452.1749580000032,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-unmatched-brace",
+      "label": "Unmatched brace in body",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1445.671875,
+      "p95": 1451.2296660000065,
+      "min": 1429.0095000000001,
+      "max": 1451.2296660000065,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-unclosed-env",
+      "label": "Unclosed itemize environment",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1447.5466249999881,
+      "p95": 1449.585957999996,
+      "min": 1442.6078750000015,
+      "max": 1449.585957999996,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-missing-math-delimiter",
+      "label": "Missing math delimiter",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1447.8576250000042,
+      "p95": 1455.1743330000027,
+      "min": 1445.0025840000017,
+      "max": 1455.1743330000027,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-invalid-geometry-option",
+      "label": "Invalid geometry option",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1450.2088749999966,
+      "p95": 1461.4695000000065,
+      "min": 1442.8166249999922,
+      "max": 1461.4695000000065,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-deleted-input",
+      "label": "Deleted included file",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 2158.8577090000035,
+      "p95": 2167.1810840000107,
+      "min": 2153.2428749999963,
+      "max": 2167.1810840000107,
+      "trials": "3,3,3"
+    },
+    {
+      "id": "verified-wrong-input-path",
+      "label": "Wrong input path in main",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1445.921000000002,
+      "p95": 1448.1760000000068,
+      "min": 1436.2708330000023,
+      "max": 1448.1760000000068,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-malformed-tabular",
+      "label": "Malformed tabular with extra column",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1444.6740419999987,
+      "p95": 1789.2612079999963,
+      "min": 1442.757792000004,
+      "max": 1789.2612079999963,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-duplicate-newcommand",
+      "label": "Duplicate newcommand in main",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1442.699667000008,
+      "p95": 1444.6993749999965,
+      "min": 1435.603792000009,
+      "max": 1444.6993749999965,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-malformed-bib",
+      "label": "Malformed bibliography file",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 2154.592749999996,
+      "p95": 2155.1717500000086,
+      "min": 2144.3062920000084,
+      "max": 2155.1717500000086,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "verified-corrupt-png",
+      "label": "Corrupt PNG bytes with valid data URL wrapper",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 2157.124041999996,
+      "p95": 2512.1486250000016,
+      "min": 2151.2337499999994,
+      "max": 2512.1486250000016,
+      "trials": "3,3,3"
+    },
+    {
+      "id": "verified-nested-include-error",
+      "label": "Error in nested included chapter",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 2168.0575830000016,
+      "p95": 2341.1054589999985,
+      "min": 2166.6080839999922,
+      "max": 2341.1054589999985,
+      "trials": "3,3,3"
+    },
+    {
+      "id": "verified-missing-sty-macro",
+      "label": "Local sty missing macro definition",
+      "expected": "verified",
+      "actual": "verified",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 1446.9635830000043,
+      "p95": 1451.6461249999993,
+      "min": 1446.064041000005,
+      "max": 1451.6461249999993,
+      "trials": "2,2,2"
+    },
+    {
+      "id": "unresolved-dual-fault",
+      "label": "Two independent faults requiring both fixes",
+      "expected": "unresolved",
+      "actual": "unresolved",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 2166.9853750000184,
+      "p95": 2168.4550839999865,
+      "min": 2160.924708000006,
+      "max": 2168.4550839999865,
+      "trials": "3,3,3"
+    },
+    {
+      "id": "unresolved-candidate-budget",
+      "label": "Culprit beyond five trial budget",
+      "expected": "unresolved",
+      "actual": "unresolved",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 4328.921209000022,
+      "p95": 4329.55683300001,
+      "min": 4327.985207999998,
+      "max": 4329.55683300001,
+      "trials": "6,6,6"
+    },
+    {
+      "id": "incompatible-engine-changed",
+      "label": "Engine changed with source failure",
+      "expected": "incompatible",
+      "actual": "incompatible",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 0.09829199998057447,
+      "p95": 0.22091699999873526,
+      "min": 0.07016699999803677,
+      "max": 0.22091699999873526,
+      "trials": "0,0,0"
+    },
+    {
+      "id": "incompatible-root-changed",
+      "label": "Root changed to bad root",
+      "expected": "incompatible",
+      "actual": "incompatible",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 0.08054100000299513,
+      "p95": 0.09104100000695325,
+      "min": 0.06712500000139698,
+      "max": 0.09104100000695325,
+      "trials": "0,0,0"
+    },
+    {
+      "id": "incompatible-malformed-png-url",
+      "label": "Malformed PNG data URL validation error",
+      "expected": "incompatible",
+      "actual": "incompatible",
+      "matched": 3,
+      "repeats": 3,
+      "n": 3,
+      "median": 0.030584000021917745,
+      "p95": 0.040707999985897914,
+      "min": 0.030291000002762303,
+      "max": 0.040707999985897914,
+      "trials": "0,0,0"
+    }
+  ],
+  "resourceProfiles": [
+    {
+      "engine": "pdflatex",
+      "n": 3,
+      "dockerWallMs": {
+        "n": 3,
+        "median": 1128.157208,
+        "p95": 1180.164834,
+        "min": 1070.6985000000002,
+        "max": 1180.164834
+      },
+      "userSeconds": {
+        "n": 3,
+        "median": 0.76,
+        "p95": 0.77,
+        "min": 0.74,
+        "max": 0.77
+      },
+      "systemSeconds": {
+        "n": 3,
+        "median": 0.07,
+        "p95": 0.07,
+        "min": 0.05,
+        "max": 0.07
+      },
+      "recordedMaxRssMiB": 34.04296875
+    },
+    {
+      "engine": "lualatex",
+      "n": 3,
+      "dockerWallMs": {
+        "n": 3,
+        "median": 2414.5190839999996,
+        "p95": 2425.1569999999997,
+        "min": 2384.434707999999,
+        "max": 2425.1569999999997
+      },
+      "userSeconds": {
+        "n": 3,
+        "median": 1.88,
+        "p95": 1.89,
+        "min": 1.87,
+        "max": 1.89
+      },
+      "systemSeconds": {
+        "n": 3,
+        "median": 0.12,
+        "p95": 0.16,
+        "min": 0.12,
+        "max": 0.16
+      },
+      "recordedMaxRssMiB": 132.60546875
+    },
+    {
+      "engine": "xelatex",
+      "n": 3,
+      "dockerWallMs": {
+        "n": 3,
+        "median": 2758.4147080000002,
+        "p95": 2761.2038329999996,
+        "min": 2705.286082999999,
+        "max": 2761.2038329999996
+      },
+      "userSeconds": {
+        "n": 3,
+        "median": 2.21,
+        "p95": 2.23,
+        "min": 2.19,
+        "max": 2.23
+      },
+      "systemSeconds": {
+        "n": 3,
+        "median": 0.26,
+        "p95": 0.26,
+        "min": 0.24,
+        "max": 0.26
+      },
+      "recordedMaxRssMiB": 178.7109375
+    }
+  ]
+}

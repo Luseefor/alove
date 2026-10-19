@@ -16,6 +16,9 @@ export function applyPaletteVars(
   for (const key of ACCENT_VAR_NAMES) {
     root.style.setProperty(key, vars[key]);
   }
+  root.style.setProperty("--primary", vars["--alove-accent"]);
+  root.style.setProperty("--primary-foreground", vars["--alove-on-accent"]);
+  root.style.setProperty("--ring", vars["--alove-focus-ring"]);
   return safeId;
 }
 

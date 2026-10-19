@@ -2,60 +2,158 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Defaults match `SITE_PALETTES[ocean]` before the boot script + ThemeProvider run. */
+/* Defaults match `SITE_PALETTES[violet]` for the premium redesign. */
 :root {
-  --background: #fafafa;
-  --foreground: #18181b;
-  --alove-accent: #0284c7;
-  --alove-accent-hover: #0369a1;
-  --alove-accent-active: #075985;
-  --alove-on-accent: #ffffff;
-  --alove-surface-soft: #e0f2fe;
-  --alove-surface-soft-border: #7dd3fc;
-  --alove-fg-strong: #0c4a6e;
-  --alove-fg-muted: #0369a1;
-  --alove-focus-ring: #0ea5e9;
-  --alove-resize-hover: #38bdf8;
+  --background: #fdfcff;
+  --foreground: #09090b;
+  --border: #e8e6f2;
+  --primary: #7c3aed; /* Premium Violet */
+  --primary-foreground: #ffffff;
+  --secondary: #f5f3ff;
+  --secondary-foreground: #4c1d95;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
+  --accent: #f5f3ff;
+  --accent-foreground: #7c3aed;
+  
+  /* Additional Premium Tokens */
+  --sidebar-bg: #fdfcff;
+  --card-bg: #ffffff;
+  --card-border: #e8e6f2;
+  --success: #10b981;
+  --success-bg: #ecfdf5;
+  --success-border: #d1fae5;
+  --warning: #f59e0b;
+  --warning-bg: #fffbeb;
+  --warning-border: #fef3c7;
+  --error: #ef4444;
+  --error-bg: #fef2f2;
+  --error-border: #fee2e2;
+  --info: #3b82f6;
+  --info-bg: #eff6ff;
+  --info-border: #dbeafe;
 }
 
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --alove-accent: #38bdf8;
-  --alove-accent-hover: #7dd3fc;
-  --alove-accent-active: #bae6fd;
-  --alove-on-accent: #082f49;
-  --alove-surface-soft: #0c4a6e;
-  --alove-surface-soft-border: #0369a1;
-  --alove-fg-strong: #e0f2fe;
-  --alove-fg-muted: #bae6fd;
-  --alove-focus-ring: #7dd3fc;
-  --alove-resize-hover: #38bdf8;
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --border: #1e293b;
+  --primary: #8b5cf6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e1b4b;
+  --secondary-foreground: #ddd6fe;
+  --muted: #0f172a;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-alove-accent: var(--alove-accent);
-  --color-alove-accent-hover: var(--alove-accent-hover);
-  --color-alove-accent-active: var(--alove-accent-active);
-  --color-alove-on-accent: var(--alove-on-accent);
-  --color-alove-surface-soft: var(--alove-surface-soft);
-  --color-alove-surface-soft-border: var(--alove-surface-soft-border);
-  --color-alove-fg-strong: var(--alove-fg-strong);
-  --color-alove-fg-muted: var(--alove-fg-muted);
-  --color-alove-focus-ring: var(--alove-focus-ring);
-  --color-alove-resize-hover: var(--alove-resize-hover);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-error: var(--error);
+  --color-error-bg: var(--error-bg);
+  --color-error-border: var(--error-border);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+
+  --radius-panel: 24px;
+  --radius-shell: 32px;
+  
+  --shadow-float: 0 40px 80px -15px rgba(0,0,0,0.12);
+  --shadow-glow: 0 0 8px rgba(124,58,237,0.5);
+  --shadow-success-glow: 0 0 8px rgba(16,185,129,0.5);
+}
+
+@utility text-overline {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre {
+  font-family: var(--font-geist-mono), monospace;
+}
+
+/* Scrollbar styling for that clean IDE look */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border: 2px solid var(--background);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
 }
 
 input[type="range"] {
   accent-color: var(--alove-accent);
+}
+
+/* Steadier caret where supported (Chrome 129+). */
+@supports (caret-animation: manual) {
+  .ide-caret-noblink {
+    caret-animation: manual;
+  }
+}
+
+/* Keep the writing surface usable instead of shrinking three panes to slivers. */
+.workbench-sidebar {
+  display: flex;
+  flex: 0 0 clamp(220px, 19vw, 280px);
+  flex-direction: column;
+  min-width: 0;
+}
+.latex-workbench[data-sidebar-open="false"] .workbench-sidebar { display: none; }
+.latex-workbench ::-webkit-scrollbar { width: 6px; height: 6px; }
+.latex-workbench ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+  border: 0;
+  border-radius: 6px;
+}
+@media (max-width: 1023px) {
+  .latex-workbench .workbench-sidebar {
+    display: none;
+    position: absolute;
+    inset: 0 auto 0 48px;
+    width: min(300px, calc(100% - 64px));
+    z-index: 50;
+    box-shadow: 8px 0 24px rgb(0 0 0 / 0.12);
+  }
+  .latex-workbench[data-files-open="true"] .workbench-sidebar { display: flex; }
+  .workbench-preview-divider { display: none; }
+  .latex-workbench[data-view="source"] .workbench-pdf-panel,
+  .latex-workbench[data-view="pdf"] .workbench-source-panel { display: none; }
 }
