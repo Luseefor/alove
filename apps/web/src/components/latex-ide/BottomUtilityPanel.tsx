@@ -1,213 +1,66 @@
 "use client";
 
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Info } from "lucide-react";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
-import {
-  CheckCircle2,
-  FileText,
-  Clock,
-  ChevronRight,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomUtilityPanel() {
   const {
-    activeBottomTab,
-    setActiveBottomTab,
-    diagnostics,
-    buildLog,
-    buildStatus,
-    stats,
-    diagnosticRevision,
-    documentRevision,
-    jumpToDiagnostic,
+    activeBottomTab, setActiveBottomTab, diagnostics, buildLog, buildStatus,
+    diagnosticRevision, documentRevision, jumpToDiagnostic,
   } = useWorkbenchStore();
-  
   const editorCodeCheck = useIdeSettingsStore((s) => s.editorCodeCheck);
   const visibleDiagnostics = editorCodeCheck ? diagnostics : [];
-
-  const tabs = [
-    { id: "log", label: "Log" },
-    { id: "problems", label: "Problems" },
-  ] as const;
-
-  // Only show bottom panel content if there is something to show
-  if (buildStatus === "idle" && visibleDiagnostics.length === 0) {
-    return (
-      <div className="h-full flex items-center justify-center text-muted-foreground font-bold text-[11px] uppercase tracking-[0.2em] opacity-30">
-        Workspace idle
-      </div>
-    );
-  }
+  const errors = diagnostics.filter((d) => d.severity === "error").length;
+  const warnings = diagnostics.filter((d) => d.severity === "warning").length;
+  const stale = diagnosticRevision !== null && diagnosticRevision !== documentRevision;
+  const status = buildStatus === "ready" ? "Build successful"
+    : buildStatus === "failed" ? "Build failed"
+    : buildStatus === "running" ? "Compiling…"
+    : buildStatus === "queued" ? "Build queued" : "No build yet";
+  const StatusIcon = buildStatus === "ready" ? CheckCircle2
+    : buildStatus === "failed" ? AlertCircle : Clock;
 
   return (
-    <div className="h-full flex flex-col bg-background overflow-hidden border-t border-border shadow-[0_-4px_24px_rgba(0,0,0,0.02)]">
-      {/* Tab Bar */}
-      <div className="h-10 flex items-center px-4 bg-background border-b border-border shrink-0">
-        <div className="flex h-full gap-8">
-          {tabs.map(t => {
-            const isActive = activeBottomTab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setActiveBottomTab(t.id)}
-                className={cn(
-                  "flex items-center gap-2 h-full text-[11px] font-black uppercase tracking-[0.15em] transition-all relative",
-                  isActive ? "text-primary" : "text-muted-foreground hover:text-muted-foreground"
-                )}
-              >
-                {t.label}
-                {isActive && <div className="absolute bottom-0 inset-x-[-4px] h-0.5 bg-primary rounded-t-full shadow-[0_0_8px_rgba(124,58,237,0.5)]" />}
-              </button>
-            );
-          })}
+    <section aria-label="Build output" data-testid="build-output-panel" className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-t border-border bg-background">
+      <div className="flex min-h-10 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
+        <div className="flex shrink-0 items-center gap-4">
+          {(["log", "problems"] as const).map((tab) => (
+            <button key={tab} type="button" aria-pressed={activeBottomTab === tab}
+              onClick={() => setActiveBottomTab(tab)}
+              className={cn("min-h-9 border-b-2 text-xs font-medium transition-colors", activeBottomTab === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}
+            >{tab === "log" ? "Log" : "Problems"}</button>
+          ))}
+        </div>
+        <div role="status" data-testid="build-summary" title={`${status}${stale ? " · Source changed since build" : ""} · ${errors} errors · ${warnings} warnings`}
+          className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <StatusIcon size={14} className={cn("shrink-0", buildStatus === "ready" ? "text-success" : buildStatus === "failed" ? "text-error" : "text-muted-foreground")} />
+          <span className="truncate">{status}{stale ? " · Source changed" : ""}</span>
+          <span className="hidden shrink-0 sm:inline">{errors} errors · {warnings} warnings</span>
         </div>
       </div>
-
-      <div className="flex-1 flex overflow-hidden bg-background px-6 py-4 gap-8">
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {activeBottomTab === "log" && (
-            <div className="flex-1 overflow-y-auto pr-4 scrollbar-hide">
-               {buildLog ? (
-                  <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap leading-relaxed select-text">
-                    {buildLog}
-                  </pre>
-               ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-3">
-                     <Clock size={32} className="text-muted-foreground" />
-                     <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">No build history</p>
-                  </div>
-               )}
-            </div>
-          )}
-
-          {activeBottomTab === "problems" && (
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-4 scrollbar-hide">
-               {visibleDiagnostics.length > 0 && diagnosticRevision !== documentRevision ? (
-                 <p className="text-xs text-amber-700 mb-2" role="status">These problems refer to an earlier source version. Rebuild to update them.</p>
-               ) : null}
-               {visibleDiagnostics.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-3">
-                     <CheckCircle2 size={32} className="text-success" />
-                     <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">{buildStatus === "ready" ? "No problems reported" : buildStatus === "queued" || buildStatus === "running" ? "Build in progress" : "No diagnostics available"}</p>
-                  </div>
-               ) : (
-                  visibleDiagnostics.map((d, i) => (
-                    <button key={i} type="button" onClick={() => jumpToDiagnostic(d)} className={cn(
-                      "w-full text-left flex items-start gap-3 p-2.5 rounded-xl border transition-all hover:bg-muted group focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary",
-                      d.severity === "error" ? "border-error/10 text-error-foreground bg-error-bg/30" : "border-warning/10 text-warning-foreground bg-warning-bg/30"
-                    )}>
-                       {d.severity === "error" ? <XCircle size={14} className="mt-0.5" /> : <AlertTriangle size={14} className="mt-0.5" />}
-                       <div className="flex-1 space-y-0.5">
-                          <p className="text-[12px] font-bold leading-tight">{d.message}</p>
-                          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-tight opacity-50">
-                             <span>{d.file}</span>
-                             <span className="w-1 h-1 rounded-full bg-current opacity-40" />
-                             {d.line != null ? <span>Line {d.line}</span> : null}
-                          </div>
-                       </div>
-                    </button>
-                  ))
-               )}
-            </div>
-          )}
-        </div>
-
-        {/* Status Cards Area */}
-        <div className="hidden w-[420px] shrink-0 gap-4 h-full min-[1280px]:flex">
-           {/* Build Status Card */}
-           <div className="flex-1 bg-background border border-border rounded-[24px] p-5 shadow-sm flex flex-col relative overflow-hidden group/card border shadow-sm">
-              <div className="flex items-center gap-3 mb-5">
-                 <div className={cn(
-                    "w-10 h-10 rounded-2xl border flex items-center justify-center shadow-sm transition-colors",
-                    buildStatus === "ready" ? "bg-success-bg border-success-border text-success" : 
-                    buildStatus === "failed" ? "bg-error-bg border-error-border text-error" : 
-                    "bg-primary/5 border-primary/10 text-primary"
-                 )}>
-                    {buildStatus === "ready" ? <CheckCircle2 size={20} /> : buildStatus === "failed" ? <XCircle size={20} /> : <Clock size={20} className="animate-pulse" />}
-                 </div>
-                 <div className="space-y-0.5">
-                    <h3 className="text-[14px] font-black text-foreground leading-tight uppercase tracking-tight">
-                       {buildStatus === "ready" ? "Build Successful" : buildStatus === "failed" ? "Build Failed" : buildStatus === "running" ? "Building..." : "Queued"}
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.15em]">
-                       {buildStatus === "ready" ? "Ready to preview" : buildStatus === "failed" ? "Check problems" : "Compiling document"}
-                    </p>
-                 </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                 <StatItem label="Warnings" value={diagnostics.filter(d => d.severity === 'warning').length} color="text-warning" />
-                 <StatItem label="Errors" value={diagnostics.filter(d => d.severity === 'error').length} color="text-error" />
-                 <StatItem label="Status" value={buildStatus === "ready" ? "OK" : "—"} color={buildStatus === "ready" ? "text-success" : "text-zinc-300"} />
-              </div>
-
-              <button 
-                onClick={() => setActiveBottomTab("log")}
-                className="mt-auto flex items-center gap-2 text-[11px] font-black text-primary hover:underline group/btn uppercase tracking-wider"
-              >
-                 View full build log <ChevronRight size={14} className="group-hover/btn:translate-x-0.5 transition-transform" />
-              </button>
-           </div>
-
-           {/* Document Stats Card */}
-           <div className="flex-1 bg-zinc-900 text-white rounded-[24px] p-5 shadow-xl flex flex-col relative overflow-hidden ring-1 ring-white/5 h-full">
-              <div className="flex items-center gap-3 mb-5 opacity-80">
-                 <FileText size={16} className="text-primary" />
-                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Document Stats</h3>
-              </div>
-
-              <div className="space-y-2">
-                 <DocStatRow label="Pages" value={stats.pages ?? "—"} />
-                 <DocStatRow label="Words" value={stats.words.toLocaleString()} />
-                 <DocStatRow label="Chars" value={stats.chars.toLocaleString()} />
-                 <DocStatRow label="Equations" value={stats.equations} />
-                 <DocStatRow label="Figures" value={stats.figures} />
-              </div>
-              
-              <div className="absolute -bottom-4 -right-4 w-20 h-20 bg-primary/20 rounded-full blur-3xl opacity-50" />
-           </div>
-        </div>
+      <div className="min-h-0 flex-1 overflow-auto p-3" data-testid="build-output-content">
+        {activeBottomTab === "log" ? (
+          buildLog ? <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-muted-foreground">{buildLog}</pre>
+            : <p className="text-xs text-muted-foreground">No build log yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {visibleDiagnostics.length > 0 && stale && <p role="status" className="text-xs text-warning-foreground">These problems refer to an earlier source version. Rebuild to update them.</p>}
+            {!editorCodeCheck ? <p className="text-xs text-muted-foreground">Code checks are hidden. Open Log to inspect compiler output.</p>
+              : visibleDiagnostics.length === 0 ? <p className="text-xs text-muted-foreground">{buildStatus === "ready" ? "No problems reported." : buildStatus === "queued" || buildStatus === "running" ? "Build in progress." : "No diagnostics available. Open Log for compiler output."}</p>
+              : visibleDiagnostics.map((diagnostic, index) => {
+                const Icon = diagnostic.severity === "error" ? AlertCircle : diagnostic.severity === "warning" ? AlertTriangle : Info;
+                const location = [diagnostic.file, diagnostic.line != null ? `Line ${diagnostic.line}` : null].filter(Boolean).join(" · ");
+                return <button key={index} type="button" onClick={() => jumpToDiagnostic(diagnostic)}
+                  className={cn("flex w-full items-start gap-2 rounded-md border p-2 text-left text-xs hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary", diagnostic.severity === "error" ? "border-error-border bg-error-bg/30 text-error-foreground" : diagnostic.severity === "warning" ? "border-warning-border bg-warning-bg/30 text-warning-foreground" : "border-border text-foreground")}>
+                  <Icon size={14} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0 break-words"><span className="block leading-relaxed">{diagnostic.message}</span>{location && <span className="mt-0.5 block text-[11px] text-muted-foreground">{location}</span>}</span>
+                </button>;
+              })}
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function StatItem({ label, value, color }: { label: string, value: string | number, color: string }) {
-  return (
-    <div className="space-y-0.5">
-       <div className={cn("text-lg font-black tracking-tighter leading-none", color)}>{value}</div>
-       <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{label}</div>
-    </div>
-  );
-}
-
-function DocStatRow({ label, value }: { label: string, value: string | number }) {
-  return (
-    <div className="flex items-center justify-between text-[11px] font-bold py-1 border-b border-white/5 last:border-0 group cursor-default">
-       <span className="text-muted-foreground group-hover:text-zinc-300 transition-colors uppercase tracking-widest text-[9px]">{label}</span>
-       <span className="text-zinc-100 font-black tabular-nums">{value}</span>
-    </div>
-  );
-}
-
-function XCircle({ size, className }: { size: number, className?: string }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="m15 9-6 6" />
-      <path d="m9 9 6 6" />
-    </svg>
-  );
-}
-
-function AlertTriangle({ size, className }: { size: number, className?: string }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-      <path d="M12 9v4" />
-      <path d="M12 17h.01" />
-    </svg>
+    </section>
   );
 }
