@@ -11,6 +11,10 @@ export function rawEnv(values: Record<string, string | undefined>): string {
     return `${name}=${value}\n`;
   }).join("");
 }
+export function deploymentDirectory(revision: string, nonce = crypto.randomUUID()): string {
+  if (!/^[a-f0-9]{40}$/.test(revision) || !/^[a-zA-Z0-9-]{1,64}$/.test(nonce)) throw new Error("Invalid deployment release identifier");
+  return `/opt/alove/releases/${revision}-${nonce}`;
+}
 export function immutableImage(value: string | undefined): string {
   if (!value || !/^[a-z0-9][a-z0-9./_-]*@sha256:[a-f0-9]{64}$/.test(value))
     throw new Error("Deployment images must use registry digests");
@@ -23,6 +27,8 @@ async function deploy() {
   if (!config.ok) throw new Error(`Missing configuration: ${config.missing.join(", ")}; invalid configuration: ${config.invalid.join(", ")}`);
   const revision = env.DEPLOY_REVISION ?? "";
   if (!/^[a-f0-9]{40}$/.test(revision)) throw new Error("DEPLOY_REVISION must be a full commit hash");
+  // A rerun of the same commit must retain its previous images and secrets for rollback.
+  const target = deploymentDirectory(revision);
   const webImage = immutableImage(env.ALOVE_WEB_IMAGE);
   const runnerImage = immutableImage(env.ALOVE_RUNNER_IMAGE);
   immutableImage(env.COMPILE_DOCKER_IMAGE);
@@ -67,7 +73,6 @@ async function deploy() {
       run("ssh", [...ssh, destination, `docker login ghcr.io -u ${env.GHCR_USER} --password-stdin >/dev/null 2>&1`], env.GHCR_TOKEN);
       try {
         const archive = run("tar", ["-czf", "-", "-C", bundle, "."]);
-        const target = `/opt/alove/releases/${revision}`;
         run("ssh", [...ssh, destination, `umask 077; mkdir -p ${target} && tar -xzf - -C ${target}`], archive);
         run("ssh", [...ssh, destination, `cd ${target} && /bin/sh deploy/activate.sh ${role}`]);
         console.log(`Activated ${role} at ${revision}`);
