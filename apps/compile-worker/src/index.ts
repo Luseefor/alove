@@ -6,6 +6,7 @@ import { validateQueuedCompileJob, type QueuedCompileJob, type CompileJobResult 
 import { COMPILE_QUEUE_NAME, redisConnectionOptions } from "@alove/queue";
 import { compileCancellationKey, COMPILE_HEARTBEAT_KEY, releaseCompileAdmission } from "@alove/queue/admission";
 import { runCompileJob } from "./runCompile.js";
+import { probeCompileRuntime } from "./compileRuntime.js";
 
 await rm("/tmp/alove-worker-heartbeat", { force: true });
 const connection = redisConnectionOptions();
@@ -62,13 +63,30 @@ worker.on("completed", (job, result) => logEvent("compile.job.completed", {
   durationMs: job.processedOn && job.finishedOn ? job.finishedOn - job.processedOn : null,
 }));
 
-async function heartbeat() {
-  if (shuttingDown) return;
-  try {
-    if ((await worker.client).status !== "ready" || !worker.isRunning()) return;
-    await control.set(COMPILE_HEARTBEAT_KEY, String(Date.now()), "EX", 15);
-    await writeFile("/tmp/alove-worker-heartbeat", String(Date.now()));
-  } catch { logEvent("compile.worker.heartbeat_failed"); }
+let heartbeatInFlight: Promise<void> | null = null;
+let heartbeatAbort: AbortController | null = null;
+let runtimeReady: boolean | undefined;
+function heartbeat() {
+  if (shuttingDown || heartbeatInFlight) return;
+  const controller = new AbortController();
+  heartbeatAbort = controller;
+  heartbeatInFlight = (async () => {
+    try {
+      if ((await worker.client).status !== "ready" || !worker.isRunning()) return;
+      const available = await probeCompileRuntime(controller.signal);
+      if (shuttingDown) return;
+      if (runtimeReady !== available) {
+        logEvent(available ? "compile.worker.runtime_ready" : "compile.worker.runtime_unavailable");
+        runtimeReady = available;
+      }
+      // Let existing readiness signals expire when the configured runtime fails.
+      // A fresh queue connection alone does not establish compile availability.
+      if (!available) return;
+      await control.set(COMPILE_HEARTBEAT_KEY, String(Date.now()), "EX", 15);
+      if (!shuttingDown) await writeFile("/tmp/alove-worker-heartbeat", String(Date.now()));
+    } catch { logEvent("compile.worker.heartbeat_failed"); }
+    finally { heartbeatInFlight = null; heartbeatAbort = null; }
+  })();
 }
 const heartbeatTimer = setInterval(() => void heartbeat(), 5000);
 void worker.waitUntilReady().then(heartbeat).catch(() => logEvent("compile.worker.not_ready"));
@@ -90,6 +108,8 @@ async function shutdown() {
   shuttingDown = true;
   clearInterval(heartbeatTimer);
   clearInterval(retentionTimer);
+  heartbeatAbort?.abort();
+  await heartbeatInFlight;
   await rm("/tmp/alove-worker-heartbeat", { force: true });
   const deadline = setTimeout(() => { for (const controller of active.values()) controller.abort(); }, 10_000);
   const hardDeadline = setTimeout(() => {

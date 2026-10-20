@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-// Each worker writes its own heartbeat only after Redis and BullMQ are ready.
+// Each worker writes its own heartbeat after Redis, BullMQ and its runtime probe pass.
 // A shared Redis key alone cannot establish the health of this container.
 try {
   const beat = Number(await readFile("/tmp/alove-worker-heartbeat", "utf8"));
