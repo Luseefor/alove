@@ -1,11 +1,13 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import {
   COMPILE_REQUEST_LIMITS,
   validateCompileRequest,
 } from "@alove/protocol";
 import { getCompileQueue } from "@/lib/compileQueue";
-import { getCompileAuthPolicy } from "@/lib/compileAuth";
+import {
+  authorizeCompileRequest,
+  canAccessCompileProject,
+} from "@/lib/compileAccess";
 
 export const runtime = "nodejs";
 
@@ -38,16 +40,16 @@ async function readBody(req: Request): Promise<unknown> {
 }
 
 export async function POST(req: Request) {
-  const authPolicy = getCompileAuthPolicy();
-  if ("error" in authPolicy) {
-    return NextResponse.json({ error: authPolicy.error }, { status: 500 });
-  }
-  if (!authPolicy.allowAnonymous) {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const access = await authorizeCompileRequest(req);
+  if (!access.ok) return access.response;
+  if (
+    req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() !==
+    "application/json"
+  )
+    return NextResponse.json(
+      { error: "Expected application/json" },
+      { status: 415 },
+    );
 
   let body: unknown;
   try {
@@ -67,16 +69,25 @@ export async function POST(req: Request) {
   }
 
   try {
+    if (
+      !(await canAccessCompileProject(
+        access.principal,
+        validated.value.projectId,
+      ))
+    )
+      return NextResponse.json({ error: "not found" }, { status: 404 });
     const queue = getCompileQueue();
-    const job = await queue.add("build", validated.value);
+    const job = await queue.add("build", {
+      version: 1,
+      owner: access.principal.owner,
+      request: validated.value,
+    });
     return NextResponse.json({ jobId: job.id });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch {
     return NextResponse.json(
       {
         error:
-          "Compile queue unavailable. Start Redis and compile-worker, then retry.",
-        detail: message,
+          "Compile service unavailable. Check project authorization, Redis and compile-worker, then retry.",
       },
       { status: 503 },
     );

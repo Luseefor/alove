@@ -1,5 +1,9 @@
 import { Worker } from "bullmq";
-import type { CompileJobPayload, CompileJobResult } from "@alove/protocol";
+import {
+  validateQueuedCompileJob,
+  type QueuedCompileJob,
+  type CompileJobResult,
+} from "@alove/protocol";
 import { COMPILE_QUEUE_NAME, redisConnectionOptions } from "@alove/queue";
 import { runCompileJob } from "./runCompile.js";
 
@@ -10,10 +14,13 @@ function logEvent(event: string, fields: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ...fields }));
 }
 
-const worker = new Worker<CompileJobPayload, CompileJobResult>(
+const worker = new Worker<QueuedCompileJob, CompileJobResult>(
   COMPILE_QUEUE_NAME,
   async (job) => {
-    const result = await runCompileJob(job.data);
+    const queued = validateQueuedCompileJob(job.data);
+    if (!queued.ok)
+      throw new Error(`Invalid owned compile job: ${queued.error}`);
+    const result = await runCompileJob(queued.value.request);
     return result;
   },
   { connection, concurrency },

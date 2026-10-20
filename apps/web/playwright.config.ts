@@ -22,7 +22,7 @@ export default defineConfig({
     baseURL: externalBaseUrl ?? `http://127.0.0.1:${PORT}`,
   },
   webServer: externalBaseUrl ? undefined : {
-    command: `NEXT_PUBLIC_LOCAL_STANDALONE=true${editorModeEnv} bunx next start -p ${PORT}`,
+    command: `NEXT_PUBLIC_LOCAL_STANDALONE=true ALOVE_LOCAL_COMPILE_ORIGIN=http://127.0.0.1:${PORT}${editorModeEnv} bunx next start -H 127.0.0.1 -p ${PORT}`,
     cwd: ".",
     port: PORT,
     reuseExistingServer: !process.env.CI,

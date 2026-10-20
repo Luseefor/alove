@@ -14,6 +14,10 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
+# UI mode is a build-time choice. It never grants compile authorization.
+ARG NEXT_PUBLIC_LOCAL_STANDALONE=false
+ENV NEXT_PUBLIC_LOCAL_STANDALONE=$NEXT_PUBLIC_LOCAL_STANDALONE
+
 # Build the packages and web app
 RUN bun run build --filter web
 

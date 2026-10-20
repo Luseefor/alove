@@ -1,9 +1,9 @@
 import type { Queue } from "bullmq";
 import { createCompileQueue } from "@alove/queue";
-import type { CompileJobPayload, CompileJobResult } from "@alove/protocol";
+import type { QueuedCompileJob, CompileJobResult } from "@alove/protocol";
 
 const globalForQueue = globalThis as unknown as {
-  compileQueue?: Queue<CompileJobPayload, CompileJobResult>;
+  compileQueue?: Queue<QueuedCompileJob, CompileJobResult>;
 };
 
 export function getCompileQueue() {

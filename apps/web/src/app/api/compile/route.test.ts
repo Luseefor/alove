@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
+  fetchQuery: vi.fn(),
   getCompileAuthPolicy: vi.fn(),
   add: vi.fn(),
 }));
@@ -10,7 +11,10 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
 }));
 
-vi.mock("@/lib/compileAuth", () => ({
+vi.mock("convex/nextjs", () => ({ fetchQuery: mocks.fetchQuery }));
+
+vi.mock("@/lib/compileAuth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/compileAuth")>()),
   getCompileAuthPolicy: mocks.getCompileAuthPolicy,
 }));
 
@@ -36,13 +40,20 @@ function validPayload() {
 describe("POST /api/compile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getCompileAuthPolicy.mockReturnValue({ allowAnonymous: true });
-    mocks.auth.mockResolvedValue({ userId: "user-1" });
+    mocks.getCompileAuthPolicy.mockReturnValue({
+      allowAnonymous: true,
+      origin: "http://localhost:30128",
+    });
+    mocks.auth.mockResolvedValue({
+      userId: "user-1",
+      getToken: vi.fn().mockResolvedValue("convex-jwt"),
+    });
+    mocks.fetchQuery.mockResolvedValue({ ownerId: "user-1" });
     mocks.add.mockResolvedValue({ id: "job-123" });
   });
 
   it("rejects invalid json", async () => {
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: "{invalid",
       headers: { "content-type": "application/json" },
@@ -56,7 +67,7 @@ describe("POST /api/compile", () => {
   });
 
   it("rejects invalid payload shape", async () => {
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: JSON.stringify({
         projectId: "project-1",
@@ -78,7 +89,7 @@ describe("POST /api/compile", () => {
       error: "Missing required environment variable: CLERK_SECRET_KEY",
     });
 
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: JSON.stringify(validPayload()),
       headers: { "content-type": "application/json" },
@@ -96,7 +107,7 @@ describe("POST /api/compile", () => {
     mocks.getCompileAuthPolicy.mockReturnValue({ allowAnonymous: false });
     mocks.auth.mockResolvedValue({ userId: null });
 
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: JSON.stringify(validPayload()),
       headers: { "content-type": "application/json" },
@@ -110,9 +121,12 @@ describe("POST /api/compile", () => {
   });
 
   it("allows local standalone compile without auth", async () => {
-    mocks.getCompileAuthPolicy.mockReturnValue({ allowAnonymous: true });
+    mocks.getCompileAuthPolicy.mockReturnValue({
+      allowAnonymous: true,
+      origin: "http://localhost:30128",
+    });
 
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: JSON.stringify(validPayload()),
       headers: { "content-type": "application/json" },
@@ -134,7 +148,7 @@ describe("POST /api/compile", () => {
     ["files array", JSON.stringify({ ...validPayload(), files: [] })],
     ["files string", JSON.stringify({ ...validPayload(), files: "main.tex" })],
   ])("rejects %s with 400 without enqueue", async (_label, raw) => {
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: raw,
       headers: { "content-type": "application/json" },
@@ -159,7 +173,7 @@ describe("POST /api/compile", () => {
   ])(
     "rejects unknown field %s with 400 without enqueue",
     async (field, payload) => {
-      const req = new Request("http://localhost/api/compile", {
+      const req = new Request("http://localhost:30128/api/compile", {
         method: "POST",
         body: JSON.stringify(payload),
         headers: { "content-type": "application/json" },
@@ -189,7 +203,7 @@ describe("POST /api/compile", () => {
   ])(
     "rejects invalid %s with 400 without enqueue",
     async (_label, payload, field) => {
-      const req = new Request("http://localhost/api/compile", {
+      const req = new Request("http://localhost:30128/api/compile", {
         method: "POST",
         body: JSON.stringify(payload),
         headers: { "content-type": "application/json" },
@@ -218,7 +232,7 @@ describe("POST /api/compile", () => {
       timeoutMs: 60_000,
     };
 
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: JSON.stringify(payload),
       headers: { "content-type": "application/json" },
@@ -235,8 +249,12 @@ describe("POST /api/compile", () => {
       Record<string, unknown>,
     ];
     expect(queueName).toBe("build");
-    expect(queued).toEqual(payload);
-    expect(new Set(Object.keys(queued))).toEqual(
+    expect(queued).toEqual({
+      version: 1,
+      owner: { kind: "local", origin: "http://localhost:30128" },
+      request: payload,
+    });
+    expect(new Set(Object.keys(queued.request as object))).toEqual(
       new Set([
         "projectId",
         "mainFile",
@@ -252,7 +270,7 @@ describe("POST /api/compile", () => {
     const cap = COMPILE_REQUEST_LIMITS.maxRequestBytes;
     expect(cap).toBe(22020096);
     // Body would otherwise validate; lying header must short-circuit before parsing.
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: JSON.stringify({ ...validPayload(), engine: "bogus" }),
       headers: {
@@ -289,7 +307,7 @@ describe("POST /api/compile", () => {
       },
     });
 
-    const req = new Request("http://localhost/api/compile", {
+    const req = new Request("http://localhost:30128/api/compile", {
       method: "POST",
       body: stream as unknown as BodyInit,
       headers: { "content-type": "application/json" },
@@ -305,5 +323,87 @@ describe("POST /api/compile", () => {
     expect(body.error).toMatch(/too large/i);
     expect(mocks.add).not.toHaveBeenCalled();
     expect(cancelled).toBe(true);
+  });
+  it("binds an authenticated enqueue to the server user and checks project access", async () => {
+    mocks.getCompileAuthPolicy.mockReturnValue({ allowAnonymous: false });
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mocks.fetchQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      { projectId: "project-1" },
+      expect.objectContaining({ token: "convex-jwt" }),
+    );
+    expect(mocks.add).toHaveBeenCalledWith(
+      "build",
+      expect.objectContaining({
+        version: 1,
+        owner: { kind: "user", userId: "user-1" },
+      }),
+    );
+  });
+
+  it.each([null, { ownerId: "user-2" }])(
+    "denies a missing or foreign project without enqueue",
+    async (project) => {
+      mocks.getCompileAuthPolicy.mockReturnValue({ allowAnonymous: false });
+      mocks.fetchQuery.mockResolvedValue(project);
+      const res = await POST(
+        new Request("http://localhost:30128/api/compile", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(validPayload()),
+        }),
+      );
+      expect(res.status).toBe(404);
+      expect(mocks.add).not.toHaveBeenCalled();
+    },
+  );
+
+  it("fails closed when project authorization is unavailable", async () => {
+    mocks.getCompileAuthPolicy.mockReturnValue({ allowAnonymous: false });
+    mocks.fetchQuery.mockRejectedValue(new Error("backend secret detail"));
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.text()).not.toContain("backend secret detail");
+    expect(mocks.add).not.toHaveBeenCalled();
+  });
+
+  it("rejects cross-origin local submission before reading or enqueueing", async () => {
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: {
+          origin: "https://evil.test",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(mocks.add).not.toHaveBeenCalled();
+  });
+
+  it("rejects HTML form content types", async () => {
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "text/plain" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(res.status).toBe(415);
+    expect(mocks.add).not.toHaveBeenCalled();
   });
 });
