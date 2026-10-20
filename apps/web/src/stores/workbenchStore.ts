@@ -775,17 +775,28 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           const texFiles = Object.entries(state.filesByPath).filter(([path]) => path.endsWith(".tex"));
           const bibFiles = Object.entries(state.filesByPath).filter(([path]) => path.endsWith(".bib"));
           const citationDiagnostics: Diagnostic[] = [];
-          for (const [texPath, texContent] of texFiles) {
-            for (const [bibPath, bibContent] of bibFiles) {
-              const missing = BibliographyService.findUndefinedCitations(texContent, bibContent);
-              const unused = BibliographyService.findUnusedCitations(texContent, bibContent);
-              for (const key of missing) {
-                citationDiagnostics.push({
-                  severity: "warning",
-                  message: `Citation key "${key}" is referenced but missing in bibliography`,
-                  file: texPath,
-                });
+          if (bibFiles.length > 0) {
+            const allCited = new Set<string>();
+            for (const [, texContent] of texFiles) {
+              for (const key of BibliographyService.extractCitations(texContent)) allCited.add(key);
+            }
+            const allDefined = new Set<string>();
+            for (const [, bibContent] of bibFiles) {
+              for (const entry of BibliographyService.parse(bibContent)) allDefined.add(entry.id);
+            }
+            for (const [texPath, texContent] of texFiles) {
+              for (const key of BibliographyService.extractCitations(texContent)) {
+                if (!allDefined.has(key)) {
+                  citationDiagnostics.push({
+                    severity: "warning",
+                    message: `Citation key "${key}" is referenced but missing in bibliography`,
+                    file: texPath,
+                  });
+                }
               }
+            }
+            for (const [bibPath, bibContent] of bibFiles) {
+              const unused = [...new Set(BibliographyService.parse(bibContent).map((entry) => entry.id))].filter((id) => !allCited.has(id));
               for (const key of unused.slice(0, 20)) {
                 citationDiagnostics.push({
                   severity: "info",
