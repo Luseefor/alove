@@ -5,9 +5,17 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -18,14 +26,149 @@ jobs:
       - run: bun run build
       - run: bun run lint
       - run: bun run test
+      - run: bun test ./scripts/benchmarks/*.test.ts
+      - run: bun test ./scripts/deploy/*.test.ts
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Build production standalone web
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_LOCAL_STANDALONE: "true"
+        run: bun run e2e:build:prod-default
+      - name: Run full Playwright suite
+        working-directory: apps/web
+        run: bunx playwright test --config playwright.config.ts --workers=1
+      - name: Upload browser test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-playwright-results
+          if-no-files-found: ignore
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
 
   docker:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
-      - name: Validate Compose Config
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+      - run: bun install --frozen-lockfile
+      - name: Validate dev compose config
         run: docker compose -f docker-compose.dev.yml config
-      - name: Build Web Image
+      - name: Build web image
         run: docker build -f apps/web/Dockerfile .
-      - name: Build Compile Worker Image
+      - name: Build compile worker image
         run: docker build -f apps/compile-worker/Dockerfile .
+      - name: Build local TeX image
+        run: docker build -f services/tex-runner/Dockerfile.local -t alove-tex:local services/tex-runner
+      - name: Install Playwright chromium
+        working-directory: apps/web
+        run: bunx playwright install --with-deps chromium
+      - name: Run worker Docker compile tests
+        working-directory: apps/compile-worker
+        env:
+          COMPILE_DOCKER_IMAGE: alove-tex:local
+        run: bun test ./test/runCompile.docker.integration.js
+      - name: Wait for dedicated Redis on 6379
+        run: |
+          for i in $(seq 1 30); do
+            if (echo > /dev/tcp/127.0.0.1/6379) 2>/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Redis did not answer on 127.0.0.1:6379"
+          exit 1
+      - name: Test the containerized web, queue and runner together
+        run: bun run smoke:docker 2>&1 | tee compose-smoke.log
+      - name: Validate separate production roles
+        run: |
+          docker compose -f docker-compose.prod.yml config --no-env-resolution --no-interpolate >/dev/null
+          docker compose -f docker-compose.runner.yml config --no-env-resolution --no-interpolate >/dev/null
+      - name: Run queue admission integration
+        env:
+          TEST_REDIS_PORT: "6379"
+        run: bun test packages/queue/test/admission.integration.test.ts
+      - name: Verify graceful shutdown cancels and cleans an active job
+        env:
+          RUN_WORKER_LIFECYCLE_TESTS: "1"
+          TEST_REDIS_PORT: "6379"
+          COMPILE_DOCKER_IMAGE: alove-tex:local
+        run: bun test ./apps/compile-worker/test/workerLifecycle.integration.js
+      - name: Start compile worker in background
+        working-directory: apps/compile-worker
+        env:
+          REDIS_PORT: "6379"
+          COMPILE_DOCKER_IMAGE: alove-tex:local
+        run: |
+          nohup bun src/index.ts > "$GITHUB_WORKSPACE/worker.log" 2>&1 &
+          echo $! > "$GITHUB_WORKSPACE/worker.pid"
+          for i in $(seq 1 30); do
+            if grep -q "compile.worker.listening" "$GITHUB_WORKSPACE/worker.log" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          cat "$GITHUB_WORKSPACE/worker.log"
+          grep -q "compile.worker.listening" "$GITHUB_WORKSPACE/worker.log"
+      - name: Build production local web
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_LOCAL_STANDALONE: "true"
+        run: bun run e2e:build:prod-default
+      - name: Run real compile Playwright specs
+        working-directory: apps/web
+        env:
+          E2E_REAL_COMPILE: "1"
+        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts
+      - name: Stop background worker
+        if: always()
+        run: |
+          if [ -f worker.pid ]; then
+            kill "$(cat worker.pid)" 2>/dev/null || true
+          fi
+      - name: Upload Docker job logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-real-compile-results
+          if-no-files-found: ignore
+          path: |
+            worker.log
+            compose-smoke.log
+            apps/web/playwright-report
+            apps/web/test-results

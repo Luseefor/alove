@@ -45,7 +45,7 @@ function SidebarItem({
   );
 
   if (disabled || !href) return content;
-  return <Link href={href}>{content}</Link>;
+  return <Link href={href} aria-current={active ? "page" : undefined}>{content}</Link>;
 }
 
 export function DashboardSidebar() {
@@ -102,7 +102,7 @@ export function DashboardSidebar() {
             </div>
 
             <span className="text-[10px] font-black text-success bg-success-bg px-2 py-0.5 rounded-full border border-success-border">
-              ONLINE
+              {localMode ? "LOCAL" : "CLOUD"}
             </span>
           </div>
           <p className="text-[12px] text-muted-foreground leading-relaxed font-medium relative z-10">
@@ -112,6 +112,7 @@ export function DashboardSidebar() {
           </p>
         </div>
 
+        <div className="flex flex-wrap gap-3 px-4 text-xs text-muted-foreground"><Link href="/help" className="underline">Help</Link><Link href="/privacy" className="underline">Privacy</Link><Link href="/status" className="underline">Status</Link></div>
         <div className="px-4">
           <p className="text-[11px] font-bold text-muted-foreground text-center tracking-tight italic opacity-60">
             alove workspace v0.1.0

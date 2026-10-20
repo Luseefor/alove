@@ -1,46 +1,47 @@
+# Public web host only. The dedicated runner uses docker-compose.runner.yml.
 services:
-  redis:
-    image: redis:7-alpine
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    ports:
-      - "3000:3000"
+    image: ${ALOVE_WEB_IMAGE:?Set immutable ALOVE_WEB_IMAGE}
+    env_file:
+      - path: .deploy/web.env
+        format: raw
     environment:
-      - NODE_ENV=production
-      - NEXT_PUBLIC_LOCAL_STANDALONE=false
-      - ALOVE_LOCAL_COMPILE_ORIGIN=
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      # Must pass clerk/convex env vars
-      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
-      - NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL}
-      - CLERK_JWT_ISSUER_DOMAIN=${CLERK_JWT_ISSUER_DOMAIN}
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  compile-worker:
-    build:
-      context: .
-      dockerfile: apps/compile-worker/Dockerfile
+      NODE_ENV: production
+      NEXT_PUBLIC_LOCAL_STANDALONE: "false"
+      ALOVE_LOCAL_COMPILE_ORIGIN: ""
+      ALOVE_COMPILE_TRUST_PROXY: "true"
+    restart: unless-stopped
+    init: true
+    mem_limit: 2g
+    cpus: 2
+    # Liveness keeps the website/help reachable during a queue outage.
+    # The release gate separately checks /api/ready, including Redis and worker.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  proxy:
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
     environment:
-      - NODE_ENV=production
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - COMPILE_USE_DOCKER=true
-      # Production environments should ideally run the worker differently, 
-      # but if using docker, the docker socket might be required.
+      ALOVE_SITE_URL: ${ALOVE_SITE_URL:?Set HTTPS ALOVE_SITE_URL}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
-      redis:
-        condition: service_healthy
+      web: {condition: service_healthy}
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  caddy_data:
+    name: alove_caddy_data
+  caddy_config:
+    name: alove_caddy_config

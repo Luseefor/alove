@@ -58,6 +58,7 @@ export interface WorkbenchState {
   setBuildRecoveryOpen: (open: boolean) => void;
   applyRecoveryFile: (args: { projectId: string; mainFile: string; expectedFiles: Record<string, string>; engine: BuildRecord["engine"]; cleanAux: boolean; path: string; content: string | null }) => boolean;
   projectId: string | null;
+  cloudUserId: string | null;
   projectTitle: string;
   mainFile: string | null;
   documentRevision: number;
@@ -126,6 +127,8 @@ export interface WorkbenchState {
   setProjectTitle: (title: string) => Promise<boolean>;
   setMainFile: (path: string) => void;
   stopCompilePolling: () => void;
+  activeCompileJobId: string | null;
+  cancelCompile: () => Promise<void>;
   mergeRemoteProject: (args: { projectId: string; title?: string; files: RemoteProjectFile[] }) => void;
   initializeProject: (args: {
     projectId: string | null;
@@ -212,6 +215,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           saveStatus: "unsaved", saveMessage: null });
         return true;
       },
+      cloudUserId: null,
       projectId: null,
       projectTitle: "Deep Learning Survey",
       mainFile: null,
@@ -240,6 +244,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       diagnosticRevision: null,
       buildLog: "",
       buildStatus: "idle",
+      activeCompileJobId: null,
       buildMessage: null,
       pdfDataUrl: null,
       pdfZoom: 100,
@@ -302,6 +307,25 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         activeCompile?.abort();
         activeCompile = null;
         if (get().buildStatus === "queued" || get().buildStatus === "running") set({ buildStatus: "idle", buildMessage: null });
+      },
+      cancelCompile: async () => {
+        const id = get().activeCompileJobId;
+        if (!id) return;
+        set({ buildMessage: "Requesting cancellation…" });
+        try {
+          const response = await fetch(`/api/compile/${encodeURIComponent(id)}`, { method: "DELETE" });
+          if (!response.ok) throw new Error("Could not cancel. Retry to confirm the build stopped.");
+          const result = await response.json() as { state?: string };
+          if (get().activeCompileJobId !== id) return;
+          if (result.state === "cancelled") {
+            get().stopCompilePolling();
+            set({ activeCompileJobId: null, buildStatus: "failed", buildMessage: "Build cancelled." });
+          } else if (result.state === "completed" || result.state === "failed") {
+            set({ buildMessage: "Build finished. Retrieving the result…" });
+          } else set({ buildMessage: "Cancellation requested. Waiting for the worker to stop…" });
+        } catch (error) {
+          if (get().activeCompileJobId === id) set({ buildMessage: error instanceof Error ? error.message : "Cancellation unavailable" });
+        }
       },
       setPersistenceHandlers: (handlers) => set({ persistence: handlers }),
       mergeRemoteProject: ({ projectId, title, files }) => {
@@ -719,6 +743,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         const isCurrent = () => !controller.signal.aborted && sequence === compileSequence && get().projectId === state.projectId;
         set({
           buildStatus: "queued",
+          activeCompileJobId: null,
           buildMessage: null,
           diagnostics: [],
           buildLog: "",
@@ -743,7 +768,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           }
           const { jobId } = (await res.json()) as { jobId: string };
           if (!isCurrent()) return;
-          set({ buildStatus: "running", buildMessage: `Job ${jobId}` });
+          set({ buildStatus: "running", activeCompileJobId: jobId, buildMessage: `Job ${jobId}` });
           const result = await pollCompileJob(jobId, controller.signal);
           if (!isCurrent()) return;
           const ok = result.phase === "ready" && Boolean(result.pdfBase64);
@@ -800,7 +825,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             buildLog: error instanceof Error ? error.message : String(error),
           });
         } finally {
-          if (sequence === compileSequence) activeCompile = null;
+          if (sequence === compileSequence) { activeCompile = null; set({ activeCompileJobId: null }); }
         }
       },
       openFile: (id) => {
@@ -907,7 +932,7 @@ useWorkbenchStore.subscribe((state, previous) => {
       documentRevision: previous.documentRevision + 1,
       lastBuildRecord: null, buildHistoryError: null, buildRecoveryOpen: false,
       pdfDataUrl: null, pdfSourceRevision: null, pdfMainFile: null,
-      buildStatus: "idle", buildMessage: null, buildLog: "", diagnostics: [], diagnosticRevision: null,
+      activeCompileJobId: null, buildStatus: "idle", buildMessage: null, buildLog: "", diagnostics: [], diagnosticRevision: null,
     });
   } else if (filesChanged || state.mainFile !== previous.mainFile) {
     useWorkbenchStore.setState({ documentRevision: previous.documentRevision + 1 });

@@ -39,6 +39,7 @@ export interface CompileJobResult {
   mainPdfRelPath?: string;
   errorMessage?: string;
   errorCode?:
+    | "CANCELLED"
     | "VALIDATION_ERROR"
     | "TIMEOUT"
     | "DOCKER_ERROR"

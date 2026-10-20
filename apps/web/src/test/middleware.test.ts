@@ -92,7 +92,7 @@ describe("middleware fail-closed", () => {
     it("returns 503 for a protected UI path when the secret is missing", async () => {
       delete process.env.CLERK_SECRET_KEY;
 
-      const res = await middleware(makeRequest("/dashboard"), makeEvent());
+      const res = await middleware(makeRequest("/projects"), makeEvent());
 
       await expectNotConfigured(res);
       expect(mocks.createRouteMatcher).not.toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe("middleware fail-closed", () => {
     it("returns 503 for a whitespace-only secret", async () => {
       process.env.CLERK_SECRET_KEY = "   ";
 
-      const res = await middleware(makeRequest("/dashboard"), makeEvent());
+      const res = await middleware(makeRequest("/projects"), makeEvent());
 
       await expectNotConfigured(res);
       expect(mocks.clerkMiddleware).not.toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe("middleware fail-closed", () => {
     ])("returns 503 for placeholder secret (%s)", async (_label, secret) => {
       process.env.CLERK_SECRET_KEY = secret;
 
-      const res = await middleware(makeRequest("/dashboard"), makeEvent());
+      const res = await middleware(makeRequest("/projects"), makeEvent());
 
       await expectNotConfigured(res);
       expect(mocks.clerkMiddleware).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("middleware fail-closed", () => {
         throw new Error("clerk down");
       });
 
-      const res = await middleware(makeRequest("/dashboard"), makeEvent());
+      const res = await middleware(makeRequest("/projects"), makeEvent());
 
       await expectUnavailable(res);
       expect(mocks.protect).not.toHaveBeenCalled();
@@ -153,7 +153,7 @@ describe("middleware fail-closed", () => {
         throw new Error("matcher down");
       });
 
-      const res = await middleware(makeRequest("/dashboard"), makeEvent());
+      const res = await middleware(makeRequest("/projects"), makeEvent());
 
       await expectUnavailable(res);
       expect(mocks.clerkMiddleware).not.toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe("middleware fail-closed", () => {
         });
       });
 
-      const res = await middleware(makeRequest("/dashboard"), makeEvent());
+      const res = await middleware(makeRequest("/projects"), makeEvent());
 
       await expectUnavailable(res);
       expect(mocks.protect).not.toHaveBeenCalled();
@@ -176,7 +176,7 @@ describe("middleware fail-closed", () => {
 
   describe("cloud enforcement", () => {
     it("calls protect for a protected path and forwards the same request and event", async () => {
-      const req = makeRequest("/dashboard");
+      const req = makeRequest("/projects");
       const evt = makeEvent();
 
       const res = await middleware(req, evt);
@@ -197,7 +197,7 @@ describe("middleware fail-closed", () => {
       expect(handler.mock.calls[0][1]).toBe(evt);
     });
 
-    it("skips protect for a public path but still runs the Clerk handler", async () => {
+    it("allows public pages without requiring Clerk context", async () => {
       mocks.createRouteMatcher.mockImplementation(() => () => true);
       const req = makeRequest("/");
       const evt = makeEvent();
@@ -205,11 +205,8 @@ describe("middleware fail-closed", () => {
       const res = await middleware(req, evt);
 
       expectPassThrough(res);
-      expect(mocks.clerkMiddleware).toHaveBeenCalledTimes(1);
+      expect(mocks.clerkMiddleware).not.toHaveBeenCalled();
       expect(mocks.protect).not.toHaveBeenCalled();
-      const handler = getHandler();
-      expect(handler.mock.calls[0][0]).toBe(req);
-      expect(handler.mock.calls[0][1]).toBe(evt);
     });
 
     it.each(["/api/compile", "/api/compile/job-123"])(

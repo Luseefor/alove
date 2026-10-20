@@ -204,11 +204,12 @@ export function uploadLogicalPathFor(
 export function validateProjectFileContentSize(
   logicalPath: string,
   content: string,
+  maxBytes: number = PROJECT_MAX_FILE_BYTES,
 ): ValidateProjectPathResult {
-  if (utf8ByteLength(content) > PROJECT_MAX_FILE_BYTES) {
+  if (utf8ByteLength(content) > maxBytes) {
     return {
       ok: false,
-      error: `"${logicalPath}" is too large (max 1 MB).`,
+      error: `"${logicalPath}" is too large (max ${maxBytes === PROJECT_MAX_FILE_BYTES ? "1 MB" : `${maxBytes / 1024} KiB`}).`,
     };
   }
   return { ok: true, path: logicalPath };

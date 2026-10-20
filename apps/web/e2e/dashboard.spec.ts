@@ -22,8 +22,8 @@ test.describe("Dashboard / Landing Page", () => {
     const settingsLink = sidebar.getByRole("link", { name: "Settings" });
     await expect(settingsLink).toBeVisible();
 
-    // The system status card should indicate ONLINE
-    await expect(sidebar.locator("text=ONLINE")).toBeVisible();
+    // The badge identifies local mode; backend health is reported separately.
+    await expect(sidebar.getByText("LOCAL", { exact: true })).toBeVisible();
   });
 
   test("quick start actions navigate correctly", async ({ page }) => {

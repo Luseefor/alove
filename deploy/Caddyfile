@@ -1,0 +1,17 @@
+{$ALOVE_SITE_URL} {
+  request_body {
+    max_size 22MB
+  }
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    Strict-Transport-Security "max-age=31536000"
+    -Server
+  }
+  reverse_proxy web:3000 {
+    transport http {
+      read_timeout 150s
+      write_timeout 150s
+    }
+  }
+}

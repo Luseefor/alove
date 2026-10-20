@@ -6,7 +6,7 @@ import { isLocalStandalone } from "@/lib/localStandalone";
 import { RedirectToSignIn, useAuth } from "@clerk/nextjs";
 
 function EditorPageCloud() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAuth();
 
   if (!isLoaded) {
     return (
@@ -20,7 +20,7 @@ function EditorPageCloud() {
     return <RedirectToSignIn />;
   }
 
-  return <EditorWorkbench />;
+  return <EditorWorkbench key={userId} />;
 }
 
 export default function EditorPage() {

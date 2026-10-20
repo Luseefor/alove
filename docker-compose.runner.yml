@@ -1,0 +1,33 @@
+# Run on a separate dedicated Docker host, never on the public web host.
+services:
+  compile-worker:
+    image: ${ALOVE_RUNNER_IMAGE:?Set immutable ALOVE_RUNNER_IMAGE}
+    env_file:
+      - path: .deploy/runner.env
+        format: raw
+    environment:
+      NODE_ENV: production
+      COMPILE_USE_DOCKER: "true"
+      COMPILE_TRUSTED_LOCAL: "false"
+      COMPILE_WORK_ROOT: ${COMPILE_WORK_ROOT:-/var/lib/alove/jobs}
+      COMPILE_DOCKER_IMAGE: ${COMPILE_DOCKER_IMAGE:?Set immutable TeX image}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - type: bind
+        source: ${COMPILE_WORK_ROOT:-/var/lib/alove/jobs}
+        target: ${COMPILE_WORK_ROOT:-/var/lib/alove/jobs}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 45s
+    mem_limit: 768m
+    cpus: 2
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "bun", "dist/health.js"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}

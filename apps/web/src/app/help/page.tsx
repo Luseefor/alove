@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const metadata = { title: "Help" };
+
 export default function HelpPage() {
   return (
     <main className="mx-auto max-w-2xl space-y-5 p-6 text-foreground">

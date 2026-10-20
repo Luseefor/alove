@@ -13,7 +13,16 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "REDIS_*",
+        "COMPILE_*",
+        "ALOVE_*",
+        "CLERK_*",
+        "NEXT_PUBLIC_*",
+        "WORKER_*",
+        "DOCKER_*"
+      ]
     },
     "lint": {
       "dependsOn": [
@@ -27,6 +36,12 @@
     },
     "test": {
       "dependsOn": [],
+      "outputs": []
+    },
+    "@alove/editor#build": {
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     }
   }

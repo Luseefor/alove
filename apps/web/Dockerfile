@@ -1,6 +1,7 @@
-FROM oven/bun:1-alpine
+FROM oven/bun:1.3.10-alpine
 
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1 TURBO_TELEMETRY_DISABLED=1
 
 COPY package.json bun.lock turbo.json ./
 COPY apps/web/package.json apps/web/
@@ -12,11 +13,17 @@ COPY packages/queue/package.json packages/queue/
 
 RUN bun install --frozen-lockfile
 
-COPY . .
+COPY packages ./packages
+COPY apps/web ./apps/web
 
 # UI mode is a build-time choice. It never grants compile authorization.
 ARG NEXT_PUBLIC_LOCAL_STANDALONE=false
 ENV NEXT_PUBLIC_LOCAL_STANDALONE=$NEXT_PUBLIC_LOCAL_STANDALONE
+# Public client credentials. Empty by default so plain CI builds still pass.
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=""
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_CONVEX_URL=""
+ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL
 
 # Build the packages and web app
 RUN bun run build --filter web

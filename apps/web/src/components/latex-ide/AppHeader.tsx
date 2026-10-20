@@ -362,6 +362,10 @@ export function AppHeader() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {(buildStatus === "queued" || buildStatus === "running") && (
+                <button type="button" disabled={!useWorkbenchStore.getState().activeCompileJobId} onClick={() => void useWorkbenchStore.getState().cancelCompile()}
+                  className="rounded border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-50">Cancel build</button>
+              )}
               <Button
                 variant="primary"
                 size="sm"

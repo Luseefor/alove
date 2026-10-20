@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "alove — LaTeX workspace",
-  description: "Premium LaTeX editor with live sync, auth, and fast PDF builds.",
+  title: { default: "alove — LaTeX workspace", template: "%s | alove" },
+  description: "Write LaTeX, compile PDFs and test file restorations after a failed build.",
 };
 
 export default function RootLayout({

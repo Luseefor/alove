@@ -4,12 +4,14 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./admission": "./src/admission.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo noop"
+    "test": "bun test ./test/*.test.ts",
+    "lint": "eslint src --config ../../eslint.config.mjs"
   },
   "dependencies": {
     "@alove/protocol": "workspace:*",

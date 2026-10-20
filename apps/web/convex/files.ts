@@ -1,5 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import {
+  MAX_FILES,
+  MAX_PROJECT_BYTES,
+  PROJECT_TOO_LARGE_ERROR,
+  TOO_MANY_FILES_ERROR,
+  checkFileSize,
+  checkProjectPath,
+  findPathCollision,
+  utf8ByteLength,
+} from "../src/lib/cloudProjectLimits";
 
 export const list = query({
   args: { projectId: v.id("projects") },
@@ -28,19 +38,48 @@ export const save = mutation({
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error("Not found");
     if (project.ownerId !== id.subject) throw new Error("Forbidden");
+
+    const pathCheck = checkProjectPath(args.path);
+    if (!pathCheck.ok) throw new Error(pathCheck.error);
+    const path = pathCheck.path;
+
+    const sizeError = checkFileSize(path, args.content);
+    if (sizeError) throw new Error(sizeError);
+
+    const expected = args.expectedVersion ?? 0;
+
     const existing = await ctx.db
       .query("projectFiles")
       .withIndex("by_project_path", (q) =>
-        q.eq("projectId", args.projectId).eq("path", args.path),
+        q.eq("projectId", args.projectId).eq("path", path),
       )
       .unique();
 
-    const now = Date.now();
-
     if (!existing) {
+      if (expected !== 0) {
+        return { conflict: true as const, version: 0, content: "" };
+      }
+      const files = await ctx.db
+        .query("projectFiles")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .collect();
+      if (files.length >= MAX_FILES) throw new Error(TOO_MANY_FILES_ERROR);
+      const collision = findPathCollision(
+        path,
+        files.map((f) => f.path),
+      );
+      if (collision) throw new Error(collision);
+      let total = utf8ByteLength(args.content);
+      for (const f of files) {
+        total += utf8ByteLength(f.content);
+        if (total > MAX_PROJECT_BYTES) throw new Error(PROJECT_TOO_LARGE_ERROR);
+      }
+      if (total > MAX_PROJECT_BYTES) throw new Error(PROJECT_TOO_LARGE_ERROR);
+
+      const now = Date.now();
       const fid = await ctx.db.insert("projectFiles", {
         projectId: args.projectId,
-        path: args.path,
+        path,
         content: args.content,
         version: 1,
         updatedAt: now,
@@ -50,10 +89,7 @@ export const save = mutation({
       return { id: fid, version: 1, conflict: false as const };
     }
 
-    if (
-      args.expectedVersion != null &&
-      existing.version !== args.expectedVersion
-    ) {
+    if (existing.version !== expected) {
       return {
         conflict: true as const,
         version: existing.version,
@@ -61,6 +97,25 @@ export const save = mutation({
       };
     }
 
+    const files = await ctx.db
+      .query("projectFiles")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const collision = findPathCollision(
+      path,
+      files.map((f) => f.path),
+      existing.path,
+    );
+    if (collision) throw new Error(collision);
+    let total = utf8ByteLength(args.content);
+    for (const f of files) {
+      if (f._id === existing._id) continue;
+      total += utf8ByteLength(f.content);
+      if (total > MAX_PROJECT_BYTES) throw new Error(PROJECT_TOO_LARGE_ERROR);
+    }
+    if (total > MAX_PROJECT_BYTES) throw new Error(PROJECT_TOO_LARGE_ERROR);
+
+    const now = Date.now();
     const next = existing.version + 1;
     await ctx.db.patch(existing._id, {
       content: args.content,
@@ -82,13 +137,16 @@ export const deleteFile = mutation({
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.ownerId !== id.subject)
-      throw new Error("Forbidden");
+    if (!project) throw new Error("Not found");
+    if (project.ownerId !== id.subject) throw new Error("Forbidden");
+
+    const pathCheck = checkProjectPath(args.path);
+    if (!pathCheck.ok) throw new Error(pathCheck.error);
 
     const existing = await ctx.db
       .query("projectFiles")
       .withIndex("by_project_path", (q) =>
-        q.eq("projectId", args.projectId).eq("path", args.path),
+        q.eq("projectId", args.projectId).eq("path", pathCheck.path),
       )
       .unique();
 
@@ -96,7 +154,9 @@ export const deleteFile = mutation({
       await ctx.db.delete(existing._id);
       await ctx.db.patch(args.projectId, {
         updatedAt: Date.now(),
-        ...(project.mainFile === args.path ? { mainFile: undefined } : {}),
+        ...(project.mainFile === pathCheck.path
+          ? { mainFile: undefined }
+          : {}),
       });
     }
   },
@@ -112,40 +172,57 @@ export const renameFile = mutation({
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.ownerId !== id.subject)
-      throw new Error("Forbidden");
+    if (!project) throw new Error("Not found");
+    if (project.ownerId !== id.subject) throw new Error("Forbidden");
+
+    const oldCheck = checkProjectPath(args.oldPath);
+    if (!oldCheck.ok) throw new Error(oldCheck.error);
+    const newCheck = checkProjectPath(args.newPath);
+    if (!newCheck.ok) throw new Error(newCheck.error);
+    const oldPath = oldCheck.path;
+    const newPath = newCheck.path;
 
     const existing = await ctx.db
       .query("projectFiles")
       .withIndex("by_project_path", (q) =>
-        q.eq("projectId", args.projectId).eq("path", args.oldPath),
+        q.eq("projectId", args.projectId).eq("path", oldPath),
       )
       .unique();
+    if (!existing) throw new Error(`No file at "${oldPath}".`);
+    if (oldPath === newPath) return;
 
     const conflict = await ctx.db
       .query("projectFiles")
       .withIndex("by_project_path", (q) =>
-        q.eq("projectId", args.projectId).eq("path", args.newPath),
+        q.eq("projectId", args.projectId).eq("path", newPath),
       )
       .unique();
-
-    if (existing && !conflict) {
-      await ctx.db.patch(existing._id, {
-        path: args.newPath,
-        updatedAt: Date.now(),
-      });
-      await ctx.db.patch(args.projectId, {
-        updatedAt: Date.now(),
-        ...((project.mainFile ?? "main.tex") === args.oldPath
-          ? {
-              mainFile: args.newPath.endsWith(".tex")
-                ? args.newPath
-                : undefined,
-            }
-          : {}),
-      });
-    } else if (conflict) {
+    if (conflict) {
       throw new Error("A file with the new name already exists.");
     }
+
+    const files = await ctx.db
+      .query("projectFiles")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const collision = findPathCollision(
+      newPath,
+      files.map((f) => f.path),
+      oldPath,
+    );
+    if (collision) throw new Error(collision);
+
+    await ctx.db.patch(existing._id, {
+      path: newPath,
+      updatedAt: Date.now(),
+    });
+    await ctx.db.patch(args.projectId, {
+      updatedAt: Date.now(),
+      ...((project.mainFile ?? "main.tex") === oldPath
+        ? {
+            mainFile: newPath.endsWith(".tex") ? newPath : undefined,
+          }
+        : {}),
+    });
   },
 });

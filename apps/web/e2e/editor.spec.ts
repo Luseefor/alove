@@ -34,7 +34,7 @@ async function setEditorText(
   if (isCodeMirror) {
     const content = editorContentLocator(page);
     await content.click();
-    await content.press("Meta+a");
+    await content.press("ControlOrMeta+a");
     await content.press("Delete");
     await content.fill(value);
     return;
@@ -90,7 +90,7 @@ test.describe(
     test("typing in CodeMirror updates content", async ({ page }) => {
       const content = editorContentLocator(page);
       await content.click();
-      await content.press("Meta+a");
+      await content.press("ControlOrMeta+a");
       await content.press("Delete");
       await content.fill("\\section{CM Test}");
       await expect(content).toContainText("CM Test");
@@ -120,7 +120,7 @@ test.describe(
     test("selection and text replacement in CodeMirror", async ({ page }) => {
       const content = editorContentLocator(page);
       await content.click();
-      await content.press("Meta+a");
+      await content.press("ControlOrMeta+a");
       await content.press("Delete");
       const replacement = "\\section{Replacement Test}\nUnique content here.";
       await content.fill(replacement);
@@ -139,10 +139,10 @@ test.describe(
       await content.type(" " + marker);
       await expect(content).toContainText(marker);
 
-      await content.press("Meta+z");
+      await content.press("ControlOrMeta+z");
       await expect(content).not.toContainText(marker);
 
-      await content.press("Meta+Shift+z");
+      await content.press("ControlOrMeta+Shift+z");
       await expect(content).toContainText(marker);
     });
   }
@@ -189,7 +189,7 @@ test.describe(
       await setEditorText(page, "alpha");
       const textarea = page.locator('[data-testid="latex-editor-textarea"]');
       await textarea.click();
-      await page.keyboard.press("Meta+a");
+      await page.keyboard.press("ControlOrMeta+a");
     }
 
     // Use sidebar snippet for wrap test

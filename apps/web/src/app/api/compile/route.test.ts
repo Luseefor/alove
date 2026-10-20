@@ -1,11 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  auth: vi.fn(),
-  fetchQuery: vi.fn(),
-  getCompileAuthPolicy: vi.fn(),
-  add: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const redisSet = vi.fn();
+  const redisEval = vi.fn();
+  return {
+    auth: vi.fn(),
+    fetchQuery: vi.fn(),
+    getCompileAuthPolicy: vi.fn(),
+    add: vi.fn(),
+    reserve: vi.fn(),
+    release: vi.fn(),
+    redisSet,
+    redisEval,
+    redisClient: { set: redisSet, eval: redisEval },
+    toKey: vi.fn((key: string) => `bull:compile:${key}`),
+    queueClientPromise: null as Promise<unknown> | null,
+  };
+});
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mocks.auth,
@@ -18,9 +29,16 @@ vi.mock("@/lib/compileAuth", async (importOriginal) => ({
   getCompileAuthPolicy: mocks.getCompileAuthPolicy,
 }));
 
+vi.mock("@alove/queue/admission", () => ({
+  reserveCompileAdmission: mocks.reserve,
+  releaseCompileAdmission: mocks.release,
+}));
+
 vi.mock("@/lib/compileQueue", () => ({
   getCompileQueue: () => ({
     add: mocks.add,
+    client: mocks.queueClientPromise ?? Promise.resolve(mocks.redisClient),
+    toKey: mocks.toKey,
   }),
 }));
 
@@ -40,6 +58,10 @@ function validPayload() {
 describe("POST /api/compile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.queueClientPromise = null;
+    mocks.toKey.mockImplementation((key: string) => `bull:compile:${key}`);
+    mocks.reserve.mockResolvedValue({ allowed: true, retryAfter: 0 });
+    mocks.release.mockResolvedValue(undefined);
     mocks.getCompileAuthPolicy.mockReturnValue({
       allowAnonymous: true,
       origin: "http://localhost:30128",
@@ -345,6 +367,7 @@ describe("POST /api/compile", () => {
         version: 1,
         owner: { kind: "user", userId: "user-1" },
       }),
+      { jobId: expect.any(String) },
     );
   });
 
@@ -405,5 +428,140 @@ describe("POST /api/compile", () => {
     );
     expect(res.status).toBe(415);
     expect(mocks.add).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 with Retry-After when admission is full without enqueue", async () => {
+    mocks.reserve.mockResolvedValueOnce({ allowed: false, retryAfter: 7 });
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    const body = await res.json();
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("7");
+    expect(body.error).toMatch(/limit/i);
+    expect(mocks.add).not.toHaveBeenCalled();
+    expect(mocks.release).not.toHaveBeenCalled();
+    expect(mocks.reserve).toHaveBeenCalledTimes(1);
+    expect(mocks.toKey).toHaveBeenCalledWith("");
+  });
+
+  it("fails closed with 503 when admission reservation fails", async () => {
+    mocks.reserve.mockRejectedValueOnce(new Error("redis down secret"));
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.text()).not.toContain("redis down secret");
+    expect(mocks.add).not.toHaveBeenCalled();
+    expect(mocks.release).not.toHaveBeenCalled();
+  });
+
+  it("fails closed with 503 when queue client is unavailable", async () => {
+    mocks.queueClientPromise = Promise.reject(new Error("redis client secret"));
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.text()).not.toContain("redis client secret");
+    expect(mocks.add).not.toHaveBeenCalled();
+  });
+
+  it("releases reservation with onlyIfJobMissing when enqueue fails", async () => {
+    mocks.add.mockRejectedValueOnce(new Error("enqueue down secret"));
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.text()).not.toContain("enqueue down secret");
+    expect(mocks.reserve).toHaveBeenCalledTimes(1);
+    expect(mocks.add).toHaveBeenCalledTimes(1);
+    const reserveJobId = mocks.reserve.mock.calls[0][2] as string;
+    const addOptions = mocks.add.mock.calls[0][2] as { jobId: string };
+    expect(addOptions).toEqual({ jobId: reserveJobId });
+    expect(mocks.release).toHaveBeenCalledTimes(1);
+    expect(mocks.release).toHaveBeenCalledWith(
+      mocks.redisClient,
+      { kind: "local", origin: "http://localhost:30128" },
+      reserveJobId,
+      "bull:compile",
+      true,
+    );
+  });
+
+  it("uses random server jobId for reservation and enqueue options", async () => {
+    const first = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ jobId: "job-123" });
+    const reserveJobId = mocks.reserve.mock.calls[0][2] as string;
+    expect(reserveJobId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+    expect(mocks.reserve).toHaveBeenCalledWith(
+      mocks.redisClient,
+      { kind: "local", origin: "http://localhost:30128" },
+      reserveJobId,
+      "bull:compile",
+    );
+    expect(mocks.add).toHaveBeenCalledWith(
+      "build",
+      expect.objectContaining({ version: 1 }),
+      { jobId: reserveJobId },
+    );
+    expect(mocks.release).not.toHaveBeenCalled();
+
+    vi.clearAllMocks();
+    mocks.toKey.mockImplementation((key: string) => `bull:compile:${key}`);
+    mocks.reserve.mockResolvedValue({ allowed: true, retryAfter: 0 });
+    mocks.release.mockResolvedValue(undefined);
+    mocks.add.mockResolvedValue({ id: "job-123" });
+    const second = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(validPayload()),
+      }),
+    );
+    expect(second.status).toBe(200);
+    const secondJobId = mocks.reserve.mock.calls[0][2] as string;
+    expect(secondJobId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(secondJobId).not.toBe(reserveJobId);
+  });
+
+  it("rejects client-supplied jobId as unknown field without reserving", async () => {
+    const res = await POST(
+      new Request("http://localhost:30128/api/compile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...validPayload(), jobId: "client-id" }),
+      }),
+    );
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error).toContain("unknown field: jobId");
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.add).not.toHaveBeenCalled();
+    expect(mocks.release).not.toHaveBeenCalled();
   });
 });

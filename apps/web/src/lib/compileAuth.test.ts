@@ -217,3 +217,25 @@ describe("Next loopback normalization", () => {
     expect(isCompileRequestOriginAllowed(req, "http://127.0.0.1:30128")).toBe(false);
   });
 });
+
+describe("configured proxy transport", () => {
+  it("requires a public HTTPS origin for cloud production", () => {
+    expect(getCompileAuthPolicy(makeEnv({ NODE_ENV: "production" }))).toEqual({ error: "Missing required environment variable: ALOVE_SITE_URL" });
+    expect(getCompileAuthPolicy(makeEnv({ NODE_ENV: "production", ALOVE_SITE_URL: "https://papers.test/" }))).toEqual({ allowAnonymous: false, origin: "https://papers.test" });
+    expect(getCompileAuthPolicy(makeEnv({ ALOVE_SITE_URL: "http://papers.test" }))).toEqual({ error: "ALOVE_SITE_URL must be an HTTPS origin" });
+  });
+  it("permits explicit loopback port mapping while retaining host and origin checks", () => {
+    const origin = "http://127.0.0.1:30132";
+    const req = new Request("http://container:3000/api/compile", { headers: { host: "127.0.0.1:30132", origin, "sec-fetch-site": "same-origin" } });
+    expect(isCompileRequestOriginAllowed(req, origin)).toBe(false);
+    expect(isCompileRequestOriginAllowed(req, origin, true)).toBe(true);
+    const evil = new Request(req, { headers: { host: "127.0.0.1:30132", origin: "https://foreign.test" } });
+    expect(isCompileRequestOriginAllowed(evil, origin, true)).toBe(false);
+  });
+  it("permits configured HTTPS proxy hosts, never a foreign browser origin or Host", () => {
+    for (const [host, origin, expected] of [["papers.test", "https://papers.test", true], ["foreign.test", "https://papers.test", false], ["papers.test", "https://foreign.test", false]] as const) {
+      const req = new Request("http://web:3000/api/compile", { headers: { host, origin } });
+      expect(isCompileRequestOriginAllowed(req, "https://papers.test", true)).toBe(expected);
+    }
+  });
+});
