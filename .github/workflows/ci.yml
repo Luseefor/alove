@@ -123,6 +123,11 @@ jobs:
         env:
           TEST_REDIS_PORT: "6379"
         run: bun test packages/queue/test/admission.integration.test.ts
+      - name: Verify runtime failure expires readiness and recovers
+        env:
+          RUN_WORKER_READINESS_TESTS: "1"
+          TEST_REDIS_PORT: "6379"
+        run: bun test ./apps/compile-worker/test/workerReadiness.integration.js
       - name: Verify graceful shutdown cancels and cleans an active job
         env:
           RUN_WORKER_LIFECYCLE_TESTS: "1"
