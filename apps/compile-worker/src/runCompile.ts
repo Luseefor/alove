@@ -703,11 +703,20 @@ export async function runCompileJob(
     const artifactLog = timedOut ? null : dockerContainerName
       ? await readDockerArtifact(dockerContainerName, `/work/${main.replace(/\.tex$/u, ".log")}`, limits.maxLogBytes, true)
       : (await pathExists(logPath)) ? await readArtifact(work, logPath, limits.maxLogBytes, true) : null;
-    const logText = artifactLog ? artifactLog.data.toString("utf8") : combined;
+    const artifactLogText = artifactLog ? artifactLog.data.toString("utf8") : "";
+    let logText: string;
+    let combinedLogTruncated = false;
+    if (artifactLog && exit !== 0 && !timedOut && combined.trim().length > 0) {
+      combinedLogTruncated = Buffer.byteLength(artifactLogText, "utf8") + 1 + Buffer.byteLength(combined, "utf8") > limits.maxLogBytes;
+      logText = appendBounded(`${artifactLogText}\n`, combined, limits.maxLogBytes);
+    } else {
+      logText = artifactLog ? artifactLogText : combined;
+    }
     const parsedDiagnostics = parseLatexLog(logText);
+    const trimResult = trimLog(logText, limits.maxLogBytes);
     const trimmed = {
-      text: trimLog(logText, limits.maxLogBytes).text,
-      truncated: artifactLog?.truncated ?? false,
+      text: trimResult.text,
+      truncated: (artifactLog?.truncated ?? false) || combinedLogTruncated || trimResult.truncated,
     };
     const diagnostics = [...parsedDiagnostics];
     if (trimmed.truncated) {
@@ -740,7 +749,9 @@ export async function runCompileJob(
       : (await pathExists(pdfPath)) ? await readArtifact(work, pdfPath, limits.maxPdfBytes) : null;
     if (artifactPdf) {
       const pdfBuffer = artifactPdf.data;
-      if (pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      const hasPdfSignature =
+        pdfBuffer.subarray(0, 5).toString("ascii") === "%PDF-";
+      if (!hasPdfSignature && exit === 0) {
         return executionFailure({
           message: "latexmk produced an invalid PDF signature",
           texliveImage: image,
@@ -750,7 +761,9 @@ export async function runCompileJob(
           errorCode: "LATEX_ERROR",
         });
       }
-      pdfBase64 = pdfBuffer.toString("base64");
+      if (hasPdfSignature) {
+        pdfBase64 = pdfBuffer.toString("base64");
+      }
     }
 
     if (exit !== 0 || !pdfBase64) {

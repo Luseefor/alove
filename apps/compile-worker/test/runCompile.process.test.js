@@ -3,6 +3,7 @@ import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { runCompileJob } from "../src/runCompile.ts";
+import { parseLatexLog } from "../src/logParse.ts";
 
 const originalEnv = { ...process.env };
 let fixtureDirectory;
@@ -22,7 +23,16 @@ async function installFakeLatexmk() {
     `#!${process.execPath}
 import { writeFileSync, symlinkSync, readFileSync } from "node:fs";
 const args = process.argv.slice(2);
-if (!args.includes("-c") && process.env.ALOVE_WORKER_FIXTURE_MODE !== "no-output") {
+if (["driver-error", "driver-error-large"].includes(process.env.ALOVE_WORKER_FIXTURE_MODE) && !args.includes("-c")) {
+  const name = args.at(-1);
+  writeFileSync(name.replace(/\.tex$/, ".log"), "This is XeTeX\\nOutput written on main.xdv\\n");
+  writeFileSync(name.replace(/\.tex$/, ".pdf"), "");
+  if (process.env.ALOVE_WORKER_FIXTURE_MODE === "driver-error-large") console.error("x".repeat(1000));
+  console.error("xdvipdfmx:fatal: Image inclusion failed");
+  console.error("libpng error: IDAT: CRC error");
+  process.exit(1);
+}
+if (!args.includes("-c") && process.env.ALOVE_WORKER_FIXTURE_MODE !== "no-output" && process.env.ALOVE_WORKER_FIXTURE_MODE !== "driver-error") {
   const name = args.at(-1);
   writeFileSync(name.replace(/\\.tex$/, ".pdf"), ["invalid-pdf", "timeout-invalid-pdf"].includes(process.env.ALOVE_WORKER_FIXTURE_MODE) ? "not a PDF" : "%PDF-test-fixture");
   if (process.env.ALOVE_WORKER_FIXTURE_MODE === "external-log") {
@@ -41,6 +51,13 @@ if (process.env.ALOVE_WORKER_FIXTURE_MODE === "timeout-invalid-pdf") await Bun.s
 }
 
 describe("worker process boundary", () => {
+  it("shows an error once when stderr repeats the file-log diagnostic", () => {
+    const diagnostics = parseLatexLog("! Undefined control sequence.\nl.3 \\missing\n! Undefined control sequence.\nl.3 \\missing\na.tex:4: error in a\nb.tex:4: error in b");
+    expect(diagnostics.filter((d) => d.message === "! Undefined control sequence.")).toHaveLength(1);
+    expect(diagnostics.filter((d) => d.line === 3)).toHaveLength(1);
+    expect(diagnostics.filter((d) => d.file)).toHaveLength(2);
+  });
+
   it("passes a metacharacter filename as one argument and disables project rc/shell escape", async () => {
     await installFakeLatexmk();
     const filename = "paper;echo injected.tex";
@@ -104,6 +121,36 @@ describe("worker process boundary", () => {
     expect(result.phase).toBe("failed");
     expect(result.errorMessage).toContain("PDF signature");
     expect(result.pdfBase64).toBeUndefined();
+  });
+
+  it("preserves converter errors when the .log looks successful but the driver fails", async () => {
+    await installFakeLatexmk();
+    process.env.ALOVE_WORKER_FIXTURE_MODE = "driver-error";
+    process.env.COMPILE_MAX_LOG_BYTES = "128";
+    const result = await runCompileJob({ projectId: "local", mainFile: "main.tex", files: { "main.tex": "source" } });
+    expect(result.phase).toBe("failed");
+    expect(result.errorCode).toBe("LATEX_ERROR");
+    expect(result.pdfBase64).toBeUndefined();
+    expect(result.errorMessage).toContain("exited with code");
+    expect(result.errorMessage).not.toContain("invalid PDF signature");
+    expect(result.log).toContain("Output written");
+    expect(result.log).toContain("xdvipdfmx:fatal: Image inclusion failed");
+    expect(result.log).toContain("libpng error: IDAT: CRC error");
+    expect(result.diagnostics.some((d) => d.message.includes("xdvipdfmx:fatal"))).toBe(true);
+    expect(result.diagnostics.some((d) => d.message.includes("libpng error"))).toBe(true);
+    expect(Buffer.byteLength(result.log)).toBeLessThanOrEqual(128);
+  });
+
+  it("marks truncated merged driver output while retaining its error tail", async () => {
+    await installFakeLatexmk();
+    process.env.ALOVE_WORKER_FIXTURE_MODE = "driver-error-large";
+    process.env.COMPILE_MAX_LOG_BYTES = "128";
+    const result = await runCompileJob({ projectId: "local", mainFile: "main.tex", files: { "main.tex": "source" } });
+    expect(result.errorCode).toBe("LATEX_ERROR");
+    expect(result.pdfBase64).toBeUndefined();
+    expect(Buffer.byteLength(result.log)).toBeLessThanOrEqual(128);
+    expect(result.log).toContain("libpng error: IDAT: CRC error");
+    expect(result.diagnostics.some((d) => d.message.includes("truncated"))).toBe(true);
   });
 
   it("reports timeout before inspecting a partial invalid PDF", async () => {
