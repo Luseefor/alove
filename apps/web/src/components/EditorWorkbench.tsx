@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { CloudDraftRecovery } from "./CloudDraftRecovery";
 import { LatexEditorApp } from "./latex-ide";
 import { isLocalStandalone } from "@/lib/localStandalone";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
@@ -15,7 +16,8 @@ import { TEMPLATES, type TemplateId } from "@/lib/templates";
 import { createLocalWorkspaceSession } from "@/lib/localWorkspaceSession";
 
 function EditorWorkbenchConvex() {
-  useUser();
+  const { user } = useUser();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const queryString = searchParams.toString();
@@ -41,6 +43,7 @@ function EditorWorkbenchConvex() {
 
   useEffect(() => {
     let active = true;
+    if (!isAuthenticated) return;
     setOpenError("");
     if (requestedId) {
       setProjectId(requestedId as Id<"projects">);
@@ -82,15 +85,15 @@ function EditorWorkbenchConvex() {
     return () => {
       active = false;
     };
-  }, [requestedId, queryString, createProject, ensureDefault, router]);
+  }, [requestedId, queryString, createProject, ensureDefault, router, isAuthenticated]);
 
   const project = useQuery(
     api.projects.get,
-    projectId ? { projectId } : "skip",
+    isAuthenticated && projectId ? { projectId } : "skip",
   );
   const rows = useQuery(
     api.files.list,
-    project ? { projectId: project._id } : "skip",
+    isAuthenticated && project ? { projectId: project._id } : "skip",
   );
 
   useEffect(() => {
@@ -100,6 +103,7 @@ function EditorWorkbenchConvex() {
         content: r.content,
         version: r.version,
       }));
+      useWorkbenchStore.setState({ cloudUserId: user?.id ?? null });
       mergeRemoteProject({
         projectId,
         title: project?.name,
@@ -114,7 +118,7 @@ function EditorWorkbenchConvex() {
       )
         useWorkbenchStore.setState({ mainFile: project.mainFile });
     }
-  }, [rows, projectId, project?.name, project?.mainFile, mergeRemoteProject]);
+  }, [rows, projectId, project?.name, project?.mainFile, mergeRemoteProject, user?.id]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -164,6 +168,15 @@ function EditorWorkbenchConvex() {
     setPersistenceHandlers,
   ]);
 
+  useEffect(() => () => {
+    useWorkbenchStore.getState().setPersistenceHandlers({});
+    useWorkbenchStore.getState().stopCompilePolling();
+    useWorkbenchStore.setState({ cloudUserId: null });
+    useWorkbenchStore.getState().initializeProject({ projectId: null, title: "", files: [] });
+  }, [user?.id]);
+
+  if (authLoading || !isAuthenticated || !user)
+    return <div role="status" className="p-6">Connecting your cloud workspace… <a href="/projects" className="underline">Back to projects</a></div>;
   if (openError)
     return (
       <div role="alert" className="p-6">
@@ -188,7 +201,7 @@ function EditorWorkbenchConvex() {
         Opening cloud project…
       </div>
     );
-  return <LatexEditorApp />;
+  return <CloudDraftRecovery key={`${user.id}:${projectId}`} userId={user.id} projectId={projectId!}><LatexEditorApp /></CloudDraftRecovery>;
 }
 
 function EditorWorkbenchLocal() {

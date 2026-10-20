@@ -26,8 +26,8 @@ export async function authorizeCompileRequest(
     };
   const origin = policy.allowAnonymous
     ? policy.origin
-    : compileRequestOrigin(req);
-  if (!isCompileRequestOriginAllowed(req, origin))
+    : policy.origin ?? compileRequestOrigin(req);
+  if (!isCompileRequestOriginAllowed(req, origin, process.env.ALOVE_COMPILE_TRUST_PROXY === "true"))
     return {
       ok: false,
       response: NextResponse.json(

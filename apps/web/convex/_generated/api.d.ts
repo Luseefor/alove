@@ -9,11 +9,13 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as accountLifecycle from "../accountLifecycle.js";
 import type * as files from "../files.js";
 import type * as presence from "../presence.js";
 import type * as projects from "../projects.js";
 
 declare const fullApi: ApiFromModules<{
+  accountLifecycle: typeof accountLifecycle;
   files: typeof files;
   presence: typeof presence;
   projects: typeof projects;

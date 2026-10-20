@@ -9,8 +9,8 @@
     "test": "bun test ./test/*.test.js",
     "test:docker": "bun test ./test/runCompile.docker.integration.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo noop",
-    "build": "echo skip"
+    "lint": "eslint src --config ../../eslint.config.mjs",
+    "build": "bun build ./src/index.ts ./src/health.ts --target=bun --packages=external --outdir=dist"
   },
   "dependencies": {
     "@alove/protocol": "workspace:*",

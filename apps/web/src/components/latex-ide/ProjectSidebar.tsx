@@ -1,5 +1,8 @@
 "use client";
 
+import { isLocalStandalone } from "@/lib/localStandalone";
+import { MAX_FILE_BYTES as CLOUD_MAX_FILE_BYTES } from "@/lib/cloudProjectLimits";
+
 import { useWorkbenchStore, ProjectFile } from "@/stores/workbenchStore";
 import {
   Folder,
@@ -66,7 +69,7 @@ async function readFileForProjectPath(
   if (utf8ByteLength(content) > PROJECT_MAX_FILE_BYTES) {
     throw new Error(`"${logicalPath}" is too large (max 1 MB).`);
   }
-  const sizeCheck = validateProjectFileContentSize(logicalPath, content);
+  const sizeCheck = validateProjectFileContentSize(logicalPath, content, isLocalStandalone() ? undefined : CLOUD_MAX_FILE_BYTES);
   if (!sizeCheck.ok) throw new Error(sizeCheck.error);
   return content;
 }

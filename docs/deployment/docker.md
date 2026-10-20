@@ -1,48 +1,16 @@
-# Docker Deployment
+# Docker deployment
 
-## Local Development
+For local use, build the pinned small TeX image, then start the development stack:
 
-The easiest way to run the entire backend and frontend stack locally is with Docker Compose.
-
-```bash
-cp .env.example .env
-docker compose -f docker-compose.dev.yml up --build
+```sh
+docker build -t alove-tex:local -f services/tex-runner/Dockerfile.local services/tex-runner
+bun run docker:dev
 ```
 
-This starts:
-- **web:** Next.js application on `http://localhost:3000`
-- **compile-worker:** Pulls compile jobs and runs TeX
-- **redis:** Used for BullMQ job queues
+Open `http://127.0.0.1:3000`. This exact origin is required for anonymous local compiles. Development Compose runs web, Redis and the worker, publishes loopback ports, and shares an identical absolute job path between the worker and host Docker daemon. Its Docker socket mount gives the worker control of that daemon. Keep this stack local; do not tunnel it to the internet.
 
-### TeX Image
-The compile worker will automatically spawn a Docker container from `ghcr.io/xu-cheng/texlive-full:latest`. 
-_Note: The initial pull for this image may take a while depending on your connection._
+`ALOVE_WEB_PORT` and `ALOVE_REDIS_PORT` can select unused host ports. `ALOVE_COMPILE_WORK_ROOT` selects the shared absolute source directory. `COMPILE_DOCKER_IMAGE` selects an already installed TeX image; the worker does not silently pull a missing one. Use `bun run smoke:docker` for an isolated stack that checks actual nested-file/image/bibliography compilation, worker cancellation and timeout cleanup. It creates a separate Compose project and removes only its own services afterward.
 
-### Security Note
-In development, the compile worker mounts `/var/run/docker.sock` to control the host Docker daemon. This is convenient for local development but represents a security risk if exposed in untrusted environments. Production deployments should isolate the compilation process.
+For production, follow the [release runbook](../release-runbook.md). `docker-compose.prod.yml` is the web host plus Caddy; `docker-compose.runner.yml` is a separate dedicated Docker host. Both use authenticated managed Redis over verified TLS. There is no public Redis port and no Docker socket on the web container. Production Compose consumes immutable images and private runtime environment files created by the manual deploy workflow; it is not a replacement for the local build command above.
 
-## Production Deployment
-
-For a production environment, you should use `docker-compose.prod.yml` or deploy the services separately:
-
-1. **Web App:** Next.js, requiring Clerk/Convex configuration if cloud mode is enabled.
-2. **Redis:** A managed Redis instance or secured Redis container.
-3. **Worker:** A secure, isolated environment for executing `compile-worker`.
-
-```bash
-docker compose -f docker-compose.prod.yml up --build -d
-```
-
-### Clerk and Convex
-To run in cloud mode, `NEXT_PUBLIC_LOCAL_STANDALONE=false` must be set, along with your Clerk and Convex environment variables. The application will fail-closed if auth secrets are missing.
-
-### Rollback
-If there is an issue with the CodeMirror editor surface, you can roll back to the classic textarea by setting:
-`NEXT_PUBLIC_EDITOR_MODE=textarea`
-and rebuilding/redeploying the container.
-
-## Troubleshooting
-
-- **Redis unavailable:** The web compile API will return a 503 structured error, and UI will gracefully fail.
-- **Docker unavailable:** The compile worker will fail jobs with `DOCKER_ERROR` and log details. Ensure the Docker daemon is running and accessible.
-- **Cleanup failure:** If a container cannot be stopped/removed, the worker logs a warning. This does not fail the compile job if compilation succeeded.
+The workflow builds public Clerk/Convex configuration into the web image, keeps secret keys at runtime, deploys the backend, checks container health and public backend readiness, and retains previous release directories for rollback. Missing configuration fails the workflow. Real login, cross-account isolation, DNS/TLS and provider backup checks remain part of the live release checklist.

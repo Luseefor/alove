@@ -1,6 +1,6 @@
 # Development
 
-alove is a Bun monorepo. Default `bun run dev` is **local standalone**: Next.js editor + BullMQ compile worker, **no Clerk or Convex**. Live collab is the **cloud** path (`dev:cloud` + Convex).
+alove is a Bun monorepo. Default `bun run dev` is **local standalone**: Next.js editor + BullMQ compile worker, **no Clerk or Convex**. Owner-scoped cloud sync uses `dev:cloud` and Convex; invitations and multi-user editing are not implemented.
 
 ## Prerequisites
 
@@ -21,8 +21,8 @@ From the repo root:
 ```bash
 bun install
 docker compose up -d          # Redis :6379, Postgres :5432
-docker pull ghcr.io/xu-cheng/texlive-full:latest
-bun run dev
+docker build -t alove-tex:local -f services/tex-runner/Dockerfile.local services/tex-runner
+COMPILE_DOCKER_IMAGE=alove-tex:local bun run dev
 ```
 
 Open **`/editor`** on the URL printed in the web logs. Next.js binds the first free TCP port from **`ALOVE_WEB_PORT`** (default **30127**) upward (skips common services and Next-blocked ports such as **6000**). Set a starting port with `ALOVE_WEB_PORT=38400 bun run dev`.
@@ -45,7 +45,7 @@ bun run --filter compile-worker dev
 bun run convex:dev                  # keep running, or use bun run dev:with-convex
 ```
 
-Then [http://localhost:3000/editor](http://localhost:3000/editor). Sign in with Clerk; a second browser/incognito window is a quick collab check.
+Then [http://localhost:3000/editor](http://localhost:3000/editor). Sign in with Clerk. Use a distinct second account to verify that private projects are inaccessible, not as a shared-editing check. For publishing, use the [release runbook](release-runbook.md).
 
 Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example).
 
@@ -56,13 +56,13 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 | `NEXT_PUBLIC_LOCAL_STANDALONE` | build / `.env.local` | `true` / `1` selects account-free local UI; does not authorize compile jobs |
 | `ALOVE_LOCAL_COMPILE_ORIGIN` | server only | Exact loopback origin with port for anonymous local compute; unset for cloud deployments |
 | `ALOVE_WEB_PORT` | dev only | Starting port for local Next scan (default **30127**) |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk (cloud). `CLERK_SECRET_KEY` can be omitted for relaxed local cloud; set it for production-like middleware and `/api/compile` |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk (cloud). both keys are required for cloud mode; missing authentication fails closed |
 | `NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN` | `apps/web/.env.local` | Convex + Clerk JWT |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | env / `.env.local` | BullMQ (defaults match Compose: `127.0.0.1:6379`) |
-| `COMPILE_USE_DOCKER` | worker | `true` (default) Docker; `false` / `0` host `latexmk` |
+| `COMPILE_USE_DOCKER` | worker | `true` (default) Docker; `false` / `0` host `latexmk`, only with explicit non-production `COMPILE_TRUSTED_LOCAL=true` |
 | `COMPILE_DOCKER_IMAGE` | worker | TeX image override |
 | `COMPILE_DOCKER_PLATFORM` | worker | `docker run --platform`; on **macOS + arm64** defaults to **`linux/amd64`** |
-| `WORKER_CONCURRENCY` | worker | BullMQ concurrency (default `2`) |
+| `WORKER_CONCURRENCY` | worker | BullMQ concurrency (default `1`, allowed `1`–`4`) |
 
 ## Commands
 

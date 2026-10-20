@@ -1,3 +1,4 @@
+import { compileCancellationKey, releaseCompileAdmission } from "@alove/queue/admission";
 import { NextResponse } from "next/server";
 import {
   validateQueuedCompileJob,
@@ -65,5 +66,39 @@ export async function GET(req: Request, context: RouteContext) {
       },
       503,
     );
+  }
+}
+
+
+export async function DELETE(req: Request, context: RouteContext) {
+  const access = await authorizeCompileRequest(req);
+  if (!access.ok) {
+    access.response.headers.set("Cache-Control", "private, no-store");
+    return access.response;
+  }
+  try {
+    const { jobId } = await context.params;
+    const queue = getCompileQueue();
+    const job = await queue.getJob(jobId);
+    const queued = job && validateQueuedCompileJob(job.data);
+    if (!job || !queued || !queued.ok || !ownsCompileJob(access.principal, queued.value.owner) ||
+      !(await canAccessCompileProject(access.principal, queued.value.request.projectId)))
+      return jobResponse({ error: "not found" }, 404);
+    const state = await job.getState();
+    if (state === "completed" || state === "failed") return jobResponse({ state });
+    const client = await queue.client;
+    await client.set(compileCancellationKey(jobId), "1", "EX", 600);
+    if (state !== "active") {
+      try {
+        await job.remove();
+        await releaseCompileAdmission(client, queued.value.owner, jobId, queue.toKey("").replace(/:$/, ""));
+        return jobResponse({ state: "cancelled" });
+      } catch {
+        // It may have become active. The worker observes the cancellation key.
+      }
+    }
+    return jobResponse({ state: "cancelling" }, 202);
+  } catch {
+    return jobResponse({ error: "Cancellation unavailable. Retry to confirm the job stopped." }, 503);
   }
 }

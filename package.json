@@ -26,11 +26,15 @@
     "bench:browser": "bun scripts/benchmarks/browserBenchmark.ts",
     "test:benchmarks": "bun test ./scripts/benchmarks/*.test.ts",
     "bench:report": "python3 scripts/benchmarks/reportBenchmark.py",
-    "bench:resources": "bun scripts/benchmarks/profileTexResources.ts"
+    "bench:resources": "bun scripts/benchmarks/profileTexResources.ts",
+    "deploy:check": "bun scripts/deploy/checkConfig.ts",
+    "test:deploy": "bun test ./scripts/deploy/*.test.ts"
   },
   "devDependencies": {
+    "eslint": "^9",
     "prettier": "^3.8.3",
     "turbo": "^2.9.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8"
   }
 }

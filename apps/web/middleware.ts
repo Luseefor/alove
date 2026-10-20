@@ -17,7 +17,12 @@ export default async function middleware(
   // Account-free local writing is independent of permission to run compute.
   if (!path.startsWith("/api/") && isLocalStandalone())
     return NextResponse.next();
-  if (path === "/api/health") return NextResponse.next();
+  if (path === "/api/health" || path === "/api/ready") return NextResponse.next();
+  const privatePage = /^\/(editor|projects)(\/|$)/.test(path);
+  const authPage = /^\/(sign-in|sign-up)(\/|$)/.test(path);
+  // Public help and unknown routes must reach their page or the custom 404.
+  if (!path.startsWith("/api/") && !privatePage && !authPage)
+    return NextResponse.next();
 
   const secret = process.env.CLERK_SECRET_KEY?.trim();
   if (!secret || isPlaceholderConfigValue(secret))

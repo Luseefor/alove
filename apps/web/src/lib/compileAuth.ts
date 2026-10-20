@@ -3,7 +3,7 @@ import { isPlaceholderConfigValue } from "@/lib/localStandalone";
 
 export type CompileAuthPolicy =
   | { allowAnonymous: true; origin: string }
-  | { allowAnonymous: false }
+  | { allowAnonymous: false; origin?: string }
   | { error: string };
 
 export function getCompileAuthPolicy(
@@ -26,6 +26,16 @@ export function getCompileAuthPolicy(
     if (isPlaceholderConfigValue(value))
       return { error: `Invalid ${name} placeholder value` };
   }
+  const site = env.ALOVE_SITE_URL?.trim();
+  if (site) {
+    try {
+      const parsed = new URL(site);
+      if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== "/") throw new Error();
+      return { allowAnonymous: false, origin: parsed.origin };
+    } catch { return { error: "ALOVE_SITE_URL must be an HTTPS origin" }; }
+  }
+  if (env.NODE_ENV === "production" || env.ALOVE_COMPILE_TRUST_PROXY === "true")
+    return { error: "Missing required environment variable: ALOVE_SITE_URL" };
   return { allowAnonymous: false };
 }
 
@@ -50,13 +60,14 @@ export function compileRequestOrigin(req: Request): string {
 export function isCompileRequestOriginAllowed(
   req: Request,
   origin: string,
+  trustHostHeader = false,
 ): boolean {
   const expected = new URL(origin);
   const suppliedOrigin = req.headers.get("origin");
   const host = req.headers.get("host");
   const site = req.headers.get("sec-fetch-site");
   return (
-    compileRequestOrigin(req) === origin &&
+    (compileRequestOrigin(req) === origin || (trustHostHeader && host === expected.host)) &&
     (!host || host === expected.host) &&
     (!suppliedOrigin || suppliedOrigin === origin) &&
     (!site || site === "same-origin" || site === "none")

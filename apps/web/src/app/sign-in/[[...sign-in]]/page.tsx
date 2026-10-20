@@ -9,7 +9,12 @@ export default function SignInPage() {
   }
   return (
     <AuthShell>
-      <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+      <SignIn
+        routing="path"
+        path="/sign-in"
+        signUpUrl="/sign-up"
+        fallbackRedirectUrl="/projects"
+      />
     </AuthShell>
   );
 }

@@ -46,10 +46,42 @@ type CompileLimits = {
   maxPdfBytes: number;
 };
 
+export type RunCompileOptions = {
+  signal?: AbortSignal;
+};
+
 type ValidatedPayload = {
   files: Array<{ path: string; content: string }>;
   mainFile: string;
 };
+
+async function resolveWorkRoot(): Promise<string> {
+  const raw = process.env.COMPILE_WORK_ROOT;
+  if (raw === undefined || raw === "") return tmpdir();
+  if (raw.includes("\0")) throw new Error("COMPILE_WORK_ROOT must not contain NUL");
+  if (!isAbsolute(raw)) throw new Error("COMPILE_WORK_ROOT must be an absolute path");
+  await mkdir(raw, { recursive: true });
+  const resolved = await realpath(raw);
+  if (resolved.includes("\0")) throw new Error("COMPILE_WORK_ROOT must not contain NUL");
+  if (!isAbsolute(resolved)) throw new Error("COMPILE_WORK_ROOT must resolve to an absolute path");
+  return resolved;
+}
+
+function cancelledResult(args: {
+  texliveImage: string;
+  log?: string;
+  environment?: CompileEnvironment;
+}): CompileJobResult {
+  const log = args.log ?? "";
+  return executionFailure({
+    message: "Compile cancelled",
+    texliveImage: args.texliveImage,
+    log,
+    diagnostics: [{ severity: "error", message: "Compile cancelled" }],
+    errorCode: "CANCELLED",
+    environment: args.environment,
+  });
+}
 
 function parsePositiveInt(
   raw: string | undefined,
@@ -382,19 +414,75 @@ async function readArtifact(
 
 export async function runCompileJob(
   payload: CompileJobPayload,
+  options: RunCompileOptions = {},
 ): Promise<CompileJobResult> {
+  const externalSignal = options?.signal;
   const image =
     process.env.COMPILE_DOCKER_IMAGE ?? "ghcr.io/xu-cheng/texlive-full:latest";
+  if (externalSignal?.aborted) {
+    return cancelledResult({ texliveImage: image, log: "" });
+  }
   const request = validateCompileRequest(payload);
   if (!request.ok) return validationFailure(request.error, image);
   payload = request.value;
   const limits = resolveLimits(payload);
   const useDocker = process.env.COMPILE_USE_DOCKER !== "0" && process.env.COMPILE_USE_DOCKER !== "false";
-  const work = await mkdtemp(join(tmpdir(), "alove-tex-"));
+  let workRoot: string;
+  try {
+    workRoot = await resolveWorkRoot();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return validationFailure(`Invalid COMPILE_WORK_ROOT: ${message}`, image);
+  }
+  if (externalSignal?.aborted) {
+    return cancelledResult({ texliveImage: image, log: "" });
+  }
+  const work = await mkdtemp(join(workRoot, "alove-tex-"));
   let dockerContainerName: string | null = null;
   let environment: CompileEnvironment | undefined;
 
+  function wasCancelled(): boolean {
+    return externalSignal?.aborted === true;
+  }
+
+  function linkController(timeoutMs: number): {
+    controller: AbortController;
+    cleanup: () => void;
+  } {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let onExternal: (() => void) | undefined;
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        try {
+          controller.abort();
+        } catch {
+          // ignore
+        }
+      } else {
+        onExternal = () => {
+          try {
+            controller.abort();
+          } catch {
+            // ignore
+          }
+        };
+        externalSignal.addEventListener("abort", onExternal, { once: true });
+      }
+    }
+    const cleanup = () => {
+      clearTimeout(timer);
+      if (externalSignal && onExternal) {
+        externalSignal.removeEventListener("abort", onExternal);
+      }
+    };
+    return { controller, cleanup };
+  }
+
   try {
+    if (wasCancelled()) {
+      return cancelledResult({ texliveImage: image, log: "" });
+    }
     const validated = validatePayload(payload, limits, image);
     if (!validated.ok) {
       return validated.result;
@@ -483,9 +571,18 @@ export async function runCompileJob(
           : isDarwinArm64
             ? "linux/amd64"
             : "";
-      const inspected = await runCmd("docker", ["image", "inspect", "--format", "{{.Id}}|{{.Os}}/{{.Architecture}}", image], work, {
-        signal: AbortSignal.timeout(10_000), maxOutputBytes: 4096,
-      });
+      const inspectLink = linkController(10_000);
+      let inspected: { code: number; stdout: string; stderr: string };
+      try {
+        inspected = await runCmd("docker", ["image", "inspect", "--format", "{{.Id}}|{{.Os}}/{{.Architecture}}", image], work, {
+          signal: inspectLink.controller.signal, maxOutputBytes: 4096,
+        });
+      } finally {
+        inspectLink.cleanup();
+      }
+      if (wasCancelled()) {
+        return cancelledResult({ texliveImage: image, log: combined, environment });
+      }
       const [imageId, imagePlatform] = inspected.stdout.trim().split("|");
       if (inspected.code !== 0 || !/^sha256:[a-f0-9]{64}$/.test(imageId ?? "") || !imagePlatform) {
         return executionFailure({ message: "Cannot resolve the configured Docker image. Pull or build it before compiling.",
@@ -497,6 +594,9 @@ export async function runCompileJob(
         return executionFailure({ message: `Invalid Docker sandbox policy: ${String(error)}`, log: "", texliveImage: image, errorCode: "DOCKER_ERROR" });
       }
       environment = { mode: "docker", runtimeId: imageId!, platform: imagePlatform, policyId: sandboxPolicyId(sandbox) };
+      if (wasCancelled()) {
+        return cancelledResult({ texliveImage: image, log: combined, environment });
+      }
       dockerContainerName = `alove-compile-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 10)}`;
@@ -507,49 +607,71 @@ export async function runCompileJob(
         // --rm plus a finite PID1 lifetime bounds orphans if the worker dies.
         ttlSeconds: Math.ceil(limits.timeoutMs / 1000) + 60,
       });
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
+      if (wasCancelled()) {
+        return cancelledResult({ texliveImage: image, log: combined, environment });
+      }
+      const runLink = linkController(limits.timeoutMs);
       try {
         const started = await runCmd("docker", args, work, {
-          signal: controller.signal, maxOutputBytes: limits.maxLogBytes,
+          signal: runLink.controller.signal, maxOutputBytes: limits.maxLogBytes,
         });
-        timedOut = started.code === 124 || controller.signal.aborted;
+        if (wasCancelled()) {
+          return cancelledResult({ texliveImage: image, log: combined, environment });
+        }
+        timedOut = started.code === 124 || runLink.controller.signal.aborted;
         if (!timedOut && started.code !== 0) {
           return executionFailure({ message: "Cannot start the constrained TeX container.",
             log: started.stderr, texliveImage: image, environment, errorCode: "DOCKER_ERROR" });
         }
         if (!timedOut) {
           const copied = await runCmd("docker", ["exec", dockerContainerName, "cp", "-R", "/source/.", "/work/"], work, {
-            signal: controller.signal, maxOutputBytes: limits.maxLogBytes,
+            signal: runLink.controller.signal, maxOutputBytes: limits.maxLogBytes,
           });
-          timedOut = copied.code === 124 || controller.signal.aborted;
+          if (wasCancelled()) {
+            return cancelledResult({ texliveImage: image, log: combined, environment });
+          }
+          timedOut = copied.code === 124 || runLink.controller.signal.aborted;
           if (!timedOut && copied.code !== 0) {
             return executionFailure({ message: "Cannot prepare the constrained TeX workspace.",
               log: copied.stderr, texliveImage: image, environment, errorCode: "DOCKER_ERROR" });
           }
         }
         for (const commandArgs of commands) {
-          if (timedOut || controller.signal.aborted) { timedOut = true; break; }
+          if (wasCancelled()) {
+            return cancelledResult({ texliveImage: image, log: combined, environment });
+          }
+          if (timedOut || runLink.controller.signal.aborted) { timedOut = true; break; }
           const run = await runCmd("docker", ["exec", dockerContainerName, "latexmk", ...commandArgs], work, {
-            signal: controller.signal, maxOutputBytes: limits.maxLogBytes,
+            signal: runLink.controller.signal, maxOutputBytes: limits.maxLogBytes,
           });
           combined = appendBounded(combined, `${run.stdout}\n${run.stderr}`, limits.maxLogBytes);
           exit = run.code;
-          timedOut = run.code === 124 || controller.signal.aborted;
+          if (wasCancelled()) {
+            return cancelledResult({ texliveImage: image, log: combined, environment });
+          }
+          timedOut = run.code === 124 || runLink.controller.signal.aborted;
         }
-      } finally { clearTimeout(timer); }
+      } finally { runLink.cleanup(); }
+      if (wasCancelled()) {
+        return cancelledResult({ texliveImage: image, log: combined, environment });
+      }
     } else {
       environment = { mode: "host", runtimeId: "unverified-host", platform: `${platform()}/${arch()}` };
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
+      if (wasCancelled()) {
+        return cancelledResult({ texliveImage: image, log: combined, environment });
+      }
+      const hostLink = linkController(limits.timeoutMs);
       try {
         for (const commandArgs of commands) {
-          if (controller.signal.aborted) {
+          if (wasCancelled()) {
+            return cancelledResult({ texliveImage: image, log: combined, environment });
+          }
+          if (hostLink.controller.signal.aborted) {
             timedOut = true;
             break;
           }
           const run = await runCmd("latexmk", commandArgs, work, {
-            signal: controller.signal,
+            signal: hostLink.controller.signal,
             maxOutputBytes: limits.maxLogBytes,
           });
           combined = appendBounded(
@@ -558,11 +680,21 @@ export async function runCompileJob(
             limits.maxLogBytes,
           );
           exit = run.code;
-          timedOut = run.code === 124 || controller.signal.aborted;
+          if (wasCancelled()) {
+            return cancelledResult({ texliveImage: image, log: combined, environment });
+          }
+          timedOut = run.code === 124 || hostLink.controller.signal.aborted;
         }
       } finally {
-        clearTimeout(timer);
+        hostLink.cleanup();
       }
+      if (wasCancelled()) {
+        return cancelledResult({ texliveImage: image, log: combined, environment });
+      }
+    }
+
+    if (wasCancelled()) {
+      return cancelledResult({ texliveImage: image, log: combined, environment });
     }
 
     const logPath = join(work, main.replace(/\.tex$/u, ".log"));

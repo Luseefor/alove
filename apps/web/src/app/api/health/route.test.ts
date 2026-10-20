@@ -1,60 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { GET } from "./route";
 
-vi.mock("next/server", () => {
-  return {
-    NextResponse: {
-      json: vi.fn((body) => body),
-    },
-  };
-});
-
-describe("Health Check API", () => {
-  it("returns configured status for production", async () => {
-    const originalEnv = process.env;
-    process.env = { ...originalEnv, NEXT_PUBLIC_LOCAL_STANDALONE: "false", CLERK_SECRET_KEY: "secret" };
-    
+describe("web liveness", () => {
+  it("reports only web process availability with no service-health claims", async () => {
     const response = await GET();
-    
-    expect(response).toMatchObject({
-      ok: true,
-      service: "web",
-      mode: "cloud",
-      auth: "configured",
-    });
-
-    process.env = originalEnv;
-  });
-
-  it("returns local_bypass for local standalone", async () => {
-    const originalEnv = process.env;
-    process.env = { ...originalEnv, NEXT_PUBLIC_LOCAL_STANDALONE: "true" };
-    
-    const response = await GET();
-    
-    expect(response).toMatchObject({
-      ok: true,
-      service: "web",
-      mode: "local",
-      auth: "local_bypass",
-    });
-
-    process.env = originalEnv;
-  });
-
-  it("identifies missing clerk config", async () => {
-    const originalEnv = process.env;
-    process.env = { ...originalEnv, NEXT_PUBLIC_LOCAL_STANDALONE: "false", CLERK_SECRET_KEY: "placeholder" };
-    
-    const response = await GET();
-    
-    expect(response).toMatchObject({
-      ok: true,
-      service: "web",
-      mode: "cloud",
-      auth: "missing",
-    });
-
-    process.env = originalEnv;
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ ok: true, service: "web" });
   });
 });

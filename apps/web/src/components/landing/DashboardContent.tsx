@@ -7,7 +7,7 @@ import Link from "next/link";
 import { isLocalStandalone } from "@/lib/localStandalone";
 import { LocalProjectList } from "./LocalProjectList";
 import { ProjectLauncher } from "./ProjectLauncher";
-import { useState, useEffect } from "react";
+import { useServiceReadiness } from "@/hooks/useServiceReadiness";
 
 function SectionHeader({
   title,
@@ -104,29 +104,25 @@ function StatusRow({
 
 export function DashboardContent() {
   const localMode = isLocalStandalone();
-  const [health, setHealth] = useState<{ ok: boolean; redis: string } | null>(
-    null,
-  );
+  const { status, offline, loading, retry } = useServiceReadiness();
 
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => res.json())
-      .then((data) => setHealth(data))
-      .catch(() => setHealth({ ok: false, redis: "unavailable" }));
-  }, []);
-
-  const compileStatus = health
-    ? health.redis === "ok"
-      ? "Configured"
-      : "Unavailable"
-    : "Checking...";
+  const compileStatus =
+    status === "ready" ? "Ready" : status === "checking" ? "Checking" : "Unavailable";
 
   const compileStatusColor =
-    compileStatus === "Configured"
+    compileStatus === "Ready"
       ? "bg-success-bg text-success border-success-border"
-      : compileStatus === "Checking..."
+      : compileStatus === "Checking"
         ? "bg-muted text-muted-foreground border-border"
         : "bg-error-bg text-error border-error-border";
+
+  const compileSubtext = offline
+    ? "You are offline"
+    : loading || status === "checking"
+      ? "Checking compile backend"
+      : status === "ready"
+        ? "Compile backend reported ready"
+        : "Compile backend unavailable";
 
   return (
     <div className="space-y-16">
@@ -163,7 +159,7 @@ export function DashboardContent() {
               subtext={
                 localMode
                   ? "Source is saved in this browser"
-                  : "Connected to Convex cloud"
+                  : "Cloud source status not checked here"
               }
               icon={ShieldCheck}
               color="bg-success-bg text-success border-success-border"
@@ -172,19 +168,30 @@ export function DashboardContent() {
             <StatusRow
               label="Compile Pipeline"
               status={compileStatus}
-              subtext={
-                health?.redis === "ok"
-                  ? "Queue host configured; build to check the worker"
-                  : "Awaiting system connection"
-              }
+              subtext={compileSubtext}
               icon={Zap}
               color={
-                compileStatus === "Configured"
+                compileStatus === "Ready"
                   ? "bg-primary/5 text-primary border-primary/10"
                   : "bg-muted text-zinc-300 border-border"
               }
               statusColor={compileStatusColor}
             />
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={retry}
+                className="inline-flex items-center justify-center rounded-2xl border border-border bg-card-bg px-4 py-2 text-[11px] font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted active:scale-95"
+              >
+                Retry
+              </button>
+              <Link
+                href="/status"
+                className="text-[11px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity"
+              >
+                View status
+              </Link>
+            </div>
           </div>
         </div>
       </div>

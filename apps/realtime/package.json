@@ -6,9 +6,9 @@
   "scripts": {
     "dev:legacy": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "build": "echo skip",
+    "build": "bun build ./src/index.ts --target=bun --packages=external --outdir=dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo noop"
+    "lint": "eslint src --config ../../eslint.config.mjs"
   },
   "dependencies": {
     "@hocuspocus/server": "^4.0.0",

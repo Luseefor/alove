@@ -30,6 +30,7 @@ export function ThemeToggle({ size = "md", className = "" }: ThemeToggleProps) {
           key={value}
           type="button"
           title={title}
+          aria-pressed={appearance === value}
           onClick={() => setAppearance(value)}
           className={`px-2 font-medium transition-colors rounded-sm ${
             sm ? "py-0.5" : "py-1"

@@ -19,7 +19,7 @@ function context(owner = "owner") {
     normalizeId: vi.fn((_: string, value: string) =>
       value === "bad" ? null : value,
     ),
-    query: vi.fn(() => ({ withIndex: () => ({ unique }) })),
+    query: vi.fn(() => ({ withIndex: () => ({ unique, collect: vi.fn(async () => []) }) })),
   };
   return {
     auth: { getUserIdentity: vi.fn(async () => ({ subject: "owner" })) },

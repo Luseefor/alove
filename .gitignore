@@ -12,3 +12,12 @@ out
 
 # Local benchmark working files; published evidence lives in docs/benchmarks
 benchmark-results/
+
+# Deployment secrets and local deployment state
+.env.*
+!.env.example
+*.pem
+.deploy/
+.terraform/
+*.tfstate*
+*.tfvars

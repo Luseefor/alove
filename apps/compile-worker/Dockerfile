@@ -1,4 +1,4 @@
-FROM oven/bun:1-alpine
+FROM oven/bun:1.3.10-alpine
 
 # Install Docker CLI to spawn TeX containers
 RUN apk add --no-cache docker-cli
@@ -15,8 +15,11 @@ COPY packages/queue/package.json packages/queue/
 
 RUN bun install --frozen-lockfile
 
-COPY . .
+COPY packages ./packages
+COPY apps/compile-worker ./apps/compile-worker
 
 WORKDIR /app/apps/compile-worker
 
-CMD ["bun", "run", "start"]
+RUN bun run build
+ENV NODE_ENV=production
+CMD ["bun", "dist/index.js"]

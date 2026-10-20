@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { reserveCompileAdmission, releaseCompileAdmission } from "@alove/queue/admission";
 import { NextResponse } from "next/server";
 import {
   COMPILE_REQUEST_LIMITS,
@@ -77,11 +79,24 @@ export async function POST(req: Request) {
     )
       return NextResponse.json({ error: "not found" }, { status: 404 });
     const queue = getCompileQueue();
-    const job = await queue.add("build", {
-      version: 1,
-      owner: access.principal.owner,
-      request: validated.value,
-    });
+    const client = await queue.client;
+    const jobId = randomUUID();
+    const prefix = queue.toKey("").replace(/:$/, "");
+    const admission = await reserveCompileAdmission(client, access.principal.owner, jobId, prefix);
+    if (!admission.allowed)
+      return NextResponse.json({ error: "Compile limit reached. Wait for a current build or retry shortly." }, {
+        status: 429, headers: { "Retry-After": String(admission.retryAfter) },
+      });
+    let job;
+    try {
+      job = await queue.add("build", {
+        version: 1, owner: access.principal.owner, request: validated.value,
+      }, { jobId });
+    } catch (error) {
+      // A timed-out add might have reached Redis. Keep its slot if the job exists.
+      await releaseCompileAdmission(client, access.principal.owner, jobId, prefix, true).catch(() => {});
+      throw error;
+    }
     return NextResponse.json({ jobId: job.id });
   } catch {
     return NextResponse.json(

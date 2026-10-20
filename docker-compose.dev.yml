@@ -2,12 +2,13 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${ALOVE_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 3
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
@@ -21,6 +22,7 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
   web:
     build:
@@ -28,16 +30,28 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_LOCAL_STANDALONE: "true"
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_CONVEX_URL: ${NEXT_PUBLIC_CONVEX_URL:-}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${ALOVE_WEB_PORT:-3000}:3000"
     environment:
       - NEXT_PUBLIC_LOCAL_STANDALONE=true
-      - ALOVE_LOCAL_COMPILE_ORIGIN=http://127.0.0.1:3000
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      - NEXT_PUBLIC_CONVEX_URL=${NEXT_PUBLIC_CONVEX_URL:-}
+      - ALOVE_COMPILE_TRUST_PROXY=true
+      - ALOVE_LOCAL_COMPILE_ORIGIN=http://127.0.0.1:${ALOVE_WEB_PORT:-3000}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
       redis:
         condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   compile-worker:
     build:
@@ -47,12 +61,19 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - COMPILE_USE_DOCKER=true
+      - COMPILE_WORK_ROOT=${ALOVE_COMPILE_WORK_ROOT:-/tmp/alove-compile-jobs}
+      - COMPILE_DOCKER_IMAGE=${COMPILE_DOCKER_IMAGE:-alove-tex:local}
+      - COMPILE_DOCKER_PLATFORM=${COMPILE_DOCKER_PLATFORM:-}
     volumes:
       # Development only. Mounting the Docker socket gives this container control over the host Docker daemon.
       - /var/run/docker.sock:/var/run/docker.sock
+      # Same absolute path outside and inside so the host daemon can mount job sources.
+      - ${ALOVE_COMPILE_WORK_ROOT:-/tmp/alove-compile-jobs}:${ALOVE_COMPILE_WORK_ROOT:-/tmp/alove-compile-jobs}
     depends_on:
       redis:
         condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 45s
 
 volumes:
   pgdata: {}
