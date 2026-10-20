@@ -118,20 +118,26 @@ describe("worker process boundary", () => {
   it("runs the resolved Docker image identity and returns its fingerprint", async () => {
     await installFakeLatexmk();
     const docker = join(fixtureDirectory, "docker");
+    const fakeRoot = fixtureDirectory;
     await writeFile(docker, `#!${process.execPath}
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
+import { basename } from "node:path";
+process.chdir(${JSON.stringify(fakeRoot)});
 if (process.argv[2] === "image") { console.log("sha256:" + "a".repeat(64) + "|linux/amd64"); process.exit(0); }
-if (process.argv[2] === "run") {
+if (process.argv[2] === "run") writeFileSync(".sandbox-args.json", JSON.stringify(process.argv.slice(2)));
+if (process.argv[2] === "exec" && process.argv[4] === "latexmk") {
   writeFileSync("main.pdf", "%PDF-fixture");
-  writeFileSync("main.log", JSON.stringify(process.argv.slice(2)));
+  writeFileSync("main.log", readFileSync(".sandbox-args.json"));
 }
+if (process.argv[2] === "exec" && process.argv[4] === "perl") process.stdout.write(readFileSync(basename(process.argv.at(-3))));
 `);
     await chmod(docker, 0o755);
     process.env.COMPILE_USE_DOCKER = "true";
     process.env.COMPILE_DOCKER_IMAGE = "configured-image:mutable";
     const result = await runCompileJob({ projectId: "local", mainFile: "main.tex", files: { "main.tex": "source" } });
     expect(result.phase).toBe("ready");
-    expect(result.environment).toEqual({ mode: "docker", runtimeId: "sha256:" + "a".repeat(64), platform: "linux/amd64" });
+    expect(result.environment).toMatchObject({ mode: "docker", runtimeId: "sha256:" + "a".repeat(64), platform: "linux/amd64" });
+    expect(result.environment.policyId).toMatch(/^alove-tex-sandbox-v1:[a-f0-9]{64}$/);
     expect(JSON.parse(result.log)).toContain(result.environment.runtimeId);
     expect(JSON.parse(result.log)).not.toContain("configured-image:mutable");
   });

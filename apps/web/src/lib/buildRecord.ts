@@ -3,6 +3,8 @@ import type { CompileJobPayload, CompileJobResult } from "@alove/protocol";
 export type BuildEnvironment = {
   mode: "docker" | "host";
   runtimeId: string;
+  /** Server execution policy; absent on legacy builds. */
+  policyId?: string;
   platform: string;
 };
 

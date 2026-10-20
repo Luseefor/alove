@@ -33,7 +33,7 @@ export const compileRecoveryTrial: RecoveryCompiler = async (request, signal) =>
 
 function sameEnvironment(a: BuildRecord["result"]["environment"], b: BuildRecord["result"]["environment"]): boolean {
   return Boolean(a && b && a.mode === "docker" && b.mode === "docker" &&
-    a.runtimeId === b.runtimeId && a.platform === b.platform);
+    a.runtimeId === b.runtimeId && a.platform === b.platform && a.policyId === b.policyId);
 }
 
 /** Tests single-file reversions, never mutating the working project or claiming minimality. */
@@ -50,7 +50,7 @@ export async function findBuildRecovery(
     return incompatible("Choose a successful build followed by a LaTeX compilation failure from the same project.");
   if (good.mainFile !== failed.mainFile || good.engine !== failed.engine || good.cleanAux !== failed.cleanAux ||
       !sameEnvironment(good.result.environment, failed.result.environment))
-    return incompatible("The compiler, root, settings, or recorded Docker image changed. Build a successful baseline in the current environment first.");
+    return incompatible("The compiler, root, settings, or recorded Docker image/sandbox policy changed. Build a successful baseline in the current environment first.");
   try {
     if (await hashBuildSource(good) !== good.sourceHash || await hashBuildSource(failed) !== failed.sourceHash)
       return incompatible("A stored build does not match its source fingerprint. Recovery stopped.");
@@ -70,7 +70,7 @@ export async function findBuildRecovery(
     report.trials.push({ path, ok: result.phase === "ready" && Boolean(result.pdfBase64),
       errorCode: result.errorCode, log: result.log.slice(-16_384), environment: result.environment });
     if (!sameEnvironment(failed.result.environment, result.environment))
-      throw new Error("The Docker runtime changed during recovery. No patch is verified.");
+      throw new Error("The Docker runtime or sandbox policy changed during recovery. No patch is verified.");
     return result;
   };
   try {

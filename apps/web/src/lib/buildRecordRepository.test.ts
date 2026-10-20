@@ -342,3 +342,22 @@ describe("legacy history compatibility",()=>{
     await expect(repo.save({...record,files:{"main.tex":"changed"}})).rejects.toBeInstanceOf(BuildRecordConflictError);
   });
 });
+
+
+describe("sandbox policy storage",()=>{
+  it("preserves the sandbox identity without requiring a database migration",async()=>{
+    const repo=createBuildRecordRepository(newFactory());
+    const record=makeRecord();
+    record.result.environment={mode:"docker",runtimeId:"sha256:test",platform:"linux/amd64",policyId:"alove-tex-sandbox-v1:test"};
+    await repo.save(record);
+    expect((await repo.list(record.projectId))[0].result.environment).toEqual(record.result.environment);
+  });
+  it("refuses malformed policy metadata without deleting the original row",async()=>{
+    const factory=newFactory();const repo=createBuildRecordRepository(factory);
+    const row=makeRecord();
+    const malformed={...row,result:{...row.result,environment:{mode:"docker",runtimeId:"sha256:test",platform:"linux/amd64",policyId:42}}};
+    await putRaw(factory,malformed);
+    await expect(repo.list(row.projectId)).rejects.toBeInstanceOf(BuildRecordDataError);
+    expect(await getRaw(factory,row.id)).toEqual(malformed);
+  });
+});

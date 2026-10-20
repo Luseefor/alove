@@ -88,6 +88,8 @@ function checkEnvironment(value: unknown): void {
     fail("Invalid environment mode");
   if (typeof value["runtimeId"] !== "string" || !value["runtimeId"])
     fail("Invalid environment runtimeId");
+  if (value["policyId"] !== undefined && (typeof value["policyId"] !== "string" || !value["policyId"]))
+    fail("Invalid environment policyId");
   if (typeof value["platform"] !== "string" || !value["platform"])
     fail("Invalid environment platform");
 }

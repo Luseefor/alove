@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
 import {
   access,
+  chmod,
   mkdir,
   mkdtemp,
   open,
   realpath,
   rm,
-  stat,
   writeFile,
 } from "node:fs/promises";
 import { arch, platform, tmpdir } from "node:os";
@@ -22,6 +22,8 @@ import {
 } from "@alove/protocol";
 import { parseLatexLog } from "./logParse.js";
 import { decodeCompileFileData } from "./compileFileData.js";
+import { dockerSandboxArgs, resolveDockerSandboxPolicy, sandboxPolicyId } from "./dockerSandbox.js";
+import { ArtifactTooLargeError, readDockerArtifact } from "./dockerArtifact.js";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_FILES = 250;
@@ -326,8 +328,7 @@ async function ensureDockerContainerRemoved(
   containerName: string,
   cwd: string,
 ): Promise<void> {
-  // docker run --rm and the deadline's explicit removal can race. Wait for
-  // that removal to finish rather than reporting a successful timeout as internal.
+  // Concurrent cleanup/deadline removal can race. Wait for it to finish.
   for (let attempt = 0; attempt < 20; attempt++) {
     const removed = await runCmd("docker", ["rm", "-f", containerName], cwd, {
       maxOutputBytes: 16_384,
@@ -359,12 +360,12 @@ async function readArtifact(
   const rel = relative(await realpath(work), resolved);
   if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel))
     throw new Error("Artifact leaves compile directory");
-  const file = await open(resolved, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const file = await open(resolved, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const info = await file.stat();
     if (!info.isFile()) throw new Error("Artifact is not a regular file");
     if (info.size > cap && !tail)
-      throw new Error(`Compiled PDF exceeds ${cap} bytes`);
+      throw new ArtifactTooLargeError(`Compiled PDF exceeds ${cap} bytes`);
     const size = Math.min(info.size, cap);
     const data = Buffer.alloc(size);
     const { bytesRead } = await file.read(
@@ -388,6 +389,7 @@ export async function runCompileJob(
   if (!request.ok) return validationFailure(request.error, image);
   payload = request.value;
   const limits = resolveLimits(payload);
+  const useDocker = process.env.COMPILE_USE_DOCKER !== "0" && process.env.COMPILE_USE_DOCKER !== "false";
   const work = await mkdtemp(join(tmpdir(), "alove-tex-"));
   let dockerContainerName: string | null = null;
   let environment: CompileEnvironment | undefined;
@@ -410,20 +412,32 @@ export async function runCompileJob(
         image,
       );
     }
+    // Keep the host parent private. Only this readable child is mounted, read-only.
+    const sourceRoot = useDocker ? join(work, "source") : work;
+    if (useDocker) { await mkdir(sourceRoot, { mode: 0o755 }); await chmod(sourceRoot, 0o755); }
+    const readableDirectories = new Set([sourceRoot]);
     for (const file of decodedFiles) {
-      const target = join(work, file.path);
+      const target = join(sourceRoot, file.path);
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, file.content, "utf8");
+      if (useDocker) {
+        // Respect a restrictive worker umask without making the private host
+        // parent accessible. The container has a different numeric uid.
+        await chmod(target, 0o644);
+        let directory = dirname(target);
+        while (!readableDirectories.has(directory)) {
+          await chmod(directory, 0o755);
+          readableDirectories.add(directory);
+          directory = dirname(directory);
+        }
+      }
     }
 
     const main = validated.value.mainFile;
-    const useDocker =
-      process.env.COMPILE_USE_DOCKER !== "0" &&
-      process.env.COMPILE_USE_DOCKER !== "false";
 
     // Caller-provided previous outputs cannot stand in for this build's artifacts.
     for (const extension of [".log", ".pdf"]) {
-      await rm(join(work, main.replace(/\.tex$/u, extension)), { force: true });
+      await rm(join(sourceRoot, main.replace(/\.tex$/u, extension)), { force: true });
     }
     if (
       !useDocker &&
@@ -477,40 +491,53 @@ export async function runCompileJob(
         return executionFailure({ message: "Cannot resolve the configured Docker image. Pull or build it before compiling.",
           log: inspected.stderr, texliveImage: image, errorCode: "DOCKER_ERROR" });
       }
-      environment = { mode: "docker", runtimeId: imageId!, platform: imagePlatform };
+      let sandbox;
+      try { sandbox = resolveDockerSandboxPolicy(); }
+      catch (error) {
+        return executionFailure({ message: `Invalid Docker sandbox policy: ${String(error)}`, log: "", texliveImage: image, errorCode: "DOCKER_ERROR" });
+      }
+      environment = { mode: "docker", runtimeId: imageId!, platform: imagePlatform, policyId: sandboxPolicyId(sandbox) };
       dockerContainerName = `alove-compile-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 10)}`;
 
-      const args = ["run", "--rm", "--name", dockerContainerName];
-      if (dockerPlatform) {
-        args.push("--platform", dockerPlatform);
-      }
-      args.push("-v", `${work}:/work`, "-w", "/work", imageId!, "latexmk");
-
+      const args = dockerSandboxArgs({
+        name: dockerContainerName, sourcePath: await realpath(sourceRoot),
+        imageId: imageId!, platform: dockerPlatform, policy: sandbox,
+        // --rm plus a finite PID1 lifetime bounds orphans if the worker dies.
+        ttlSeconds: Math.ceil(limits.timeoutMs / 1000) + 60,
+      });
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
       try {
-        for (const commandArgs of commands) {
-          if (controller.signal.aborted) {
-            timedOut = true;
-            break;
-          }
-          const run = await runCmd("docker", [...args, ...commandArgs], work, {
-            signal: controller.signal,
-            maxOutputBytes: limits.maxLogBytes,
+        const started = await runCmd("docker", args, work, {
+          signal: controller.signal, maxOutputBytes: limits.maxLogBytes,
+        });
+        timedOut = started.code === 124 || controller.signal.aborted;
+        if (!timedOut && started.code !== 0) {
+          return executionFailure({ message: "Cannot start the constrained TeX container.",
+            log: started.stderr, texliveImage: image, environment, errorCode: "DOCKER_ERROR" });
+        }
+        if (!timedOut) {
+          const copied = await runCmd("docker", ["exec", dockerContainerName, "cp", "-R", "/source/.", "/work/"], work, {
+            signal: controller.signal, maxOutputBytes: limits.maxLogBytes,
           });
-          combined = appendBounded(
-            combined,
-            `${run.stdout}\n${run.stderr}`,
-            limits.maxLogBytes,
-          );
+          timedOut = copied.code === 124 || controller.signal.aborted;
+          if (!timedOut && copied.code !== 0) {
+            return executionFailure({ message: "Cannot prepare the constrained TeX workspace.",
+              log: copied.stderr, texliveImage: image, environment, errorCode: "DOCKER_ERROR" });
+          }
+        }
+        for (const commandArgs of commands) {
+          if (timedOut || controller.signal.aborted) { timedOut = true; break; }
+          const run = await runCmd("docker", ["exec", dockerContainerName, "latexmk", ...commandArgs], work, {
+            signal: controller.signal, maxOutputBytes: limits.maxLogBytes,
+          });
+          combined = appendBounded(combined, `${run.stdout}\n${run.stderr}`, limits.maxLogBytes);
           exit = run.code;
           timedOut = run.code === 124 || controller.signal.aborted;
         }
-      } finally {
-        clearTimeout(timer);
-      }
+      } finally { clearTimeout(timer); }
     } else {
       environment = { mode: "host", runtimeId: "unverified-host", platform: `${platform()}/${arch()}` };
       const controller = new AbortController();
@@ -541,9 +568,9 @@ export async function runCompileJob(
     const logPath = join(work, main.replace(/\.tex$/u, ".log"));
     if (timedOut && dockerContainerName)
       await ensureDockerContainerRemoved(dockerContainerName, work);
-    const artifactLog = (await pathExists(logPath))
-      ? await readArtifact(work, logPath, limits.maxLogBytes, true)
-      : null;
+    const artifactLog = timedOut ? null : dockerContainerName
+      ? await readDockerArtifact(dockerContainerName, `/work/${main.replace(/\.tex$/u, ".log")}`, limits.maxLogBytes, true)
+      : (await pathExists(logPath)) ? await readArtifact(work, logPath, limits.maxLogBytes, true) : null;
     const logText = artifactLog ? artifactLog.data.toString("utf8") : combined;
     const parsedDiagnostics = parseLatexLog(logText);
     const trimmed = {
@@ -576,20 +603,11 @@ export async function runCompileJob(
 
     const pdfPath = join(work, main.replace(/\.tex$/u, ".pdf"));
     let pdfBase64: string | undefined;
-    if (await pathExists(pdfPath)) {
-      const pdfStats = await stat(pdfPath);
-      if (pdfStats.size > limits.maxPdfBytes) {
-        return executionFailure({
-          message: `Compiled PDF is too large (${pdfStats.size} bytes). Limit is ${limits.maxPdfBytes} bytes.`,
-          texliveImage: image,
-        environment,
-          log: trimmed.text,
-          diagnostics,
-          errorCode: "OUTPUT_TOO_LARGE",
-        });
-      }
-      const pdfBuffer = (await readArtifact(work, pdfPath, limits.maxPdfBytes))
-        .data;
+    const artifactPdf = dockerContainerName
+      ? await readDockerArtifact(dockerContainerName, `/work/${main.replace(/\.tex$/u, ".pdf")}`, limits.maxPdfBytes)
+      : (await pathExists(pdfPath)) ? await readArtifact(work, pdfPath, limits.maxPdfBytes) : null;
+    if (artifactPdf) {
+      const pdfBuffer = artifactPdf.data;
       if (pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
         return executionFailure({
           message: "latexmk produced an invalid PDF signature",
@@ -635,7 +653,7 @@ export async function runCompileJob(
         environment,
       log: message,
       diagnostics: [{ severity: "error", message }],
-      errorCode: "INTERNAL_ERROR",
+      errorCode: error instanceof ArtifactTooLargeError ? "OUTPUT_TOO_LARGE" : "INTERNAL_ERROR",
     });
   } finally {
     if (dockerContainerName) {

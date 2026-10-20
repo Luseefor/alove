@@ -25,6 +25,8 @@ export interface CompileEnvironment {
   mode: "docker" | "host";
   /** Resolved immutable Docker image ID; host runtimes are unverified. */
   runtimeId: string;
+  /** Server execution policy; absent on legacy builds. */
+  policyId?: string;
   platform: string;
 }
 
