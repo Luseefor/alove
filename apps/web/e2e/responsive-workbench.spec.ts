@@ -35,14 +35,14 @@ for (const width of [390, 525, 768, 1024, 1440]) {
         await expect(page.getByTestId("pdf-preview-pane")).toBeHidden();
         const source = page.getByRole("textbox", { name: "LaTeX source editor" });
         await source.click();
-        await source.press("Meta+End");
+        await source.press("ControlOrMeta+End");
         await source.pressSequentially("RESPONSIVE_DRAFT");
         await page.getByRole("button", { name: "PDF", exact: true }).click();
         await expect(page.getByTestId("pdf-preview-pane")).toBeVisible();
         await expect(editor).toBeHidden();
         await page.getByRole("button", { name: "Source", exact: true }).click();
         await expect(source).toContainText("RESPONSIVE_DRAFT");
-        await source.press("Meta+z");
+        await source.press("ControlOrMeta+z");
         await expect(source).not.toContainText("RESPONSIVE_DRAFT");
         await page.getByRole("button", { name: "Files", exact: true }).click();
         await expect(page.getByTestId("workbench-sidebar")).toBeVisible();
@@ -64,7 +64,7 @@ test("resizing across the breakpoint retains the source view and editor history"
   await page.goto("/editor?new=true");
   const source = page.getByRole("textbox", { name: "LaTeX source editor" });
   await source.click();
-  await source.press("Meta+End");
+  await source.press("ControlOrMeta+End");
   await source.pressSequentially("RESIZE_DRAFT");
   await page.setViewportSize({ width: 525, height: 850 });
   await expect(source).toContainText("RESIZE_DRAFT");
@@ -75,6 +75,6 @@ test("resizing across the breakpoint retains the source view and editor history"
   await expect(page.getByTestId("pdf-preview-pane")).toBeVisible();
   await page.setViewportSize({ width: 525, height: 850 });
   await expect(page.getByTestId("workbench-sidebar")).toBeHidden();
-  await source.press("Meta+z");
+  await source.press("ControlOrMeta+z");
   await expect(source).not.toContainText("RESIZE_DRAFT");
 });

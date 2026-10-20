@@ -42,7 +42,9 @@ COMPILE_DOCKER_IMAGE=alove-tex:local bun run --filter compile-worker test:docker
 ```
 
 The base is pinned by digest; the added packages follow the upstream TeX Live
-repository at build time. This is a local development image, not a reproducible
+repository at build time. Both package operations use a fixed Illinois CTAN mirror
+and require repository signature verification; a bad signature must fail the build.
+This is a local development image, not a reproducible
 release image. It used approximately 1.85 GB of image storage in verification.
 Use `COMPILE_DOCKER_PLATFORM=linux/amd64` on other architectures for this image.
 

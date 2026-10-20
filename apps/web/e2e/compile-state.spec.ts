@@ -51,11 +51,11 @@ test("undo in one file cannot restore the contents of another file", async ({ pa
   await editor.fill("ROOT_CONTENT");
   await page.getByRole("button", { name: "New file", exact: true }).last().click();
   await editor.fill("CHAPTER_CONTENT");
-  await editor.press("Meta+z");
+  await editor.press("ControlOrMeta+z");
   await expect(editor).not.toContainText("ROOT_CONTENT");
   await page.getByText("main.tex", { exact: true }).first().click();
   await expect(editor).toContainText("ROOT_CONTENT");
-  await editor.press("Meta+z");
+  await editor.press("ControlOrMeta+z");
   await expect(editor).not.toContainText("CHAPTER_CONTENT");
 });
 
@@ -63,12 +63,12 @@ test("changing spellcheck preserves source and undo", async ({ page }) => {
   await page.goto("/editor?new=true");
   const editor = page.getByRole("textbox", { name: "LaTeX source editor" });
   await editor.click();
-  await editor.press("Meta+End");
+  await editor.press("ControlOrMeta+End");
   await editor.pressSequentially("SETTINGS_UNDO_MARKER");
   await page.getByRole("button", { name: "Spell: Off", exact: true }).click();
   await expect(page.getByRole("button", { name: "Spell: On", exact: true })).toBeVisible();
   await expect(editor).toContainText("SETTINGS_UNDO_MARKER");
-  await editor.press("Meta+z");
+  await editor.press("ControlOrMeta+z");
   await expect(editor).not.toContainText("SETTINGS_UNDO_MARKER");
   await expect(editor).toContainText("documentclass");
 });
