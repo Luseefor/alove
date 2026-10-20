@@ -57,9 +57,9 @@ console.error(
 );
 
 const proc = Bun.spawn({
-  cmd: ["bunx", "next", "dev", "--turbopack", "-p", String(port)],
+  cmd: ["bunx", "next", "dev", "--turbopack", "-H", "127.0.0.1", "-p", String(port)],
   cwd: webRoot,
-  env: { ...process.env, NEXT_PUBLIC_LOCAL_STANDALONE: "true" },
+  env: { ...process.env, NEXT_PUBLIC_LOCAL_STANDALONE: "true", ALOVE_LOCAL_COMPILE_ORIGIN: `http://127.0.0.1:${port}` },
   stdout: "inherit",
   stderr: "inherit",
   stdin: "inherit",

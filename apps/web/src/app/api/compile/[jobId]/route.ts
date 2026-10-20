@@ -1,54 +1,69 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import type { CompileJobResult } from "@alove/protocol";
+import {
+  validateQueuedCompileJob,
+  type CompileJobResult,
+} from "@alove/protocol";
 import { getCompileQueue } from "@/lib/compileQueue";
-import { getCompileAuthPolicy } from "@/lib/compileAuth";
+import {
+  authorizeCompileRequest,
+  canAccessCompileProject,
+  ownsCompileJob,
+} from "@/lib/compileAccess";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ jobId: string }> };
 
-export async function GET(_req: Request, context: RouteContext) {
-  const authPolicy = getCompileAuthPolicy();
-  if ("error" in authPolicy) {
-    return NextResponse.json({ error: authPolicy.error }, { status: 500 });
-  }
-  if (!authPolicy.allowAnonymous) {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+function jobResponse(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
+export async function GET(req: Request, context: RouteContext) {
+  const access = await authorizeCompileRequest(req);
+  if (!access.ok) {
+    access.response.headers.set("Cache-Control", "private, no-store");
+    return access.response;
   }
 
   try {
     const { jobId } = await context.params;
     const queue = getCompileQueue();
     const job = await queue.getJob(jobId);
-    if (!job) {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (!job) return jobResponse({ error: "not found" }, 404);
+    const queued = validateQueuedCompileJob(job.data);
+    if (
+      !queued.ok ||
+      !ownsCompileJob(access.principal, queued.value.owner) ||
+      !(await canAccessCompileProject(
+        access.principal,
+        queued.value.request.projectId,
+      ))
+    ) {
+      return jobResponse({ error: "not found" }, 404);
     }
 
     const state = await job.getState();
     if (state === "completed") {
       const result = job.returnvalue as CompileJobResult | undefined;
-      return NextResponse.json({ state, result });
+      return jobResponse({ state, result });
     }
     if (state === "failed") {
-      return NextResponse.json({
+      return jobResponse({
         state,
         error: job.failedReason ?? "failed",
       });
     }
-    return NextResponse.json({ state });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
+    return jobResponse({ state });
+  } catch {
+    return jobResponse(
       {
         error:
-          "Compile queue status unavailable. Check Redis and compile-worker.",
-        detail: message,
+          "Compile status unavailable. Check project authorization, Redis and compile-worker.",
       },
-      { status: 503 },
+      503,
     );
   }
 }

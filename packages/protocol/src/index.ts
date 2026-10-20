@@ -273,3 +273,125 @@ export function validateCompileRequest(
   if (timeoutMs !== undefined) value.timeoutMs = timeoutMs;
   return { ok: true, value };
 }
+
+
+export type CompileJobOwner =
+  | { kind: "user"; userId: string }
+  | { kind: "local"; origin: string };
+
+export type QueuedCompileJob = {
+  version: 1;
+  owner: CompileJobOwner;
+  request: CompileJobPayload;
+};
+
+export type ValidateQueuedCompileJobOk = {
+  ok: true;
+  value: QueuedCompileJob;
+};
+
+export type ValidateQueuedCompileJobErr = {
+  ok: false;
+  error: string;
+};
+
+export type ValidateQueuedCompileJobResult =
+  | ValidateQueuedCompileJobOk
+  | ValidateQueuedCompileJobErr;
+
+const ENVELOPE_FIELDS = new Set(["version", "owner", "request"]);
+const OWNER_BASE_FIELDS = new Set(["kind", "userId", "origin"]);
+const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+function fail(error: string): ValidateQueuedCompileJobErr {
+  return { ok: false, error };
+}
+
+export function isLocalCompileOrigin(origin: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (!LOCAL_HOSTS.has(url.hostname)) return false;
+  if (url.port === "") return false;
+  if (url.username !== "" || url.password !== "") return false;
+  if (url.search !== "" || url.hash !== "") return false;
+  if (url.pathname !== "/") return false;
+  if (url.origin !== origin) return false;
+  return true;
+}
+
+function validateOwner(
+  input: unknown,
+): { ok: true; value: CompileJobOwner } | { ok: false; error: string } {
+  if (!isPlainObject(input)) return fail("owner must be an object");
+  for (const key of Object.keys(input)) {
+    if (PROTOTYPE_KEYS.has(key)) return fail(`invalid owner key: ${key}`);
+    if (!OWNER_BASE_FIELDS.has(key)) {
+      return fail(`unknown owner field: ${key}`);
+    }
+  }
+  const kind = input["kind"];
+  if (kind !== "user" && kind !== "local") {
+    return fail("owner.kind must be user or local");
+  }
+  if (kind === "user") {
+    for (const key of Object.keys(input)) {
+      if (key !== "kind" && key !== "userId") {
+        return fail(`unknown owner field: ${key}`);
+      }
+    }
+    if (!Object.hasOwn(input, "userId"))
+      return fail("owner.userId must be a string");
+    const userId = input["userId"];
+    if (typeof userId !== "string")
+      return fail("owner.userId must be a string");
+    if (userId.trim().length === 0)
+      return fail("owner.userId must be nonempty");
+    if (userId.length > 256) return fail("owner.userId must be <= 256 chars");
+    return { ok: true, value: { kind: "user", userId: userId.trim() } };
+  }
+  for (const key of Object.keys(input)) {
+    if (key !== "kind" && key !== "origin") {
+      return fail(`unknown owner field: ${key}`);
+    }
+  }
+  if (!Object.hasOwn(input, "origin"))
+    return fail("owner.origin must be a string");
+  const origin = input["origin"];
+  if (typeof origin !== "string") return fail("owner.origin must be a string");
+  if (!isLocalCompileOrigin(origin))
+    return fail("owner.origin must be a canonical local origin");
+  return { ok: true, value: { kind: "local", origin } };
+}
+
+export function validateQueuedCompileJob(
+  input: unknown,
+): ValidateQueuedCompileJobResult {
+  if (!isPlainObject(input)) return fail("job must be an object");
+  for (const key of Object.keys(input)) {
+    if (PROTOTYPE_KEYS.has(key)) return fail(`invalid field: ${key}`);
+    if (!ENVELOPE_FIELDS.has(key)) return fail(`unknown field: ${key}`);
+  }
+  const record = input;
+  if (!Object.hasOwn(record, "version")) return fail("version must be 1");
+  if (!Object.hasOwn(record, "owner")) return fail("owner must be an object");
+  if (!Object.hasOwn(record, "request"))
+    return fail("request must be an object");
+  if (record["version"] !== 1) return fail("version must be 1");
+  const ownerResult = validateOwner(record["owner"]);
+  if (!ownerResult.ok) return ownerResult;
+  const requestResult = validateCompileRequest(record["request"]);
+  if (!requestResult.ok) return fail(requestResult.error);
+  return {
+    ok: true,
+    value: {
+      version: 1,
+      owner: ownerResult.value,
+      request: requestResult.value,
+    },
+  };
+}

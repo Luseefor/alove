@@ -1,5 +1,5 @@
 import { Queue, QueueEvents } from "bullmq";
-import type { CompileJobPayload, CompileJobResult } from "@alove/protocol";
+import type { QueuedCompileJob, CompileJobResult } from "@alove/protocol";
 
 export const COMPILE_QUEUE_NAME = "compile";
 
@@ -10,7 +10,7 @@ const connection = () => ({
 });
 
 export function createCompileQueue() {
-  return new Queue<CompileJobPayload, CompileJobResult>(COMPILE_QUEUE_NAME, {
+  return new Queue<QueuedCompileJob, CompileJobResult>(COMPILE_QUEUE_NAME, {
     connection: connection(),
     defaultJobOptions: {
       removeOnComplete: 50,

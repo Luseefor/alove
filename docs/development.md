@@ -27,7 +27,7 @@ bun run dev
 
 Open **`/editor`** on the URL printed in the web logs. Next.js binds the first free TCP port from **`ALOVE_WEB_PORT`** (default **30127**) upward (skips common services and Next-blocked ports such as **6000**). Set a starting port with `ALOVE_WEB_PORT=38400 bun run dev`.
 
-You do not need Clerk or Convex. Optionally set `NEXT_PUBLIC_LOCAL_STANDALONE=true` if you run `next dev` without the web `dev` script.
+You do not need Clerk or Convex. If you launch Next yourself, bind it to `127.0.0.1`. Set `NEXT_PUBLIC_LOCAL_STANDALONE=true` for the local UI and `ALOVE_LOCAL_COMPILE_ORIGIN` to the exact loopback origin for anonymous compilation. See [compile access](compile-access.md).
 
 To compile with a host TeX Live instead of Docker, see [services/tex-runner/README.md](../services/tex-runner/README.md).
 
@@ -53,7 +53,8 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 
 | Variable | Where | Purpose |
 |----------|--------|---------|
-| `NEXT_PUBLIC_LOCAL_STANDALONE` | build / `.env.local` | `true` / `1` disables Clerk, Convex UI, and collaboration (set by the default web `dev` launcher) |
+| `NEXT_PUBLIC_LOCAL_STANDALONE` | build / `.env.local` | `true` / `1` selects account-free local UI; does not authorize compile jobs |
+| `ALOVE_LOCAL_COMPILE_ORIGIN` | server only | Exact loopback origin with port for anonymous local compute; unset for cloud deployments |
 | `ALOVE_WEB_PORT` | dev only | Starting port for local Next scan (default **30127**) |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk (cloud). `CLERK_SECRET_KEY` can be omitted for relaxed local cloud; set it for production-like middleware and `/api/compile` |
 | `NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN` | `apps/web/.env.local` | Convex + Clerk JWT |

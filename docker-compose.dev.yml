@@ -2,7 +2,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -18,7 +18,7 @@ services:
       POSTGRES_PASSWORD: alove
       POSTGRES_DB: alove
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -26,10 +26,13 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_LOCAL_STANDALONE: "true"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - NEXT_PUBLIC_LOCAL_STANDALONE=true
+      - ALOVE_LOCAL_COMPILE_ORIGIN=http://127.0.0.1:3000
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
