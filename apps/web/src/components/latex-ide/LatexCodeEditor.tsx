@@ -242,6 +242,10 @@ export const LatexCodeEditor = forwardRef<
       doc: initialDoc,
       ...(restoredSelection ? { selection: restoredSelection } : {}),
       extensions: [
+        EditorView.theme({
+          "&": { height: "100%", minHeight: "0" },
+          ".cm-scroller": { overflow: "auto" },
+        }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             const isExternalSync = update.transactions.some((tr) =>
