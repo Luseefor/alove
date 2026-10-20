@@ -85,3 +85,10 @@ after a failed rebuild, reloads the saved source, and builds again. Its PDF is
 saved in Playwright's test-results directory. The test is skipped unless
 `E2E_REAL_COMPILE=1`. These commands verify a host worker with Docker TeX;
 they do not verify the Compose worker's host bind-mount arrangement or cloud auth.
+
+## Constrained job containers
+
+Docker jobs now use a non-root user, read-only image/inputs, no network, resource
+limits and bounded temporary filesystems. Fonts and packages must be present in
+the server-owned image. See [the sandbox contract](../../docs/compile-sandbox.md)
+for limits, artifact handling, validation and remaining deployment gates.

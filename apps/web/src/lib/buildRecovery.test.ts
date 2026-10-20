@@ -1,6 +1,6 @@
 import { webcrypto } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import type { CompileJobPayload, CompileJobResult } from "@alove/protocol";
+import type { CompileEnvironment, CompileJobPayload, CompileJobResult } from "@alove/protocol";
 import { createBuildRecord, type BuildRecord } from "./buildRecord";
 import { findBuildRecovery, type RecoveryCompiler } from "./buildRecovery";
 
@@ -40,7 +40,7 @@ if (typeof Signal.any !== "function") {
 const ENV = { mode: "docker" as const, runtimeId: "sha256:aaa", platform: "linux/amd64" };
 const OTHER_ENV = { mode: "docker" as const, runtimeId: "sha256:bbb", platform: "linux/amd64" };
 
-const successResult = (environment = ENV): CompileJobResult => ({
+const successResult = (environment: CompileEnvironment = ENV): CompileJobResult => ({
   phase: "ready",
   log: "ok",
   diagnostics: [],
@@ -48,7 +48,7 @@ const successResult = (environment = ENV): CompileJobResult => ({
   environment,
 });
 
-const latexFailure = (environment = ENV): CompileJobResult => ({
+const latexFailure = (environment: CompileEnvironment = ENV): CompileJobResult => ({
   phase: "failed",
   log: "!",
   diagnostics: [],
@@ -66,7 +66,7 @@ async function makeBuild(opts: {
   projectId?: string;
   diagnostics?: CompileJobResult["diagnostics"];
   errorCode?: CompileJobResult["errorCode"];
-  environment?: typeof ENV;
+  environment?: CompileEnvironment;
 }): Promise<BuildRecord> {
   const result: CompileJobResult = opts.ok
     ? successResult(opts.environment)
@@ -155,7 +155,7 @@ describe("findBuildRecovery", () => {
 
     expect(report.status).toBe("unresolved");
     expect(report.candidate).toBeNull();
-    expect(report.message).toContain("runtime changed");
+    expect(report.message).toContain("runtime or sandbox policy changed");
   });
 
   it("stops as incompatible when the baseline no longer builds", async () => {
@@ -285,4 +285,30 @@ describe("findBuildRecovery", () => {
     } finally { Object.defineProperty(globalThis, "crypto", { value: prior, configurable: true }); }
   });
 
+});
+
+
+describe("sandbox policy provenance",()=>{
+  it("refuses builds from different policies before submitting trials",async()=>{
+    const good=await makeBuild({ok:true,files:{"main.tex":"good"},environment:{...ENV,policyId:"v1"}});
+    const failed=await makeBuild({ok:false,files:{"main.tex":"bad"},environment:{...ENV,policyId:"v2"}});
+    const mock=mockCompiler(()=>successResult());
+    const report=await findBuildRecovery(good,failed,{signal:new AbortController().signal,compile:mock.compile});
+    expect(report.status).toBe("incompatible");expect(mock.calls).toHaveLength(0);
+  });
+  it("never verifies a legacy record under a newly restricted runtime",async()=>{
+    const good=await makeBuild({ok:true,files:{"main.tex":"good"}});
+    const failed=await makeBuild({ok:false,files:{"main.tex":"bad"}});
+    const mock=mockCompiler(()=>successResult({...ENV,policyId:"v1"}));
+    const report=await findBuildRecovery(good,failed,{signal:new AbortController().signal,compile:mock.compile});
+    expect(report.status).toBe("unresolved");expect(report.candidate).toBeNull();expect(mock.calls).toHaveLength(1);
+  });
+  it("verifies trials only when the policy remains identical",async()=>{
+    const environment={...ENV,policyId:"v1"};
+    const good=await makeBuild({ok:true,files:{"main.tex":"good"},environment});
+    const failed=await makeBuild({ok:false,files:{"main.tex":"bad"},environment});
+    const mock=mockCompiler(()=>successResult(environment));
+    const report=await findBuildRecovery(good,failed,{signal:new AbortController().signal,compile:mock.compile});
+    expect(report.status).toBe("verified");expect(mock.calls).toHaveLength(2);
+  });
 });
