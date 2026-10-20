@@ -50,7 +50,23 @@ export function parseLatexLog(log: string): Diagnostic[] {
       diagnostics.push({ severity: "warning", message: trimmed });
     } else if (trimmed.includes("Package") && trimmed.includes("Warning")) {
       diagnostics.push({ severity: "warning", message: trimmed });
+    } else {
+      const low = trimmed.toLowerCase();
+      if (
+        low.includes("xdvipdfmx:fatal") ||
+        low.includes("xdvipdfmx:error") ||
+        low.includes("libpng error")
+      ) {
+        diagnostics.push({ severity: "error", message: trimmed });
+      }
     }
   }
-  return diagnostics;
+  // latexmk echoes TeX errors to stderr as well as the file log.
+  const seen = new Set<string>();
+  return diagnostics.filter((diagnostic) => {
+    const key = JSON.stringify([diagnostic.severity, diagnostic.file, diagnostic.line, diagnostic.column, diagnostic.message]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
