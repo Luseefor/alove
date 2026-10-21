@@ -134,7 +134,7 @@ export function BuildRecoveryDialog() {
               <p className="text-xs text-muted-foreground">{focused
                 ? "Only the displayed change block will be restored. Other edits in this file and changes in other files are preserved."
                 : "All edits in this file since the baseline will be reversed. Changes in other files are preserved. Review the comparison below."}</p>
-              {focused && <pre className="max-h-56 overflow-auto rounded border border-border p-3 text-[11px] leading-5" aria-label={`Tested restoration in ${verified.path}`}>{previewFileChange(verified).map((line, index) => <div key={index} className={line.kind === "removed" ? "text-success" : "text-error"}>{line.kind === "removed" ? "+" : "−"}{line.line} {line.text.slice(0, 1000)}</div>)}</pre>}
+              {focused && <pre className="max-h-56 overflow-auto rounded border border-border p-3 text-[11px] leading-5" aria-label={`Tested restoration in ${verified.path}`}>{previewFileChange(verified).map((line, index) => <div key={index} className={line.kind === "removed" ? "border-l-2 border-success pl-2 text-foreground" : "border-l-2 border-error pl-2 text-foreground"}>{line.kind === "removed" ? "+" : "−"}{line.line} {line.text.slice(0, 1000)}</div>)}</pre>}
               {focused && <p className="text-xs text-muted-foreground">Preview limited to 80 lines and 1,000 characters per line. Export debugging evidence to inspect the full source.</p>}
               {!current && !undo && <p className="text-xs text-warning-foreground">Working source or compiler settings differ from this failed build. Apply is disabled to preserve newer changes.</p>}
               {!local && <p className="text-xs text-muted-foreground">Apply is available in local projects. Export the evidence for this cloud project.</p>}
@@ -145,7 +145,7 @@ export function BuildRecoveryDialog() {
               <h3 className="text-sm font-semibold">Changed files ({changes.length})</h3>
               {changes.slice(0, 250).map((change) => <details key={change.path} open={verified?.path === change.path} className="rounded-md border border-border text-xs">
                 <summary className="cursor-pointer break-all p-3 font-mono">{change.path} · {change.kind} · line {change.firstChangedLine}</summary>
-                <pre className="max-h-64 overflow-auto border-t border-border p-3 text-[11px] leading-5" aria-label={`Changes in ${change.path}`}>{previewFileChange(change).map((line, index) => <div key={index} className={line.kind === "removed" ? "text-error" : "text-success"}>{line.kind === "removed" ? "−" : "+"}{line.line} {line.text.slice(0, 1000)}</div>)}</pre>
+                <pre className="max-h-64 overflow-auto border-t border-border p-3 text-[11px] leading-5" aria-label={`Changes in ${change.path}`}>{previewFileChange(change).map((line, index) => <div key={index} className={line.kind === "removed" ? "border-l-2 border-error pl-2 text-foreground" : "border-l-2 border-success pl-2 text-foreground"}>{line.kind === "removed" ? "−" : "+"}{line.line} {line.text.slice(0, 1000)}</div>)}</pre>
                 <p className="px-3 pb-2 text-muted-foreground">Before (−) and failed source (+); preview limited to 80 changed lines.</p>
               </details>)}
             </div>

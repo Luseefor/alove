@@ -140,13 +140,17 @@ test("tests a change before applying it and retains separate prose edits in the 
   expect(evidence.report.trials.at(-1).sourceHash).toBe(fingerprint);
   expect(evidence.report.trials.length).toBeLessThanOrEqual(6);
   for (const width of [390, 768, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    await apply.scrollIntoViewIfNeeded();
-    await expect(apply).toBeVisible();
-    const box = await dialog.boundingBox();
-    expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
-    await page.screenshot({ path: testInfo.outputPath(`focused-recovery-${width}.png`) });
+    for (const colorScheme of ["light", "dark"] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme });
+      await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+      await apply.scrollIntoViewIfNeeded();
+      await expect(apply).toBeVisible();
+      const box = await dialog.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
+      await page.screenshot({ path: testInfo.outputPath(`focused-recovery-${width}${colorScheme === "dark" ? "-dark" : ""}.png`) });
+    }
   }
   await apply.click();
   expect(await readSource()).not.toContain("proofwordBroken");
