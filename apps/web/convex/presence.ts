@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { projectAccess, requireProject } from "./projectAccess";
 
 const STALE_MS = 25_000;
 
@@ -13,10 +14,7 @@ export const heartbeat = mutation({
   handler: async (ctx, args) => {
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.ownerId !== id.subject) {
-      throw new Error("Forbidden");
-    }
+    await requireProject(ctx, args.projectId);
     const now = Date.now();
     const existing = await ctx.db
       .query("presence")
@@ -49,8 +47,7 @@ export const list = query({
   handler: async (ctx, { projectId }) => {
     const id = await ctx.auth.getUserIdentity();
     if (!id) return [];
-    const project = await ctx.db.get(projectId);
-    if (!project || project.ownerId !== id.subject) return [];
+    if (!await projectAccess(ctx, projectId)) return [];
     const rows = await ctx.db
       .query("presence")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))

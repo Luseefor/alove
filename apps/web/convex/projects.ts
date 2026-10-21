@@ -1,5 +1,7 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
+import { projectAccess, requireProject } from "./projectAccess";
 import {
   MAX_FILES,
   MAX_PROJECTS,
@@ -46,10 +48,11 @@ export const listMine = query({
   handler: async (ctx) => {
     const id = await ctx.auth.getUserIdentity();
     if (!id) return [];
-    return await ctx.db
-      .query("projects")
-      .withIndex("by_owner", (q) => q.eq("ownerId", id.subject))
-      .collect();
+    const owned = await ctx.db.query("projects").withIndex("by_owner", q => q.eq("ownerId", id.subject)).collect();
+    const memberships = await ctx.db.query("memberships").withIndex("by_user", q => q.eq("userId", id.subject)).take(100);
+    const shared = [];
+    for (const row of memberships) { const project = await ctx.db.get(row.projectId); if (project && project.ownerId !== id.subject) shared.push({ ...project, role: row.role }); }
+    return [...owned.map(project => ({ ...project, role: "owner" as const })), ...shared];
   },
 });
 
@@ -116,9 +119,8 @@ export const get = query({
     if (!id) return null;
     const normalized = ctx.db.normalizeId("projects", projectId);
     if (!normalized) return null;
-    const project = await ctx.db.get(normalized);
-    if (!project || project.ownerId !== id.subject) return null;
-    return project;
+    const access = await projectAccess(ctx, normalized);
+    return access ? { ...access.project, role: access.role } : null;
   },
 });
 
@@ -126,9 +128,8 @@ export const rename = mutation({
   args: { projectId: v.id("projects"), name: v.string() },
   handler: async (ctx, { projectId, name }) => {
     const identity = await ctx.auth.getUserIdentity();
-    const project = await ctx.db.get(projectId);
-    if (!identity || !project || project.ownerId !== identity.subject)
-      throw new Error("Forbidden");
+    if (!identity) throw new Error("Forbidden");
+    await requireProject(ctx, projectId, "edit");
     const title = name.trim();
     if (!title || title.length > 200)
       throw new Error("Project name must be 1-200 characters");
@@ -198,9 +199,8 @@ export const setMainFile = mutation({
   args: { projectId: v.id("projects"), path: v.string() },
   handler: async (ctx, { projectId, path }) => {
     const identity = await ctx.auth.getUserIdentity();
-    const project = await ctx.db.get(projectId);
-    if (!identity || !project || project.ownerId !== identity.subject)
-      throw new Error("Forbidden");
+    if (!identity) throw new Error("Forbidden");
+    await requireProject(ctx, projectId, "edit");
     const file = await ctx.db
       .query("projectFiles")
       .withIndex("by_project_path", (q) =>
@@ -236,6 +236,7 @@ export const remove = mutation({
       await ctx.db.delete(row._id);
     }
     await ctx.db.delete(projectId);
+    await ctx.scheduler.runAfter(0, internal.accountLifecycle.cleanupMetadata, { projectId });
     return { deletedFiles: files.length };
   },
 });
