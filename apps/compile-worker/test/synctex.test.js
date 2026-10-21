@@ -220,4 +220,84 @@ describe("synctex parser", () => {
     });
     expect(mapping?.truncated).toBe(true);
   });
+
+  it("captures the preamble for coordinate conversion", () => {
+    const text = [
+      "SyncTeX Version:1",
+      "Input:1:/work/main.tex",
+      "Magnification:1000",
+      "Unit:1",
+      "X Offset:4736287",
+      "Y Offset:4736287",
+      "Content:",
+      "{1",
+      "[1,4:0,41484288:1,2,0",
+      "}",
+      "Postamble:",
+    ].join("\n");
+    const mapping = parseSyncTex(text, { knownFiles: ["main.tex"] });
+    expect(mapping.preamble).toEqual({
+      magnification: 1000,
+      unit: 1,
+      xOffset: 4736287,
+      yOffset: 4736287,
+    });
+  });
+
+  it("defaults the preamble when the engine omits it", () => {
+    const mapping = parseSyncTex("Content:\n{1\n}\nPostamble:", {});
+    expect(mapping.preamble).toEqual({
+      magnification: 1000,
+      unit: 1,
+      xOffset: 0,
+      yOffset: 0,
+    });
+  });
+
+  it("ignores malformed preamble values without failing", () => {
+    const text = [
+      "SyncTeX Version:1",
+      "Input:1:/work/main.tex",
+      "Magnification:lots",
+      "Unit:-4",
+      "X Offset:99999999999999999999",
+      "Content:",
+      "{1",
+      "}",
+      "Postamble:",
+    ].join("\n");
+    const mapping = parseSyncTex(text, { knownFiles: ["main.tex"] });
+    expect(mapping.preamble).toEqual({
+      magnification: 1000,
+      unit: 1,
+      xOffset: 0,
+      yOffset: 0,
+    });
+  });
+
+  it("preserves box extents with height folding depth", () => {
+    const text = [
+      "SyncTeX Version:1",
+      "Input:1:/work/main.tex",
+      "Content:",
+      "{1",
+      "[1,5:8799518,8865054:983040,100,50",
+      "x1,3:11257121,8865054",
+      "}",
+      "Postamble:",
+    ].join("\n");
+    const mapping = parseSyncTex(text, { knownFiles: ["main.tex"] });
+    expect(mapping.entries[0]).toMatchObject({
+      file: "main.tex",
+      width: 983040,
+      height: 150,
+    });
+    expect(mapping.entries[1]).toEqual({
+      file: "main.tex",
+      line: 3,
+      page: 1,
+      x: 11257121,
+      y: 8865054,
+    });
+  });
 });

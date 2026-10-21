@@ -4,6 +4,7 @@ import {
   normalizeCompilePath,
   type SyncTexEntry,
   type SyncTexMapping,
+  type SyncTexPreamble,
 } from "@alove/protocol";
 
 export type SyncTexParseOptions = {
@@ -119,26 +120,53 @@ function parseRecordPayload(payload: string): {
   line: number;
   x: number;
   y: number;
+  w: number;
+  h: number;
+  d: number;
 } | null {
-  // N,L:X,Y with an optional ,column after L, then :W,H,D box extents.
-  // Examples: `1,5:4736286,46220574:26673152,41484288,0`
-  const m = /^(\d+),(\d+)(?:,\d+)?:(-?\d+),(-?\d+)/.exec(payload);
+  // N,L:X,Y:W,H,D with an optional ,column after L. Trailing extents may
+  // be absent on point records (x/g/k); missing extents decode as zero.
+  // Examples: `1,5:4736286,46220574:26673152,41484288,0`, `x1,3:11257121,8865054`
+  const m = /^(\d+),(\d+)(?:,\d+)?:(-?\d+),(-?\d+)(?::(-?\d+),(-?\d+),(-?\d+))?/.exec(payload);
   if (!m) return null;
   const tag = Number(m[1]);
   const line = Number(m[2]);
   const x = Number(m[3]);
   const y = Number(m[4]);
+  const w = m[5] === undefined ? 0 : Number(m[5]);
+  const h = m[6] === undefined ? 0 : Number(m[6]);
+  const d = m[7] === undefined ? 0 : Number(m[7]);
   if (
     !Number.isSafeInteger(tag) ||
     !Number.isSafeInteger(line) ||
     !Number.isSafeInteger(x) ||
-    !Number.isSafeInteger(y)
+    !Number.isSafeInteger(y) ||
+    !Number.isSafeInteger(w) ||
+    !Number.isSafeInteger(h) ||
+    !Number.isSafeInteger(d)
   )
     return null;
   if (tag <= 0 || tag > MAX_TAG) return null;
   if (line <= 0 || line > MAX_LINE_NUMBER) return null;
   if (Math.abs(x) > MAX_COORD || Math.abs(y) > MAX_COORD) return null;
-  return { tag, line, x, y };
+  if (Math.abs(w) > MAX_COORD || Math.abs(h) > MAX_COORD || Math.abs(d) > MAX_COORD)
+    return null;
+  return { tag, line, x, y, w, h, d };
+}
+
+const DEFAULT_PREAMBLE: SyncTexPreamble = {
+  magnification: 1000,
+  unit: 1,
+  xOffset: 0,
+  yOffset: 0,
+};
+
+function parsePreambleValue(line: string, prefix: string): number | null {
+  if (!line.startsWith(prefix)) return null;
+  const raw = line.slice(prefix.length).trim();
+  if (!/^-?\d+$/.test(raw)) return null;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) ? value : null;
 }
 
 /**
@@ -165,6 +193,7 @@ export function parseSyncTex(
   let inContent = false;
   let currentPage: number | null = null;
   let linesScanned = 0;
+  const preamble: SyncTexPreamble = { ...DEFAULT_PREAMBLE };
 
   let start = 0;
   const pushLine = (line: string): boolean => {
@@ -176,7 +205,23 @@ export function parseSyncTex(
     if (line.length > MAX_LINE_LENGTH) return true;
     if (!inContent) {
       if (line === "Content:") inContent = true;
-      else if (line.startsWith("Input:")) {
+      else if (line.startsWith("Magnification:")) {
+        const value = parsePreambleValue(line, "Magnification:");
+        if (value !== null && value > 0 && value <= 1_000_000)
+          preamble.magnification = value;
+      } else if (line.startsWith("Unit:")) {
+        const value = parsePreambleValue(line, "Unit:");
+        if (value !== null && value > 0 && value <= 1_000_000_000)
+          preamble.unit = value;
+      } else if (line.startsWith("X Offset:")) {
+        const value = parsePreambleValue(line, "X Offset:");
+        if (value !== null && Math.abs(value) <= MAX_COORD)
+          preamble.xOffset = value;
+      } else if (line.startsWith("Y Offset:")) {
+        const value = parsePreambleValue(line, "Y Offset:");
+        if (value !== null && Math.abs(value) <= MAX_COORD)
+          preamble.yOffset = value;
+      } else if (line.startsWith("Input:")) {
         const m = /^Input:(\d+):(.+)$/.exec(line);
         if (m && inputs.size < maxInputFiles) {
           const tag = Number(m[1]);
@@ -253,12 +298,17 @@ export function parseSyncTex(
       truncated = true;
       return false;
     }
+    // Height folds depth so web highlight math needs one vertical extent.
+    const height = Math.min(MAX_COORD, Math.max(0, record.h) + Math.max(0, record.d));
+    const width = Math.max(0, Math.min(MAX_COORD, record.w));
     entries.push({
       file,
       line: record.line,
       page: currentPage,
       x: record.x,
       y: record.y,
+      ...(width > 0 ? { width } : {}),
+      ...(height > 0 ? { height } : {}),
     });
     return true;
   };
@@ -275,7 +325,7 @@ export function parseSyncTex(
     if (start > text.length) break;
   }
 
-  return { version: 1, entries, truncated };
+  return { version: 1, entries, truncated, preamble };
 }
 
 /**
@@ -294,13 +344,13 @@ export function decodeSyncTexGz(
   const maxDecompressed =
     options.maxDecompressedBytes ?? COMPILE_SYNCTEX_LIMITS.maxDecompressedBytes;
   if (data.length > maxCompressed) {
-    return { version: 1, entries: [], truncated: true };
+    return { version: 1, entries: [], truncated: true, preamble: { ...DEFAULT_PREAMBLE } };
   }
   let text: string;
   try {
     const out = gunzipSync(data, { maxOutputLength: maxDecompressed + 1 });
     if (out.length > maxDecompressed) {
-      return { version: 1, entries: [], truncated: true };
+      return { version: 1, entries: [], truncated: true, preamble: { ...DEFAULT_PREAMBLE } };
     }
     text = out.toString("utf8");
   } catch (error) {
@@ -313,9 +363,9 @@ export function decodeSyncTexGz(
       message.includes("too large") ||
       message.includes("maxOutputLength") ||
       (error as NodeJS.ErrnoException)?.code === "ERR_BUFFER_TOO_LARGE";
-    return { version: 1, entries: [], truncated: tooLarge };
+    return { version: 1, entries: [], truncated: tooLarge, preamble: { ...DEFAULT_PREAMBLE } };
   }
-  if (text.length === 0) return { version: 1, entries: [], truncated: false };
+  if (text.length === 0) return { version: 1, entries: [], truncated: false, preamble: { ...DEFAULT_PREAMBLE } };
   return parseSyncTex(text, options);
 }
 
