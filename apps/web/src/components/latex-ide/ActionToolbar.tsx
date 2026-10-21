@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import { matchesReference } from "@/lib/referenceSearch";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
@@ -29,8 +29,15 @@ interface ToolbarGroupProps {
 
 function ToolbarGroup({ label, children }: ToolbarGroupProps) {
   return (
-    <div className="flex min-w-0 shrink-0 flex-row items-center gap-1 border-r border-border px-2 last:border-r-0">
-      <span className="hidden whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground lg:inline">
+    <div
+      role="group"
+      aria-label={label}
+      className="flex min-w-0 shrink-0 flex-row items-center gap-1 border-r border-border px-2 last:border-r-0"
+    >
+      <span
+        aria-hidden="true"
+        className="hidden whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground lg:inline"
+      >
         {label}
       </span>
       <div className="flex items-center gap-1">{children}</div>
@@ -49,26 +56,36 @@ interface ToolbarButtonProps {
   dataTestId?: string;
 }
 
-function ToolbarButton({
-  icon: Icon,
-  label,
-  active,
-  hasDropdown,
-  onClick,
-  disabled,
-  variant = "default",
-  dataTestId,
-}: ToolbarButtonProps) {
+const ToolbarButton = forwardRef<
+  HTMLButtonElement,
+  ToolbarButtonProps & React.ButtonHTMLAttributes<HTMLButtonElement>
+>(function ToolbarButton(
+  {
+    icon: Icon,
+    label,
+    active,
+    hasDropdown,
+    onClick,
+    disabled,
+    variant = "default",
+    dataTestId,
+    ...rest
+  },
+  ref,
+) {
   return (
     <button
+      ref={ref}
       type="button"
       data-testid={dataTestId}
       onClick={onClick}
       disabled={disabled}
       title={label}
       aria-label={label}
+      aria-haspopup={hasDropdown ? "menu" : undefined}
+      {...rest}
       className={cn(
-        "group inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-30",
+        "group inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         variant === "primary"
           ? "bg-primary text-primary-foreground hover:bg-primary/90"
           : active
@@ -98,7 +115,7 @@ function ToolbarButton({
       )}
     </button>
   );
-}
+});
 
 export function ActionToolbar() {
   const {
@@ -128,19 +145,21 @@ export function ActionToolbar() {
   );
 
   return (
-    <div className="z-40 flex h-11 w-full min-w-0 shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-border bg-background px-2 text-foreground scrollbar-hide">
+    <div
+      role="toolbar"
+      aria-label="LaTeX actions"
+      className="z-40 flex h-11 w-full min-w-0 shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-border bg-background px-2 text-foreground scrollbar-hide"
+    >
       <ToolbarGroup label="Citations">
         <DropdownMenu>
           <DropdownMenuTrigger asChild disabled={!canInsert}>
-            <div>
-              <ToolbarButton
-                icon={Quote}
-                label="Cite"
-                hasDropdown
-                disabled={!canInsert}
-                dataTestId="snippet-button"
-              />
-            </div>
+            <ToolbarButton
+              icon={Quote}
+              label="Cite"
+              hasDropdown
+              disabled={!canInsert}
+              dataTestId="snippet-button"
+            />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
@@ -153,7 +172,11 @@ export function ActionToolbar() {
               }
               value={referenceQuery}
               onChange={(event) => setReferenceQuery(event.target.value)}
-              onKeyDown={(event) => event.stopPropagation()}
+              // Let Escape reach the menu so keyboard users can close it;
+              // Radix returns focus to the Cite trigger on close.
+              onKeyDown={(event) => {
+                if (event.key !== "Escape") event.stopPropagation();
+              }}
               className="mb-1 w-full rounded border border-border bg-background p-2 text-xs"
             />
             {bibEntries.length > 0 && uniqueEntries.length === 0 && (
@@ -165,7 +188,9 @@ export function ActionToolbar() {
               <DropdownMenuItem
                 data-testid="snippet-button-cite"
                 className="rounded-md font-semibold text-xs p-2 cursor-pointer"
-                onClick={() => appendToActiveFile("\\cite{your_reference_key}")}
+                onSelect={() =>
+                  appendToActiveFile("\\cite{your_reference_key}")
+                }
               >
                 Insert cite placeholder
               </DropdownMenuItem>
@@ -174,7 +199,7 @@ export function ActionToolbar() {
                 <DropdownMenuItem
                   key={entry.id}
                   className="rounded-md font-semibold text-xs p-2 cursor-pointer"
-                  onClick={() => appendToActiveFile(`\\cite{${entry.id}}`)}
+                  onSelect={() => appendToActiveFile(`\\cite{${entry.id}}`)}
                 >
                   {entry.id}
                   {entry.year ? ` (${entry.year})` : ""}

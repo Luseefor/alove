@@ -21,6 +21,7 @@ export function WorkspaceHistory() {
   const [path, setPath] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   if (!persistence.listHistory || !persistence.restoreHistory) return null;
   const paths = selected
     ? [
@@ -51,6 +52,7 @@ export function WorkspaceHistory() {
   async function restore() {
     if (!selected) return;
     setBusy(true);
+    setRestoring(true);
     setError("");
     try {
       await persistence.restoreHistory!(selected.revision);
@@ -63,13 +65,14 @@ export function WorkspaceHistory() {
       );
     } finally {
       setBusy(false);
+      setRestoring(false);
     }
   }
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (busy) return;
+        if (restoring) return;
         setOpen(next);
         if (next) void load();
       }}
@@ -85,10 +88,10 @@ export function WorkspaceHistory() {
       <DialogContent
         className="flex max-h-[90dvh] flex-col overflow-hidden"
         onEscapeKeyDown={(e) => {
-          if (busy) e.preventDefault();
+          if (restoring) e.preventDefault();
         }}
         onPointerDownOutside={(e) => {
-          if (busy) e.preventDefault();
+          if (restoring) e.preventDefault();
         }}
       >
         <DialogHeader>
@@ -175,7 +178,7 @@ export function WorkspaceHistory() {
           <DialogClose asChild>
             <button
               type="button"
-              disabled={busy}
+              disabled={restoring}
               className="rounded border border-border px-3 py-2"
             >
               Cancel

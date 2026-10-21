@@ -69,7 +69,11 @@ async function readFileForProjectPath(
   if (utf8ByteLength(content) > PROJECT_MAX_FILE_BYTES) {
     throw new Error(`"${logicalPath}" is too large (max 1 MB).`);
   }
-  const sizeCheck = validateProjectFileContentSize(logicalPath, content, isLocalStandalone() ? undefined : CLOUD_MAX_FILE_BYTES);
+  const sizeCheck = validateProjectFileContentSize(
+    logicalPath,
+    content,
+    isLocalStandalone() ? undefined : CLOUD_MAX_FILE_BYTES,
+  );
   if (!sizeCheck.ok) throw new Error(sizeCheck.error);
   return content;
 }
@@ -253,8 +257,9 @@ export function ProjectSidebar() {
             Global Search
           </span>
           <button
+            type="button"
             onClick={clearGlobalFind}
-            className="text-[10px] font-bold text-primary hover:underline"
+            className="text-[10px] font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
           >
             Clear
           </button>
@@ -262,8 +267,12 @@ export function ProjectSidebar() {
         <div className="p-3 space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1 group">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <Search
+                aria-hidden="true"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground group-focus-within:text-primary transition-colors"
+              />
               <input
+                aria-label="Search text in project"
                 value={projectSearchInput}
                 onChange={(e) => {
                   setProjectSearchInput(e.target.value);
@@ -280,8 +289,9 @@ export function ProjectSidebar() {
               />
             </div>
             <button
+              type="button"
               onClick={runGlobalFind}
-              className="h-8 px-4 rounded-lg bg-primary text-white text-[11px] font-bold shadow-md shadow-primary/10 active:scale-95 transition-transform"
+              className="h-8 px-4 rounded-lg bg-primary text-white text-[11px] font-bold shadow-md shadow-primary/10 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Find
             </button>
@@ -327,7 +337,7 @@ export function ProjectSidebar() {
           {projectSearchResults.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-3">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-zinc-300 border border-border">
-                <Search className="w-6 h-6" />
+                <Search aria-hidden="true" className="w-6 h-6" />
               </div>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
                 No results yet. Enter a query and click Find to search across
@@ -444,7 +454,7 @@ export function ProjectSidebar() {
           {filteredTree.length === 0 ? (
             <div className="px-6 py-12 text-center space-y-3">
               <div className="w-10 h-10 mx-auto rounded-full bg-muted flex items-center justify-center text-zinc-300 border border-border">
-                <FileText className="w-5 h-5" />
+                <FileText aria-hidden="true" className="w-5 h-5" />
               </div>
               <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
                 No files match your search.
@@ -478,8 +488,12 @@ export function ProjectSidebar() {
             <div className="flex-1 flex flex-col min-h-0">
               <div className="p-2 border-b border-border flex gap-2 bg-background">
                 <div className="relative flex-1 group">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                  <Search
+                    aria-hidden="true"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground group-focus-within:text-primary transition-colors"
+                  />
                   <input
+                    aria-label="Search snippets"
                     value={snippetSearch}
                     onChange={(e) => setSnippetSearch(e.target.value)}
                     placeholder="Search snippets..."
@@ -496,6 +510,7 @@ export function ProjectSidebar() {
                   snippets.map((s, i) => (
                     <button
                       key={i}
+                      type="button"
                       data-testid={`sidebar-snippet-${s.label}`}
                       onClick={() =>
                         s.wrap
@@ -505,7 +520,7 @@ export function ProjectSidebar() {
                       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-muted border border-transparent hover:border-border group transition-all active:scale-[0.98]"
                     >
                       <div className="w-5 h-5 bg-muted rounded-md flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                        <s.icon size={11} />
+                        <s.icon aria-hidden="true" size={11} />
                       </div>
                       <span className="text-[11px] font-bold text-muted-foreground group-hover:text-foreground transition-colors">
                         {s.label}
@@ -519,7 +534,10 @@ export function ProjectSidebar() {
             <div className="flex-1 overflow-y-auto py-2 px-2 bg-background">
               {outline.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-2 opacity-40">
-                  <Layout className="w-6 h-6 text-muted-foreground" />
+                  <Layout
+                    aria-hidden="true"
+                    className="w-6 h-6 text-muted-foreground"
+                  />
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
                     No outline data
                   </p>
@@ -562,6 +580,7 @@ export function ProjectSidebar() {
         onConfirm={confirmNewFile}
       >
         <input
+          aria-label="New file path"
           value={newFilePath}
           onChange={(e) => {
             setNewFilePath(e.target.value);
@@ -593,6 +612,7 @@ export function ProjectSidebar() {
         onConfirm={confirmNewFolder}
       >
         <input
+          aria-label="New folder path"
           value={newFolderPath}
           onChange={(e) => {
             setNewFolderPath(e.target.value);
@@ -626,11 +646,13 @@ function IconButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       title={title}
-      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95"
+      aria-label={title}
+      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Icon className="w-4 h-4" />
+      <Icon aria-hidden="true" className="w-4 h-4" />
     </button>
   );
 }
@@ -646,9 +668,11 @@ function SidebarTab({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] transition-all relative",
+        "px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] transition-all relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
         active
           ? "text-primary"
           : "text-muted-foreground hover:text-muted-foreground",
@@ -656,7 +680,10 @@ function SidebarTab({
     >
       {label}
       {active && (
-        <div className="absolute bottom-0 inset-x-4 h-0.5 bg-primary rounded-t-full shadow-[0_0_8px_rgba(124,58,237,0.5)]" />
+        <div
+          aria-hidden="true"
+          className="absolute bottom-0 inset-x-4 h-0.5 bg-primary rounded-t-full shadow-[0_0_8px_rgba(124,58,237,0.5)]"
+        />
       )}
     </button>
   );
@@ -700,10 +727,11 @@ function SidebarAction({
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
-      className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground"
+      className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Icon size={14} />
+      <Icon aria-hidden="true" size={14} />
     </button>
   );
 }
@@ -720,27 +748,30 @@ function OutlineItem({
   const depth = Math.max(0, level - 1);
   const indent = depth * 12;
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
+      aria-label={`Go to ${label}`}
       className={cn(
-        "group relative min-h-7 flex items-center text-[11px] cursor-pointer rounded-lg px-2 transition-all",
+        "group relative w-full min-h-7 flex items-center text-[11px] text-left rounded-lg px-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
         "text-muted-foreground hover:bg-muted hover:text-foreground hover:pl-3",
       )}
       style={{ paddingLeft: `${indent + 8}px` }}
     >
       {depth > 0 && (
         <span
-          aria-hidden
+          aria-hidden="true"
           className="absolute top-0 bottom-0 w-px bg-muted left-2"
           style={{ left: `${indent + 4}px` }}
         />
       )}
       <span className="truncate py-1 font-semibold">{label}</span>
       <ChevronRight
+        aria-hidden="true"
         size={10}
         className="ml-auto opacity-0 group-hover:opacity-40 transition-opacity"
       />
-    </div>
+    </button>
   );
 }
 
@@ -802,16 +833,38 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
   return (
     <div className="group relative w-full px-1">
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={
+          isFolder
+            ? `${isOpen ? "Collapse" : "Expand"} folder ${file.path}`
+            : `Open file ${file.path}`
+        }
+        aria-expanded={isFolder ? isOpen : undefined}
+        aria-current={isActive ? "true" : undefined}
         className={cn(
-          "relative w-full min-h-8 flex items-center transition-all rounded-lg cursor-pointer group/row",
+          "relative w-full min-h-8 flex items-center transition-all rounded-lg group/row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           isActive
             ? "bg-primary/5 text-primary border border-primary/10 shadow-sm"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
         style={{ paddingLeft: `${indent + 6}px` }}
         onClick={() => (isFolder ? setIsOpen(!isOpen) : openFile(file.path))}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          // Ignore keys from nested controls (e.g. the file actions menu
+          // button): preventDefault here would block their native activation
+          // and wrongly open the file instead.
+          if (event.target !== event.currentTarget) return;
+          event.preventDefault();
+          if (isFolder) setIsOpen(!isOpen);
+          else openFile(file.path);
+        }}
       >
-        <div className="relative shrink-0 flex items-center mr-2">
+        <div
+          aria-hidden="true"
+          className="relative shrink-0 flex items-center mr-2"
+        >
           {isFolder && (
             <ChevronRight
               size={12}
@@ -864,7 +917,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
                   "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 focus-visible:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-background hover:text-foreground shadow-sm border border-transparent hover:border-border",
                 )}
               >
-                <MoreVertical size={12} />
+                <MoreVertical aria-hidden="true" size={12} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -891,7 +944,11 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
                   setRenameOpen(true);
                 }}
               >
-                <Pencil size={14} className="text-muted-foreground" />
+                <Pencil
+                  aria-hidden="true"
+                  size={14}
+                  className="text-muted-foreground"
+                />
                 Rename…
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-muted" />
@@ -902,7 +959,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
                   setDeleteOpen(true);
                 }}
               >
-                <Trash2 size={14} className="text-red-400" />
+                <Trash2 aria-hidden="true" size={14} className="text-red-400" />
                 Delete…
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -931,6 +988,7 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
             onConfirm={confirmRename}
           >
             <input
+              aria-label="Rename file to"
               value={renamePathInput}
               onChange={(e) => {
                 setRenamePathInput(e.target.value);

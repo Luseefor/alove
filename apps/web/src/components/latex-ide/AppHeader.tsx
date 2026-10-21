@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IdeSettingsDialog } from "./IdeSettingsDialog";
+import { WorkspaceHistory } from "./WorkspaceHistory";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/primitives";
 import { isLocalStandalone } from "@/lib/localStandalone";
@@ -77,6 +78,8 @@ export function AppHeader() {
     saveMessage,
     runCompile,
     buildStatus,
+    activeCompileJobId,
+    cancelCompile,
     saveActiveFile,
     saveAllDirtyFiles,
     setProjectTitle,
@@ -101,6 +104,7 @@ export function AppHeader() {
   const [renameError, setRenameError] = useState("");
   const [titleInput, setTitleInput] = useState(projectTitle);
   const importInput = useRef<HTMLInputElement>(null);
+  const renameButtonRef = useRef<HTMLButtonElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const exportSource = () => {
     const state = useWorkbenchStore.getState();
@@ -214,7 +218,7 @@ export function AppHeader() {
                 className="mx-1 hidden h-4 w-px bg-border sm:block"
                 aria-hidden="true"
               />
-              <div className="hidden items-center gap-1 sm:flex">
+              <div className="flex items-center gap-1">
                 <IconButton
                   icon={Undo2}
                   title="Undo"
@@ -234,8 +238,10 @@ export function AppHeader() {
             <div className="flex min-w-0 max-w-full flex-col items-start md:items-center">
               <div className="flex min-w-0 max-w-full items-center gap-2">
                 <button
+                  ref={renameButtonRef}
                   type="button"
                   aria-label="Rename project"
+                  aria-haspopup="dialog"
                   title="Rename project"
                   onClick={() => {
                     setTitleInput(projectTitle);
@@ -302,12 +308,16 @@ export function AppHeader() {
                 </Button>
               }
 
+              {/* Workspace history stays visible on narrow layouts next to Export. */}
+              <WorkspaceHistory />
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
                     aria-label="Export"
+                    aria-haspopup="menu"
                     title="Export"
                     className="h-9 shrink-0 gap-2 whitespace-nowrap rounded-md px-2 font-bold sm:px-4"
                   >
@@ -363,8 +373,15 @@ export function AppHeader() {
               </DropdownMenu>
 
               {(buildStatus === "queued" || buildStatus === "running") && (
-                <button type="button" disabled={!useWorkbenchStore.getState().activeCompileJobId} onClick={() => void useWorkbenchStore.getState().cancelCompile()}
-                  className="rounded border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-50">Cancel build</button>
+                <button
+                  type="button"
+                  disabled={!activeCompileJobId}
+                  onClick={() => void cancelCompile()}
+                  aria-label="Cancel build"
+                  className="rounded border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Cancel build
+                </button>
               )}
               <Button
                 variant="primary"
@@ -398,6 +415,7 @@ export function AppHeader() {
         open={renameOpen}
         title="Rename project"
         confirmLabel="Rename"
+        returnFocusRef={renameButtonRef}
         onCancel={() => setRenameOpen(false)}
         onConfirm={() => {
           if (!titleInput.trim()) return;
@@ -463,15 +481,24 @@ export function AppHeader() {
         >
           <span className="flex-1">{saveMessage}</span>
           {saveStatus === "error" && (
-            <button className="underline" onClick={() => void saveActiveFile()}>
+            <button
+              type="button"
+              className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+              onClick={() => void saveActiveFile()}
+            >
               Retry save
             </button>
           )}
-          <button className="underline" onClick={exportSource}>
+          <button
+            type="button"
+            className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            onClick={exportSource}
+          >
             Export source
           </button>
           <button
-            className="underline"
+            type="button"
+            className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
             onClick={() => window.location.reload()}
           >
             Reload workspace
