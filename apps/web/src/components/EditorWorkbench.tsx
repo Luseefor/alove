@@ -102,6 +102,7 @@ function EditorWorkbenchConvex() {
         path: r.path,
         content: r.content,
         version: r.version,
+        incarnation: String(r._id),
       }));
       useWorkbenchStore.setState({ cloudUserId: user?.id ?? null });
       mergeRemoteProject({
@@ -126,23 +127,26 @@ function EditorWorkbenchConvex() {
       setMainFile: async (path) => {
         await persistMainFile({ projectId, path });
       },
-      save: async (path, content, expectedVersion) => {
+      save: async (path, content, expectedVersion, expectedIncarnation) => {
         const result = await saveFile({
           projectId,
           path,
           content,
           expectedVersion,
+          expectedIncarnation,
         });
         return result;
       },
-      delete: async (path) => {
-        await deleteFile({ projectId, path });
+      delete: async (path, expectedVersion, expectedIncarnation) => {
+        const result = await deleteFile({ projectId, path, expectedVersion, expectedIncarnation });
+        return result;
       },
       renameProject: async (name) => {
         await renameProject({ projectId, name });
       },
-      rename: async (oldPath, newPath) => {
-        await renameFileMutation({ projectId, oldPath, newPath });
+      rename: async (oldPath, newPath, expectedVersion, expectedIncarnation) => {
+        const result = await renameFileMutation({ projectId, oldPath, newPath, expectedVersion, expectedIncarnation });
+        return result;
       },
     });
     const warnIfUnsaved = (event: BeforeUnloadEvent) => {
