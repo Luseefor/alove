@@ -74,6 +74,7 @@ function seedStore(overrides: Partial<ReturnType<typeof useWorkbenchStore.getSta
     openFiles: ["main.tex"],
     filesByPath: { "main.tex": "server v1" },
     versionsByPath: { "main.tex": 2 },
+    incarnationsByPath: { "main.tex": "file-1" },
     dirtyByPath: { "main.tex": false },
     saveStatus: "saved",
     saveMessage: null,
@@ -89,6 +90,7 @@ function makeDraft(overrides: Partial<CloudDraft> = {}): CloudDraft {
     tabId: "tab-1",
     files: { "main.tex": "draft content" },
     versions: { "main.tex": 1 },
+    incarnations: { "main.tex": "file-1" },
     dirtyPaths: ["main.tex"],
     title: "Test project",
     mainFile: "main.tex",
@@ -344,6 +346,7 @@ describe("CloudDraftRecovery flow", () => {
       expect(saved.projectId).toBe("proj-1");
       expect(saved.files["main.tex"]).toBe("v2 offline");
       expect(saved.dirtyPaths).toEqual(["main.tex"]);
+      expect(saved.incarnations).toEqual({ "main.tex": "file-1" });
       expect(cloudSave).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
@@ -432,4 +435,21 @@ describe("CloudDraftRecovery flow", () => {
       "manual-server-update",
     );
   });
+  it.each(["old-file-id", undefined])("restores the original draft identity (%s) and conflicts with a recreated same-version row", async (originalIdentity) => {
+    const save = vi.fn(async () => ({ version: 1, conflict: true }));
+    seedStore({ filesByPath: { "main.tex": "recreated server file" }, versionsByPath: { "main.tex": 1 },
+      incarnationsByPath: { "main.tex": "new-file-id" }, persistence: { save } });
+    repoMocks.load.mockResolvedValueOnce(makeDraft({ versions: { "main.tex": 1 },
+      incarnations: originalIdentity ? { "main.tex": originalIdentity } : undefined }));
+    const { container } = renderRecovery("user-a", "proj-1");
+    await flushMicrotasks();
+    click(getButton(container, "Restore browser draft"));
+    expect(useWorkbenchStore.getState().filesByPath["main.tex"]).toBe("draft content");
+    expect(useWorkbenchStore.getState().saveStatus).toBe("conflict");
+    expect(useWorkbenchStore.getState().incarnationsByPath["main.tex"]).toBe(originalIdentity);
+    await act(async () => { await useWorkbenchStore.getState().saveActiveFile(); });
+    expect(save).toHaveBeenCalledWith("main.tex", "draft content", 1, originalIdentity);
+    expect(useWorkbenchStore.getState().dirtyByPath["main.tex"]).toBe(true);
+  });
+
 });

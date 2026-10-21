@@ -6,6 +6,7 @@ import type { EditorState } from "@codemirror/state";
 import { historyField } from "@alove/editor";
 import {
   LatexCodeEditor,
+  MAX_RETAINED_EDITOR_STATES,
   type LatexCodeEditorHandle,
 } from "@/components/latex-ide/LatexCodeEditor";
 
@@ -13,12 +14,10 @@ import {
 // Polyfill here (not global setup) so focused editor tests don't emit
 // unhandled getClientRects errors.
 {
-  const rangeProto =
-    (globalThis as unknown as { Range?: { prototype: Range } }).Range
-      ?.prototype;
+  const rangeProto = (globalThis as unknown as { Range?: { prototype: Range } })
+    .Range?.prototype;
   if (rangeProto && typeof rangeProto.getClientRects !== "function") {
-    rangeProto.getClientRects = () =>
-      [] as unknown as DOMRectList;
+    rangeProto.getClientRects = () => [] as unknown as DOMRectList;
   }
   if (rangeProto && typeof rangeProto.getBoundingClientRect !== "function") {
     rangeProto.getBoundingClientRect = () =>
@@ -328,7 +327,9 @@ describe("LatexCodeEditor", () => {
 
     const domBefore = host().firstChild;
     expect(domBefore).not.toBeNull();
-    const view = EditorView.findFromDOM(host().querySelector(".cm-editor") as HTMLElement)!;
+    const view = EditorView.findFromDOM(
+      host().querySelector(".cm-editor") as HTMLElement,
+    )!;
     expect(view.state.facet(EditorView.darkTheme)).toBe(false);
 
     act(() => {
@@ -397,7 +398,9 @@ describe("LatexCodeEditor", () => {
       root.unmount();
     });
 
-    expect(container.querySelector('[data-testid="latex-editor-codemirror"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="latex-editor-codemirror"]'),
+    ).toBeNull();
 
     await act(async () => {
       document.documentElement.classList.add("dark");
@@ -419,11 +422,13 @@ describe("LatexCodeEditor", () => {
 
   function hasKey(view: EditorView, key: string): boolean {
     const target = key.toLowerCase();
-    return view.state.facet(keymap).some((bindings) =>
-      bindings.some(
-        (b) => typeof b.key === "string" && b.key.toLowerCase() === target,
-      ),
-    );
+    return view.state
+      .facet(keymap)
+      .some((bindings) =>
+        bindings.some(
+          (b) => typeof b.key === "string" && b.key.toLowerCase() === target,
+        ),
+      );
   }
 
   it("toggles autocomplete via settings without resetting view, selection, or history", () => {
@@ -612,7 +617,9 @@ describe("LatexCodeEditor", () => {
     });
 
     const domBefore = host().firstChild;
-    expect(getDrawSelectionConfig(findView().state).cursorBlinkRate).not.toBe(0);
+    expect(getDrawSelectionConfig(findView().state).cursorBlinkRate).not.toBe(
+      0,
+    );
 
     act(() => {
       ref.current?.setSelection(1, 4);
@@ -654,7 +661,9 @@ describe("LatexCodeEditor", () => {
     });
 
     expect(host().firstChild).toBe(domBefore);
-    expect(getDrawSelectionConfig(findView().state).cursorBlinkRate).not.toBe(0);
+    expect(getDrawSelectionConfig(findView().state).cursorBlinkRate).not.toBe(
+      0,
+    );
     expect(onChange.mock.calls.length).toBe(callsAfterEdit);
 
     act(() => {
@@ -872,5 +881,294 @@ describe("LatexCodeEditor", () => {
       ref.current?.runCommand("undo");
     });
     expect(ref.current?.getValue()).toBe("RESET-DIFFERENT");
+  });
+
+  it("retains redo across remount with same historyKey", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+    const cache = new Map<string, EditorState>();
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:fileA"
+          ref={ref}
+          value={"abc"}
+          onChange={onChange}
+          aria-label="latex editor"
+          historyCache={cache}
+          historyKey="fileA"
+        />,
+      );
+    });
+    act(() => {
+      ref.current?.replaceRange(3, 3, "d");
+    });
+    expect(ref.current?.getValue()).toBe("abcd");
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("abc");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:fileB"
+          ref={ref}
+          value={"xyz"}
+          onChange={onChange}
+          aria-label="latex editor"
+          historyCache={cache}
+          historyKey="fileB"
+        />,
+      );
+    });
+    expect(ref.current?.getValue()).toBe("xyz");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:fileA"
+          ref={ref}
+          value={"abc"}
+          onChange={onChange}
+          aria-label="latex editor"
+          historyCache={cache}
+          historyKey="fileA"
+        />,
+      );
+    });
+    expect(ref.current?.getValue()).toBe("abc");
+
+    act(() => {
+      ref.current?.runCommand("redo");
+    });
+    expect(ref.current?.getValue()).toBe("abcd");
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("abc");
+  });
+
+  it("keeps per-file undo/redo isolated in both directions", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+    const cache = new Map<string, EditorState>();
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:fileA"
+          ref={ref}
+          value={"aaa"}
+          onChange={onChange}
+          aria-label="latex editor"
+          historyCache={cache}
+          historyKey="fileA"
+        />,
+      );
+    });
+    act(() => {
+      ref.current?.replaceRange(3, 3, "1");
+    });
+    expect(ref.current?.getValue()).toBe("aaa1");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:fileB"
+          ref={ref}
+          value={"bbb"}
+          onChange={onChange}
+          aria-label="latex editor"
+          historyCache={cache}
+          historyKey="fileB"
+        />,
+      );
+    });
+    act(() => {
+      ref.current?.replaceRange(3, 3, "2");
+    });
+    expect(ref.current?.getValue()).toBe("bbb2");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:fileA"
+          ref={ref}
+          value={"aaa1"}
+          onChange={onChange}
+          aria-label="latex editor"
+          historyCache={cache}
+          historyKey="fileA"
+        />,
+      );
+    });
+    expect(ref.current?.getValue()).toBe("aaa1");
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("aaa");
+    act(() => {
+      ref.current?.runCommand("redo");
+    });
+    expect(ref.current?.getValue()).toBe("aaa1");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:fileB"
+          ref={ref}
+          value={"bbb2"}
+          onChange={onChange}
+          aria-label="latex editor"
+          historyCache={cache}
+          historyKey="fileB"
+        />,
+      );
+    });
+    expect(ref.current?.getValue()).toBe("bbb2");
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("bbb");
+    act(() => {
+      ref.current?.runCommand("redo");
+    });
+    expect(ref.current?.getValue()).toBe("bbb2");
+  });
+
+  it("bounds retention and refreshes recency on revisit", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+    const cache = new Map<string, EditorState>();
+    const renderFile = (name: string, doc: string) => {
+      act(() => {
+        root.render(
+          <LatexCodeEditor
+            key={`proj:${name}`}
+            ref={ref}
+            value={doc}
+            onChange={onChange}
+            aria-label="latex editor"
+            historyCache={cache}
+            historyKey={name}
+          />,
+        );
+      });
+    };
+
+    renderFile("fileA", "a");
+    act(() => {
+      ref.current?.replaceRange(1, 1, "1");
+    });
+    expect(ref.current?.getValue()).toBe("a1");
+
+    renderFile("fileB", "b");
+    expect(cache.get("fileA")?.doc.toString()).toBe("a1");
+
+    // Revisit A: caches B, restores A, then refreshes A as most-recent on next switch.
+    renderFile("fileA", "a1");
+    expect(ref.current?.getValue()).toBe("a1");
+    renderFile("fileC", "c");
+    expect(cache.get("fileA")?.doc.toString()).toBe("a1");
+    expect(cache.get("fileB")?.doc.toString()).toBe("b");
+
+    // Fill with enough new files to force eviction of exactly the oldest (fileB).
+    // Start order is [fileB, fileA]; adding MAX-1 files grows the unbounded
+    // cache to MAX+1, so a single LRU eviction removes fileB (oldest, never
+    // revisited) while refreshed fileA survives.
+    for (let i = 0; i < MAX_RETAINED_EDITOR_STATES - 1; i += 1) {
+      renderFile(`fill-${i}`, `fill-${i}`);
+    }
+
+    expect(cache.size).toBe(MAX_RETAINED_EDITOR_STATES);
+    expect(cache.has("fileB")).toBe(false);
+    expect(cache.get("fileA")?.doc.toString()).toBe("a1");
+  });
+
+  it("caps retention at the bounded maximum across many files", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+    const cache = new Map<string, EditorState>();
+    const total = MAX_RETAINED_EDITOR_STATES + 5;
+
+    for (let i = 0; i < total; i += 1) {
+      act(() => {
+        root.render(
+          <LatexCodeEditor
+            key={`proj:many-${i}`}
+            ref={ref}
+            value={`content-${i}`}
+            onChange={onChange}
+            aria-label="latex editor"
+            historyCache={cache}
+            historyKey={`many-${i}`}
+          />,
+        );
+      });
+    }
+
+    expect(cache.size).toBe(MAX_RETAINED_EDITOR_STATES);
+    expect(cache.has("many-0")).toBe(false);
+    expect(cache.get(`many-${total - 2}`)?.doc.toString()).toBe(
+      `content-${total - 2}`,
+    );
+  });
+
+  it("falls back to fresh state without historyCache/historyKey", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:solo"
+          ref={ref}
+          value={"fresh"}
+          onChange={onChange}
+          aria-label="latex editor"
+        />,
+      );
+    });
+    act(() => {
+      ref.current?.replaceRange(5, 5, "!");
+    });
+    expect(ref.current?.getValue()).toBe("fresh!");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:other"
+          ref={ref}
+          value={"other"}
+          onChange={onChange}
+          aria-label="latex editor"
+        />,
+      );
+    });
+    expect(ref.current?.getValue()).toBe("other");
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("other");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          key="proj:solo"
+          ref={ref}
+          value={"fresh!"}
+          onChange={onChange}
+          aria-label="latex editor"
+        />,
+      );
+    });
+    // Without a cache there is nothing to restore: fresh doc, empty history.
+    expect(ref.current?.getValue()).toBe("fresh!");
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("fresh!");
   });
 });

@@ -240,20 +240,17 @@ The final run includes an idempotency regression for legacy records with omitted
 optional fields; the preliminary run remains separate. No application/TeX latency
 or competitor advantage is inferred from this helper benchmark.
 
-
 ## Project library and project navigation — issue #5
 
 Replaced fabricated recent-project cards with saved browser workspaces, title search, rename and revision-checked confirmed deletion. Blank, article, BibTeX and sample launchers create independent projects; archive import commits the new workspace before navigation. Editor title changes, project links and main-document persistence now use real local or authenticated Convex operations. Navigation saves the current source before leaving and shows failures. Corrupt local rows remain untouched and no longer hide healthy projects. Added a working help route and responsive, theme-aware dashboard.
 
 Validation on the combined project/control working tree: web unit suite 245 passed; all six packages typecheck; production build passed. Production Chromium project-library tests 2/2 and dashboard tests 5/5 passed, including import/reload, rename, search and cancel/confirm deletion. Eight backend-handler unit tests cover authentication, ownership and root updates. Live Clerk/Convex deployment was not exercised. Editor-control changes are delivered separately under issue #6.
 
-
 ## Functional editor controls — issue #6
 
 Wired autocomplete, Emacs navigation, non-blinking CodeMirror cursor, reference-search mode and PDF-viewer preferences to real consumers. Snippets/citations insert at the caret or before the document end; menu insertions participate in undo history, which survives file switches without crossing projects. Find and global-search results navigate the live editor. File dialogs keep validation errors visible, folder/upload controls preserve safe paths and binary assets, and file deletion/root selection work. Settings text and account/subscription panels now describe available behavior truthfully.
 
 Final combined validation: 245/245 web unit tests; production Chromium 46 passed, two cloud-only skipped (48 total), including seven new controls tests, real Docker compilation and recovery, storage conflicts and 11 responsive checks. Six-package typecheck, web lint/design-token checks and local production build passed. Native Google Chrome 155.0.8059.80 separately rendered a compiled one-page PDF from the browser-tab Blob link. Ace screenshots inspected editor/settings at phone/tablet/desktop in light/dark; independent visual review found no blockers for dashboard/library at the same sizes/themes. Initial missing reference label fixed; test-only locator and unsupported headless-shell native-viewer assertions corrected and rerun. Live cloud integration not claimed. See `docs/editor-controls.md`.
-
 
 ## Constrained TeX job containers — issue #10
 
@@ -262,7 +259,6 @@ Replaced root/networked, writable-host compilation with a non-root read-only con
 Validation: 46 worker unit tests, 250 web unit tests, nine actual Docker checks and three production Chromium workflows passed. Docker evidence includes three TeX engines, nested includes/PNG/BibTeX, failures, timeout/removal, read-only/network/resource restrictions, special-file reads and a successful subsequent job. Browser evidence covers compile/download/failure retention, compile-tested recovery/apply/undo/export and compiler/PDF settings against the actual Redis/Docker worker. All-package typecheck, web lint/design-token checks and production build passed. An initial missing-PDF reader classification was corrected; the old network-interface-name assertion was replaced with a direct blocked-connect test. No new processing-speed benchmark or public-hosting readiness is claimed.
 
 The interrupted worktree was recreated at main 8af7510; unfinished changes were restored and checks rerun. Current unfinished changes also have a separate backup under `/Users/lucifer/.ace/project-backups/alove-sandbox-20261019`. Shared/public deployment still requires dedicated daemon isolation, ownership, quotas and operational cancellation/restart checks. See `docs/compile-sandbox.md`.
-
 
 ## 2026-10-20: compile ownership and local access, issue #12
 
@@ -273,7 +269,6 @@ Anonymous local compute requires `ALOVE_LOCAL_COMPILE_ORIGIN` with an exact loop
 Validation before publication: 343 web unit tests, 32 protocol tests and 46 worker unit tests passed; all six packages typechecked; web ESLint/design-token checks and local production build passed. Three production Playwright checks passed in 33 seconds against real Redis6381, worker and Docker TeX: compile/download/failure retention/reload, tested file recovery with apply/undo/export, and negative origin/form requests. A separate production instance with only the public UI flag returned 503 for compile submission/polling and 200 for local editing. Both Compose configurations parsed. The live loopback listener and Ace editor snapshot were checked.
 
 Initial production builds exposed the repository's source-package `.js` resolution limit; queue declarations now use the existing protocol entry point. Initial real browser runs failed because Next normalizes loopback request URLs to localhost. The implementation now retains the exact browser Host when handling that normalization, with regression tests using real NextRequest; the final browser runs passed. Live Clerk/Convex sessions with distinct accounts remain untested. Login UI troubleshooting, memberships, quotas and cancellation remain separate work.
-
 
 ## 2026-10-20: publishing preparation, issue #14
 
@@ -297,18 +292,15 @@ The first GitHub run passed the build job but failed browser tests on Linux beca
 
 The next Linux run passed build and corrected all shortcut failures: 48 browser tests passed, six credential/real-worker tests skipped, and one access test failed because the browser job had no Redis service (503 rather than the required missing-job 404). The browser job now provisions health-checked Redis, preserving the exact test assertion. The Docker job in that run passed the freshly verified TeX build and all nine compile tests before continuing the stack checks.
 
-
 ## 2026-10-20: runtime-aware worker readiness, issue #16
 
 A closed production-browser run found an unavailable local TeX image while the queue heartbeat still advertised Ready. Docker listed the tag but could not inspect it; the initial suite was interrupted after 38 passes, two runtime-dependent failures and one interrupted test. Rebuilding/loading the pinned local image restored actual compilation. No daemon reset or reinstall was used.
 
 Worker heartbeats now require a fresh bounded image-inspection probe and valid sandbox policy, or an explicitly trusted nonproduction host with executable latexmk. Probes do not overlap, publish no command output and abort during shutdown. A repaired runtime resumes readiness without restarting the worker; existing timestamps expire after 15 seconds when it fails. The dedicated Redis/process regression exercised missing → available → missing → restored in the same worker and SIGTERM during a slow probe; it passed 39 assertions in 40.80 seconds, including the actual local /api/ready endpoint. Seventeen focused probe tests passed. CI now runs this process regression before starting its long-lived worker. Multiple-worker readiness aggregation remains outside the existing single-worker release.
 
-
 ## 2026-10-20: failed PDF-driver diagnostics, issue #17
 
 The closed journey exposed a malformed PNG that Chromium displayed but XeTeX's PDF driver rejected. The PNG's IDAT CRC was invalid. The worker preferred the ordinary TeX .log over captured driver stderr, then replaced the actionable failure with an invalid-PDF-signature message. Failed processes now retain bounded compiler/driver output alongside the file log, including converter fatal and libpng errors as diagnostics. A nonzero process exit keeps its failure cause; successful-process signature validation, timeout precedence and artifact limits remain enforced. The process regression covers a normal-looking log, empty PDF, fatal stderr, no returned PDF and byte-cap/truncation reporting. The initial combined worker suite passed 69 tests. Additional regressions cover actual merged-log truncation and duplicate messages echoed in both streams: the Problems list must not show the same diagnostic twice. All 19 focused process/safety tests passed in 5.73 seconds; the scoped diagnostics review found no blockers.
-
 
 ## 2026-10-20: closed author journey and usable build output, issue #18
 
@@ -325,3 +317,19 @@ Final combined source checks also passed: 71 worker unit tests, all-package type
 The source view grew to its full document height while the host clipped it: the observed CodeMirror view/scroller was 809px high inside a 551px host, with no internal scroll range. The static editor theme now constrains the view to the host height and leaves the CodeMirror scroller responsible for overflow. It remains outside the settings compartment so reconfiguration preserves the constraint.
 
 A new real-wheel browser regression failed against the previous production build with zero scroll range. After rebuilding, all four phone/desktop and light/dark scroll cases passed, including scrolling to the first/last line and keyboard End navigation without moving the page. The combined editor, responsive and scrolling run passed 28 tests in 13.7 seconds. All 15 editor component tests, web typecheck/lint and the production build passed. An independent scoped review found no blockers. The local preview was restarted with the fix, and scrolling was also demonstrated in the visible Ace browser; source and status bar remain inside the pane.
+
+## 2026-10-21: editing reliability gate, issues #25–#28
+
+Local workspaces now retain source checkpoints in an indexed store, bounded to 20 readable checkpoints / 50 MiB per project. Source replacement and project deletion checkpoint the previous source in the same transaction; a checkpoint failure aborts the durable replacement. A draft removed while an older save is running is queued before removal; a failed pre-removal write returns that source to the exportable workspace. History previews current/checkpoint files, supports cancel and durable restore, and checkpoints current work before restoring. Deleted projects can be recovered as independent copies from Projects. Templates, new projects and imports retain their existing separate-project behavior. The v1 database upgrades without replacing existing workspaces; unreadable history bytes are preserved while valid checkpoints remain available.
+
+Cloud file mutations compare the expected version and the Convex row identity. A deleted/recreated file cannot accept a stale write, delete or rename just because its version restarted at one. Query merges track identity; obsolete local file generations cannot adopt older acknowledgements. Failed/conflicting delete and rename preserve recoverable source, including typing during a rename and an independently recreated destination; retries clear old errors. Browser drafts retain their original identity, and older drafts without identity evidence require conflict review instead of rebasing onto a new server row. No server schema migration is needed.
+
+Per-file editor states retain undo/redo/selection across tab switches and close/reopen, with a 20-entry recency limit. Project changes and deletion/recreation isolate histories, including operations batched before a render. U1 repairs keyboard file/outline actions, citation-menu activation/Escape, named controls, rename focus return and narrow drawer focus containment/return, including nested dialogs. Undo/redo remain visible for phone touch users; History remains available beside Export.
+
+Validation: all-package typecheck and lint passed without warnings; production standalone build passed. The final web unit run passed 515 tests; the worker suite passed 71 tests, with the remaining package tests passing through the root test command. Sixty focused storage/editor checks and 21 responsive/keyboard browser checks passed during implementation. The visible browser confirmed History previews at phone/desktop sizes. Independent source review found no remaining data-loss/security blockers in the changed cloud paths.
+
+Corrected attempts: the first browser launch lacked the expected browser, and a partially available browser bundle could not launch; the production runs used the existing complete Chromium 1248 headless shell through a temporary local config. An initial full unit run hit a timeout and a worker reporting timeout during concurrent verification; the unchanged full web rerun passed 515/515. An initial production browser run passed 68, skipped eight, and timed out navigating from the library to a template; the unchanged two-test library recheck passed. Final browser results are recorded below. Assertions and timeout budgets were not relaxed.
+
+Live Clerk/Convex login, deployed multi-account authorization and newly executed real-TeX scenarios are not claimed by this local run. The browser suite's cloud/real-worker skips remain explicit. Shared-workspace collaboration and later editing enhancements retain their separate gates.
+
+The final complete production Chromium run passed 69 tests and explicitly skipped eight cloud/real-worker scenarios in 32.5 seconds, using the same assertions and budgets. The template/library scenario passed in both its focused recheck and this final complete run.

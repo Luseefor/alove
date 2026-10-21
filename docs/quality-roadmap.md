@@ -80,3 +80,14 @@ Every delegated task states absolute worktree, expected HEAD, exact files, allow
 ## Verification record for this planning change
 
 This change adds the roadmap only. Passing checks on the starting snapshot are from the initial assessment, not proof of redesign readiness. The newer checkout's test/typecheck attempts failed for missing tools; dependencies were not installed into that dirty checkout. Its tracked/untracked work was preserved. Independent source, security, and editorial reviews checked branch accuracy, dependencies, and acceptance criteria; their scope corrections were incorporated. Roadmap formatting and whitespace checks passed. The companion alove-quality skill was validated separately.
+
+## Reliability follow-up gate (issues #25–#28)
+
+Complete and verify these editing reliability boundaries before starting the later enhancements above:
+
+1. D4: bounded local source checkpoints, preview/cancel/restore, and a checkpoint of current work before replacement or project deletion (#25). Templates, new projects and archive imports continue to create separate projects.
+2. Cloud mutations: compare both file version and row identity, preserve drafts on failed/conflicting delete or rename, and carry the original identity through browser draft recovery (#26).
+3. Per-file undo/redo: retain histories across tabs with project and file-incarnation isolation and bounded retention (#27).
+4. U1: keyboard actions, dialog/drawer focus, labels and responsive source/preview checks (#28).
+
+SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history and comments/track changes remain subsequent work. Passing local mutation tests does not establish live provider or multi-user collaboration readiness.

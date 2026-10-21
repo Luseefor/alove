@@ -99,25 +99,26 @@ function computeMinimalChange(
   };
 }
 
+// Bounded per-file retention: at most this many inactive files keep their
+// CodeMirror EditorState (doc + undo/redo + selection) for instant tab
+// switches. Eviction is LRU by last unmount time.
+export const MAX_RETAINED_EDITOR_STATES = 20;
+
 function cacheEditorState(
   cache: Map<string, EditorState> | undefined,
   key: string | undefined,
   state: EditorState,
 ) {
   if (!cache || !key) return;
+  // Refresh recency: Map.set on an existing key preserves insertion order,
+  // so delete first to move the entry to most-recent. The key is then newest
+  // and eviction of the oldest never removes the just-written entry.
+  if (cache.has(key)) cache.delete(key);
   cache.set(key, state);
-  while (cache.size > 20) {
+  while (cache.size > MAX_RETAINED_EDITOR_STATES) {
     const oldest = cache.keys().next().value as string | undefined;
     if (oldest === undefined) break;
-    if (oldest === key) {
-      const it = cache.keys();
-      it.next();
-      const second = it.next().value as string | undefined;
-      if (second === undefined) break;
-      cache.delete(second);
-    } else {
-      cache.delete(oldest);
-    }
+    cache.delete(oldest);
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DeletedWorkspaceRecovery } from "./DeletedWorkspaceRecovery";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createLocalWorkspaceRepository,
@@ -19,6 +20,7 @@ export type LocalProjectSummary = {
 
 export type LocalProjectRepository = {
   list: () => Promise<LocalProjectSummary[]>;
+  listDeleted?: () => Promise<LocalWorkspace[]>;
   load: (id: string) => Promise<LocalWorkspace | null>;
   save: (
     input: Omit<LocalWorkspace, "schemaVersion" | "revision" | "updatedAt">,
@@ -170,7 +172,7 @@ export function LocalProjectList({
   async function confirmDelete(summary: LocalProjectSummary) {
     if (typeof window !== "undefined" && typeof window.confirm === "function") {
       const ok = window.confirm(
-        `Delete "${summary.title}"? This cannot be undone.`,
+        `Delete "${summary.title}"? A source checkpoint will be retained in this browser for recovery.`,
       );
       if (!ok) return;
     }
@@ -412,6 +414,10 @@ export function LocalProjectList({
           ) : null}
         </>
       ) : null}
+      <DeletedWorkspaceRecovery
+        key={projects?.map((p) => `${p.id}:${p.revision}`).join(",")}
+        repository={repo}
+      />
     </section>
   );
 }

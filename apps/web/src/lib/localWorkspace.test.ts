@@ -36,12 +36,16 @@ function makeInput(
 
 function openRaw(factory: IDBFactory): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = factory.open(DB_NAME, 1);
+    const req = factory.open(DB_NAME, 2);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("workspaces")) {
         db.createObjectStore("workspaces", { keyPath: "id" });
       }
+      if (!db.objectStoreNames.contains("checkpoints"))
+        db.createObjectStore("checkpoints", {
+          keyPath: ["id", "revision"],
+        }).createIndex("id", "id");
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -278,4 +282,145 @@ describe("workspace library operations", () => {
     );
     expect(await getRaw(factory, corrupt.id)).toEqual(corrupt);
   });
+});
+
+describe("workspace checkpoints", () => {
+  it("checkpoints source replacements but not tab-only saves, and bounds retention", async () => {
+    const repo = createLocalWorkspaceRepository(newFactory());
+    let current = await repo.save(makeInput(), 0);
+    current = await repo.save(
+      { ...current, activeFile: "main.tex" },
+      current.revision,
+    );
+    expect(await repo.listHistory(current.id)).toEqual([]);
+    for (let i = 0; i < 25; i++) {
+      current = await repo.save(
+        {
+          ...current,
+          files: { "main.tex": `source ${i}` },
+          activeFile: "main.tex",
+          openFiles: ["main.tex"],
+        },
+        current.revision,
+      );
+    }
+    const rows = await repo.listHistory(current.id);
+    expect(rows).toHaveLength(20);
+    expect(rows[0].files["main.tex"]).toBe("source 23");
+    expect(rows[19].files["main.tex"]).toBe("source 4");
+    expect(await repo.listHistory("unrelated")).toEqual([]);
+  });
+
+  it("atomically refuses replacement or deletion if its checkpoint cannot be written", async () => {
+    const repo = createLocalWorkspaceRepository(newFactory());
+    const original = await repo.save(makeInput(), 0);
+    const proto = FDBObjectStore.prototype;
+    const put = proto.put;
+    proto.put = function (...args: Parameters<typeof put>) {
+      if (this.name === "checkpoints")
+        throw new DOMException("Full", "QuotaExceededError");
+      return put.apply(this, args);
+    };
+    try {
+      await expect(
+        repo.save(
+          {
+            ...original,
+            files: { "main.tex": "replace" },
+            activeFile: "main.tex",
+            openFiles: [],
+          },
+          1,
+        ),
+      ).rejects.toThrow("Full");
+      await expect(repo.remove(original.id, 1)).rejects.toThrow("Full");
+    } finally {
+      proto.put = put;
+    }
+    expect(await repo.load(original.id)).toEqual(original);
+    expect(await repo.listHistory(original.id)).toEqual([]);
+  });
+
+  it("keeps the last source of deleted projects available for recovery as a copy", async () => {
+    const repo = createLocalWorkspaceRepository(newFactory());
+    const original = await repo.save(makeInput(), 0);
+    await repo.remove(original.id, 1);
+    expect(await repo.listDeleted()).toEqual([original]);
+    const restored = await repo.save({ ...original, id: "recovered-copy" }, 0);
+    expect(restored.files).toEqual(original.files);
+    expect(await repo.load(original.id)).toBeNull();
+  });
+
+  it("upgrades an existing v1 database without changing its workspace", async () => {
+    const factory = newFactory();
+    const original = {
+      ...makeInput(),
+      schemaVersion: 1,
+      revision: 7,
+      updatedAt: 1,
+    };
+    const db = await new Promise<IDBDatabase>((resolve) => {
+      const req = factory.open(DB_NAME, 1);
+      req.onupgradeneeded = () =>
+        req.result.createObjectStore("workspaces", { keyPath: "id" });
+      req.onsuccess = () => resolve(req.result);
+    });
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction("workspaces", "readwrite");
+      tx.objectStore("workspaces").put(original);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+    });
+    const repo = createLocalWorkspaceRepository(factory);
+    expect(await repo.load(original.id)).toEqual(original);
+    await repo.save({ ...original, title: "after upgrade" }, 7);
+    expect(await repo.listHistory(original.id)).toEqual([original]);
+  });
+});
+
+it("blocks replacement when its current-source checkpoint exceeds the history byte budget", async () => {
+  const repo = createLocalWorkspaceRepository(newFactory());
+  const input = makeInput({
+    files: { "main.tex": "x".repeat(50 * 1024 * 1024) },
+    activeFile: "main.tex",
+    openFiles: [],
+  });
+  const current = await repo.save(input, 0);
+  await expect(
+    repo.save({ ...input, files: { "main.tex": "replacement" } }, 1),
+  ).rejects.toThrow();
+  expect((await repo.load(current.id))?.files["main.tex"].length).toBe(
+    input.files["main.tex"].length,
+  );
+  expect(await repo.listHistory(current.id)).toEqual([]);
+});
+
+it("offers valid checkpoints while preserving unreadable history rows", async () => {
+  const factory = newFactory();
+  const repo = createLocalWorkspaceRepository(factory);
+  const original = await repo.save(makeInput(), 0);
+  await repo.save({ ...original, title: "new title" }, 1);
+  const db = await openRaw(factory);
+  const future = { ...original, revision: 100, schemaVersion: 99 };
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction("checkpoints", "readwrite");
+    tx.objectStore("checkpoints").put(future);
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+  });
+  expect(await repo.listHistory(original.id)).toEqual([original]);
+  await repo.remove(original.id, 2);
+  expect((await repo.listDeleted())[0].title).toBe("new title");
+  const check = await openRaw(factory);
+  const retained = await new Promise((resolve) => {
+    const tx = check.transaction("checkpoints", "readonly");
+    const req = tx.objectStore("checkpoints").get([original.id, 100]);
+    req.onsuccess = () => resolve(req.result);
+    tx.oncomplete = () => check.close();
+  });
+  expect(retained).toEqual(future);
 });

@@ -34,7 +34,7 @@ export type ProjectSearchResult = {
   preview: string;
 };
 
-export type RemoteProjectFile = { path: string; content: string; version: number };
+export type RemoteProjectFile = { path: string; content: string; version: number; incarnation?: string };
 
 export type EditorCommandKind =
   | "undo"
@@ -69,6 +69,10 @@ export interface WorkbenchState {
   projectTree: ProjectFile[];
   filesByPath: Record<string, string>;
   versionsByPath: Record<string, number>;
+  /** Row `_id` per path. Held as the delete+recreate incarnation token and
+   *  forwarded as expectedIncarnation. Preserved across cloud-draft restore
+   *  (which only rewrites files/versions/dirty) so the token baseline survives. */
+  incarnationsByPath: Record<string, string>;
   remoteFiles: RemoteProjectFile[] | null;
   dirtyByPath: Record<string, boolean>;
   outline: OutlineNode[];
@@ -107,9 +111,11 @@ export interface WorkbenchState {
   };
   persistence: {
     saveWorkspace?: () => Promise<void>;
-    save?: (path: string, content: string, expectedVersion?: number) => Promise<{ version: number; conflict?: boolean } | void>;
-    delete?: (path: string) => Promise<void>;
-    rename?: (oldPath: string, newPath: string) => Promise<void>;
+    listHistory?: () => Promise<import("@/lib/localWorkspace").LocalWorkspace[]>;
+    restoreHistory?: (revision: number) => Promise<void>;
+    save?: (path: string, content: string, expectedVersion?: number, expectedIncarnation?: string) => Promise<{ version: number; incarnation?: string; conflict?: boolean; deleted?: boolean; recreated?: boolean; tokenRequired?: boolean } | void>;
+    delete?: (path: string, expectedVersion?: number, expectedIncarnation?: string) => Promise<{ deleted: boolean; conflict?: boolean; alreadyMissing?: boolean; version?: number; content?: string; incarnation?: string; recreated?: boolean; tokenRequired?: boolean } | void>;
+    rename?: (oldPath: string, newPath: string, expectedVersion?: number, expectedIncarnation?: string) => Promise<{ renamed?: boolean; conflict?: boolean; version?: number; content?: string; incarnation?: string; recreated?: boolean; tokenRequired?: boolean } | void>;
     renameProject?: (title: string) => Promise<void>;
     setMainFile?: (path: string) => Promise<void>;
   };
@@ -136,7 +142,7 @@ export interface WorkbenchState {
     mainFile?: string | null;
     activeFile?: string | null;
     openFiles?: string[];
-    files: { path: string; content: string; version?: number }[];
+    files: { path: string; content: string; version?: number; incarnation?: string }[];
   }) => void;
   updateActiveFileContent: (content: string) => void;
   saveActiveFile: () => Promise<void>;
@@ -227,6 +233,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       projectTree: [],
       filesByPath: {},
       versionsByPath: {},
+      incarnationsByPath: {},
       remoteFiles: null,
       dirtyByPath: {},
       outline: [],
@@ -339,20 +346,65 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         const incoming = new Map(files.map((file) => [file.path, file]));
         const nextFiles = new Map(Object.entries(state.filesByPath));
         const nextVersions = new Map(Object.entries(state.versionsByPath));
+        const nextIncarnations = new Map(Object.entries(state.incarnationsByPath));
         const nextDirty = new Map(Object.entries(state.dirtyByPath));
         const conflicts: string[] = [];
         let changed = false;
         for (const path of new Set([...previous.keys(), ...incoming.keys()])) {
           const before = previous.get(path);
           const remote = incoming.get(path);
-          if (before?.content === remote?.content && before?.version === remote?.version) continue;
+          if (before?.content === remote?.content && before?.version === remote?.version && (before?.incarnation ?? undefined) === (remote?.incarnation ?? undefined)) continue;
           const local = nextFiles.get(path);
           const localVersion = nextVersions.get(path) ?? 0;
           // A mutation acknowledgement may arrive before its query echo.
           if (remote && remote.version < localVersion && remote.version > (before?.version ?? 0)) continue;
+          // Delete+recreate allocates a new row id. A clean client adopts the
+          // new incarnation; a dirty client holding the old token conflicts
+          // so its draft is preserved instead of being silently rebased.
+          const incarnationChanged = (before?.incarnation ?? undefined) !== (remote?.incarnation ?? undefined) &&
+            (before !== undefined || remote !== undefined);
+          if (incarnationChanged && remote) {
+            if (!nextFiles.has(path)) {
+              // Coalesced delete+recreate echo for a locally absent path:
+              // adopt the new row unless our own delete is still in flight
+              // (its acknowledgement reconciles the echo).
+              if (!isOpInFlight(pendingCloudDeletes, projectId, path) && !isOpInFlight(pendingFileSaves, projectId, path)) {
+                nextFiles.set(path, remote.content);
+                nextVersions.set(path, remote.version);
+                if (remote.incarnation !== undefined) nextIncarnations.set(path, remote.incarnation);
+                else nextIncarnations.delete(path);
+                nextDirty.set(path, false);
+                changed = true;
+              }
+              continue;
+            }
+            const dirty = nextDirty.get(path) ?? false;
+            const inFlight = isOpInFlight(pendingFileSaves, projectId, path) || isOpInFlight(pendingCloudDeletes, projectId, path) || isRenameInFlight(projectId, path);
+            if (!dirty && !inFlight && local === before?.content) {
+              nextFiles.set(path, remote.content);
+              nextVersions.set(path, remote.version);
+              if (remote.incarnation !== undefined) nextIncarnations.set(path, remote.incarnation);
+              else nextIncarnations.delete(path);
+              nextDirty.set(path, false);
+              changed = true;
+              continue;
+            }
+            if (local === remote.content) {
+              nextVersions.set(path, remote.version);
+              if (remote.incarnation !== undefined) nextIncarnations.set(path, remote.incarnation);
+              if (!isOpInFlight(pendingFileSaves, projectId, path)) nextDirty.set(path, false);
+              changed = true;
+              continue;
+            }
+            if (!inFlight) conflicts.push(path);
+            // Keep the local draft and its old token for the save CAS; adopt
+            // the new token only once the content matches.
+            continue;
+          }
           if (remote && nextFiles.has(path) && local === remote.content) {
             nextVersions.set(path, remote.version);
-            if (!pendingFileSaves.has(path)) nextDirty.set(path, false);
+            if (remote.incarnation !== undefined) nextIncarnations.set(path, remote.incarnation);
+            if (!isOpInFlight(pendingFileSaves, projectId, path)) nextDirty.set(path, false);
             changed = true;
           } else if ((!nextFiles.has(path) && !before) ||
             (!before && !nextDirty.get(path) && remote && remote.version >= localVersion) ||
@@ -360,20 +412,23 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             if (remote) {
               nextFiles.set(path, remote.content);
               nextVersions.set(path, remote.version);
+              if (remote.incarnation !== undefined) nextIncarnations.set(path, remote.incarnation);
+              else nextIncarnations.delete(path);
               nextDirty.set(path, false);
             } else {
               nextFiles.delete(path);
               nextVersions.delete(path);
+              nextIncarnations.delete(path);
               nextDirty.delete(path);
             }
             changed = true;
           } else if (nextFiles.has(path) || remote) {
             // Preserve local changes and their expected version for the save CAS.
             // Own in-flight save echoes are reconciled by the save acknowledgement.
-            if (!pendingFileSaves.has(path)) conflicts.push(path);
+            if (!isOpInFlight(pendingFileSaves, projectId, path)) conflicts.push(path);
           }
         }
-        const fullySynced = pendingFileSaves.size === 0 && nextFiles.size === incoming.size &&
+        const fullySynced = !hasPending(pendingFileSaves, projectId) && !hasPending(pendingCloudDeletes, projectId) && !hasPending(pendingCloudRenames, projectId) && nextFiles.size === incoming.size &&
           [...incoming].every(([path, file]) => nextFiles.has(path) && nextFiles.get(path) === file.content);
         if (fullySynced && [...nextDirty.values()].some(Boolean)) {
           for (const path of nextDirty.keys()) nextDirty.set(path, false);
@@ -396,7 +451,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           : nextFiles.has("main.tex") ? "main.tex" : [...nextFiles.keys()].find((path) => path.endsWith(".tex")) ?? null;
         const content = activeFileId ? filesByPath[activeFileId] : "";
         set({
-          filesByPath, versionsByPath: Object.fromEntries(nextVersions), dirtyByPath: Object.fromEntries(nextDirty),
+          filesByPath, versionsByPath: Object.fromEntries(nextVersions), incarnationsByPath: Object.fromEntries(nextIncarnations), dirtyByPath: Object.fromEntries(nextDirty),
           remoteFiles: files,
           projectTree: projectTreeFromFiles(filesByPath), mainFile, activeFileId, openFiles,
           outline: OutlineService.parse(content), stats: calculateStats(content),
@@ -407,10 +462,12 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       initializeProject: ({ projectId, title, files, mainFile, activeFile, openFiles }) => {
         const filesByPath: Record<string, string> = {};
         const versionsByPath: Record<string, number> = {};
+        const incarnationsByPath: Record<string, string> = {};
         const dirtyByPath: Record<string, boolean> = {};
         for (const file of files) {
           filesByPath[file.path] = file.content;
           versionsByPath[file.path] = file.version ?? 1;
+          if (file.incarnation !== undefined) incarnationsByPath[file.path] = file.incarnation;
           dirtyByPath[file.path] = false;
         }
         const current = get();
@@ -430,6 +487,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           filesByPath,
           projectTree: projectTreeFromFiles(filesByPath),
           versionsByPath,
+          incarnationsByPath,
           remoteFiles: null,
           dirtyByPath,
           activeFileId: nextActive,
@@ -472,11 +530,15 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         set((s) => {
           if (path in s.filesByPath) return {};
           const nextFiles = { ...s.filesByPath, [path]: content };
+          // New path: no incarnation until the server acknowledges creation.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [path]: _i, ...incarnationsRest } = s.incarnationsByPath;
           const base = {
             filesByPath: nextFiles,
             mainFile: s.mainFile ?? (path.endsWith(".tex") ? path : null),
             projectTree: projectTreeFromFiles(nextFiles),
-            versionsByPath: { ...s.versionsByPath, [path]: 1 },
+            versionsByPath: { ...s.versionsByPath, [path]: 0 },
+            incarnationsByPath: incarnationsRest,
             dirtyByPath: { ...s.dirtyByPath, [path]: true },
           };
           if (!shouldOpen) return base;
@@ -492,11 +554,34 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         if (get().persistence.save) void saveFileToPersistence(path, 0);
       },
       deleteFile: (path) => {
+        const state = get();
+        if (!(path in state.filesByPath)) {
+          // Still forward deletes of unknown paths so the server can confirm
+          // idempotent already-missing; no local draft to protect.
+          if (state.persistence.delete) {
+            const version = state.versionsByPath[path];
+            const incarnation = state.incarnationsByPath[path];
+            void deleteFileFromPersistence(path, { content: "", version: version ?? 0, incarnation, dirty: false, openFiles: state.openFiles, activeFileId: state.activeFileId, mainFile: state.mainFile, hadLocal: false }).catch(() => {});
+          }
+          return;
+        }
+        const snapshot = {
+          content: state.filesByPath[path] ?? "",
+          version: state.versionsByPath[path] ?? 0,
+          incarnation: state.incarnationsByPath[path],
+          dirty: state.dirtyByPath[path] ?? false,
+          openFiles: state.openFiles,
+          activeFileId: state.activeFileId,
+          mainFile: state.mainFile,
+          hadLocal: true as const,
+        };
         set((s) => {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [path]: _, ...filesByPath } = s.filesByPath;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [path]: __, ...versionsByPath } = s.versionsByPath;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [path]: _ii, ...incarnationsByPath } = s.incarnationsByPath;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [path]: ___, ...dirtyByPath } = s.dirtyByPath;
           const openFiles = s.openFiles.filter((p) => p !== path);
@@ -507,6 +592,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             mainFile: s.mainFile === path ? Object.keys(filesByPath).find((p) => p.endsWith(".tex")) ?? null : s.mainFile,
             projectTree: projectTreeFromFiles(filesByPath),
             versionsByPath,
+            incarnationsByPath,
             dirtyByPath,
             openFiles,
             activeFileId,
@@ -515,7 +601,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         });
         const { persistence } = get();
         if (persistence.delete) {
-          void persistence.delete(path);
+          void deleteFileFromPersistence(path, snapshot).catch(() => {});
         }
       },
       renameFile: (oldPath, newPath) => {
@@ -525,13 +611,18 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         if (!(oldPath in state.filesByPath)) return;
         if (trimmed in state.filesByPath) return;
         const content = state.filesByPath[oldPath] ?? "";
-        const version = state.versionsByPath[oldPath] ?? 1;
+        const version = state.versionsByPath[oldPath] ?? 0;
+        const incarnation = state.incarnationsByPath[oldPath];
         const dirty = state.dirtyByPath[oldPath] ?? false;
+        const snapshot = { oldPath, trimmed, content, version, incarnation, dirty, destinationGeneration: fileGenerations.get(trimmed) ?? 0,
+          openFiles: state.openFiles, activeFileId: state.activeFileId, mainFile: state.mainFile };
         set((s) => {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [oldPath]: _c, ...filesRest } = s.filesByPath;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [oldPath]: _v, ...verRest } = s.versionsByPath;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [oldPath]: _i, ...incRest } = s.incarnationsByPath;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { [oldPath]: _d, ...dirtyRest } = s.dirtyByPath;
           const nextFiles = { ...filesRest, [trimmed]: content };
@@ -543,6 +634,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
               ? (trimmed.endsWith(".tex") ? trimmed : Object.keys(filesRest).find((p) => p.endsWith(".tex")) ?? null)
               : s.mainFile ?? (trimmed.endsWith(".tex") ? trimmed : null),
             versionsByPath: { ...verRest, [trimmed]: version },
+            incarnationsByPath: incarnation !== undefined ? { ...incRest, [trimmed]: incarnation } : incRest,
             dirtyByPath: { ...dirtyRest, [trimmed]: dirty },
             projectTree: projectTreeFromFiles(nextFiles),
             openFiles,
@@ -552,7 +644,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         });
         const { persistence } = get();
         if (persistence.rename) {
-          void persistence.rename(oldPath, trimmed);
+          void renameFileViaPersistence(snapshot).catch(() => {});
         }
       },
       appendToActiveFile: (text) => {
@@ -883,38 +975,102 @@ export const useWorkbenchStore = create<WorkbenchState>()(
 );
 
 // Serialize writes per path. Acknowledgements only clean the content that was saved.
+// chainPending never blocks a retry behind a rejected op and never leaves an
+// unhandled rejected child: the runner executes on either settlement, and the
+// cleanup observes both outcomes.
+function chainPending(map: Map<string, Promise<void>>, key: string, run: () => Promise<void>): Promise<void> {
+  const previous = map.get(key) ?? Promise.resolve();
+  const pending = previous.then(run, run);
+  map.set(key, pending);
+  const cleanup = () => { if (map.get(key) === pending) map.delete(key); };
+  pending.then(cleanup, cleanup);
+  return pending;
+}
+function opKey(projectId: string | null, path: string): string {
+  return `${projectId ?? "local"}:${path}`;
+}
+function renameOpKey(projectId: string | null, oldPath: string, newPath: string): string {
+  return `${projectId ?? "local"}:${oldPath}→${newPath}`;
+}
+function isOpInFlight(map: Map<string, Promise<void>>, projectId: string | null, path: string): boolean {
+  return map.has(opKey(projectId, path));
+}
+function isRenameInFlight(projectId: string | null, path: string): boolean {
+  const prefix = `${projectId ?? "local"}:`;
+  for (const key of pendingCloudRenames.keys()) {
+    if (!key.startsWith(prefix)) continue;
+    const rest = key.slice(prefix.length);
+    const arrow = rest.indexOf("→");
+    if (arrow < 0) continue;
+    if (rest.slice(0, arrow) === path || rest.slice(arrow + 1) === path) return true;
+  }
+  return false;
+}
+function hasPending(map: Map<string, Promise<void>>, projectId: string | null): boolean {
+  const prefix = `${projectId ?? "local"}:`;
+  for (const key of map.keys()) if (key.startsWith(prefix)) return true;
+  return false;
+}
+// A local deletion invalidates all queued/acknowledged work for that file instance,
+// including creates whose version is still zero.
+const fileGenerations = new Map<string, number>();
 const pendingFileSaves = new Map<string, Promise<void>>();
+const pendingCloudDeletes = new Map<string, Promise<void>>();
+const pendingCloudRenames = new Map<string, Promise<void>>();
 function saveFileToPersistence(path: string, initialVersion?: number): Promise<void> {
   const state = useWorkbenchStore.getState();
   const content = state.filesByPath[path];
   const projectId = state.projectId;
   const save = state.persistence.save;
+  const generation = fileGenerations.get(path) ?? 0;
   if (!save || content === undefined) {
     useWorkbenchStore.setState({ saveStatus: "error", saveMessage: "Saving is unavailable. Export your source to keep a copy." });
     return Promise.resolve();
   }
-  const previous = pendingFileSaves.get(path) ?? Promise.resolve();
-  const pending = previous.then(async () => {
-    if (useWorkbenchStore.getState().projectId !== projectId) return;
+  return chainPending(pendingFileSaves, opKey(projectId, path), async () => {
+    if (useWorkbenchStore.getState().projectId !== projectId || useWorkbenchStore.getState().persistence.save !== save || (fileGenerations.get(path) ?? 0) !== generation) return;
     useWorkbenchStore.setState({ saveStatus: "saving", saveMessage: null });
     try {
-      const expected = initialVersion ?? useWorkbenchStore.getState().versionsByPath[path];
-      const result = await save(path, content, expected);
+      const latest = useWorkbenchStore.getState();
+      const expected = initialVersion ?? latest.versionsByPath[path];
+      // Creates (expectedVersion 0) carry no token; existing writes must
+      // carry the row `_id` so a recreated row conflicts even on version match.
+      const expectedIncarnation = expected === 0 ? undefined : latest.incarnationsByPath[path];
+      const result = await save(path, content, expected, expectedIncarnation);
       const current = useWorkbenchStore.getState();
       if (current.projectId !== projectId || current.persistence.save !== save) return;
       if (!Object.hasOwn(current.filesByPath, path)) {
         if (current.saveStatus === "saving") useWorkbenchStore.setState({ saveStatus: "unsaved" });
         return;
       }
+      if ((fileGenerations.get(path) ?? 0) !== generation) {
+        // Stale-generation ack: the path was deleted and recreated locally
+        // after this save started. The ack belongs to the dead generation,
+        // so never adopt its version/token or clear the new generation's
+        // dirty flag; the recreate's own create-ack reconciles it.
+        useWorkbenchStore.setState({
+          dirtyByPath: { ...current.dirtyByPath, [path]: true },
+          saveStatus: "unsaved",
+          saveMessage: null,
+        });
+        return;
+      }
       if (result?.conflict) {
-        useWorkbenchStore.setState({ saveStatus: "conflict", saveMessage: "The server has a newer version. Your edits are still here; export them before reloading." });
+        const message = (result as { recreated?: boolean; deleted?: boolean }).recreated
+          ? "This file was deleted and recreated on the server. Your edits were kept; export them before reloading."
+          : (result as { deleted?: boolean }).deleted
+            ? "This file was deleted on the server. Your edits were kept; export them before reloading."
+            : "The server has a newer version. Your edits are still here; export them before reloading.";
+        useWorkbenchStore.setState({ saveStatus: "conflict", saveMessage: message });
         return;
       }
       const unchanged = current.filesByPath[path] === content;
       const dirtyByPath = { ...current.dirtyByPath, [path]: !unchanged };
+      const incarnation = (result as { incarnation?: string } | void)?.incarnation;
       useWorkbenchStore.setState({
         dirtyByPath,
         versionsByPath: result?.version != null ? { ...current.versionsByPath, [path]: Math.max(current.versionsByPath[path] ?? 0, result.version) } : current.versionsByPath,
+        incarnationsByPath: incarnation !== undefined ? { ...current.incarnationsByPath, [path]: incarnation } : current.incarnationsByPath,
         saveStatus: Object.values(dirtyByPath).some(Boolean) ? "unsaved" : "saved",
       });
     } catch (error) {
@@ -923,9 +1079,159 @@ function saveFileToPersistence(path: string, initialVersion?: number): Promise<v
       }
     }
   });
-  pendingFileSaves.set(path, pending);
-  void pending.then(() => { if (pendingFileSaves.get(path) === pending) pendingFileSaves.delete(path); });
-  return pending;
+}
+
+function validMainFile(filesByPath: Record<string, string>, candidate: string | null): string | null {
+  if (candidate && candidate.endsWith(".tex") && Object.hasOwn(filesByPath, candidate)) return candidate;
+  if (Object.hasOwn(filesByPath, "main.tex")) return "main.tex";
+  return Object.keys(filesByPath).find((p) => p.endsWith(".tex")) ?? null;
+}
+
+function restoreDeletedDraft(snapshot: { content: string; version: number; incarnation?: string; dirty: boolean; openFiles: string[]; activeFileId: string | null; mainFile: string | null }, path: string) {
+  const current = useWorkbenchStore.getState();
+  if (Object.hasOwn(current.filesByPath, path)) return;
+  const filesByPath = { ...current.filesByPath, [path]: snapshot.content };
+  useWorkbenchStore.setState({
+    filesByPath,
+    versionsByPath: { ...current.versionsByPath, [path]: snapshot.version },
+    incarnationsByPath: snapshot.incarnation !== undefined ? { ...current.incarnationsByPath, [path]: snapshot.incarnation } : current.incarnationsByPath,
+    dirtyByPath: { ...current.dirtyByPath, [path]: true },
+    projectTree: projectTreeFromFiles(filesByPath),
+    mainFile: validMainFile(filesByPath, snapshot.mainFile ?? current.mainFile),
+    openFiles: current.openFiles.includes(path) ? current.openFiles : [...current.openFiles, path],
+    activeFileId: current.activeFileId ?? path,
+    saveStatus: "error",
+  });
+}
+
+type RenameSnapshot = { destinationGeneration: number; oldPath: string; trimmed: string; content: string; version: number; incarnation?: string; dirty: boolean; openFiles: string[]; activeFileId: string | null; mainFile: string | null };
+
+function rollbackRenameToOldPath(snapshot: RenameSnapshot, status: "conflict" | "error", message: string) {
+  const now = useWorkbenchStore.getState();
+  const oldExists = Object.hasOwn(now.filesByPath, snapshot.oldPath);
+  const movedExists = Object.hasOwn(now.filesByPath, snapshot.trimmed);
+  if ((fileGenerations.get(snapshot.trimmed) ?? 0) !== snapshot.destinationGeneration) {
+    // The destination was deleted, moved again, or independently recreated.
+    // Retain that work and recover the original draft without removing it.
+    if (!oldExists) restoreDeletedDraft(snapshot, snapshot.oldPath);
+    useWorkbenchStore.setState({ saveStatus: status, saveMessage: message });
+    return;
+  }
+  if (oldExists && movedExists) {
+    // Destination recreated independently while the rename was in flight:
+    // keep both drafts and report truthfully instead of deleting either.
+    useWorkbenchStore.setState({ saveStatus: status, saveMessage: message });
+    return;
+  }
+  if (oldExists && !movedExists) {
+    useWorkbenchStore.setState({ saveStatus: status, saveMessage: message });
+    return;
+  }
+  // Preserve the latest moved content (typing may have landed at the new
+  // path while the rename was in flight) instead of the rename-time snapshot.
+  const latestContent = movedExists ? (now.filesByPath[snapshot.trimmed] ?? snapshot.content) : snapshot.content;
+  const { [snapshot.trimmed]: _moved, ...filesRest } = now.filesByPath;
+  const { [snapshot.trimmed]: _v, ...verRest } = now.versionsByPath;
+  const { [snapshot.trimmed]: _i, ...incRest } = now.incarnationsByPath;
+  const { [snapshot.trimmed]: _d, ...dirtyRest } = now.dirtyByPath;
+  void _moved; void _v; void _i; void _d;
+  const filesByPath = movedExists || !oldExists ? { ...filesRest, [snapshot.oldPath]: latestContent } : { ...now.filesByPath };
+  useWorkbenchStore.setState({
+    filesByPath,
+    versionsByPath: { ...verRest, [snapshot.oldPath]: snapshot.version },
+    incarnationsByPath: snapshot.incarnation !== undefined ? { ...incRest, [snapshot.oldPath]: snapshot.incarnation } : incRest,
+    dirtyByPath: { ...dirtyRest, [snapshot.oldPath]: true },
+    projectTree: projectTreeFromFiles(filesByPath),
+    mainFile: validMainFile(filesByPath, snapshot.mainFile ?? now.mainFile),
+    openFiles: now.openFiles.map((p) => (p === snapshot.trimmed ? snapshot.oldPath : p)),
+    activeFileId: now.activeFileId === snapshot.trimmed ? snapshot.oldPath : now.activeFileId,
+    saveStatus: status,
+    saveMessage: message,
+  });
+}
+
+function deleteFileFromPersistence(path: string, snapshot: { content: string; version: number; incarnation?: string; dirty: boolean; openFiles: string[]; activeFileId: string | null; mainFile: string | null; hadLocal?: boolean }): Promise<void> {
+  const state = useWorkbenchStore.getState();
+  const projectId = state.projectId;
+  const remove = state.persistence.delete;
+  const hadLocal = snapshot.hadLocal ?? true;
+  if (!remove) {
+    // No cloud adapter (local standalone uses saveWorkspace instead): the
+    // optimistic delete above already applied, keep it and report saved.
+    return Promise.resolve();
+  }
+  return chainPending(pendingCloudDeletes, opKey(projectId, path), async () => {
+    if (useWorkbenchStore.getState().projectId !== projectId) return;
+    try {
+      useWorkbenchStore.setState({ saveStatus: "saving", saveMessage: null });
+      const result = await remove(path, snapshot.version, snapshot.incarnation);
+      const current = useWorkbenchStore.getState();
+      if (current.projectId !== projectId) return;
+      if (result?.conflict) {
+        // Stale delete refused: the server holds a newer or recreated row.
+        // Restore the optimistic deletion target when it is still missing so
+        // no draft is lost, then report truthfully for retry.
+        if (!Object.hasOwn(current.filesByPath, path) && hadLocal) restoreDeletedDraft(snapshot, path);
+        useWorkbenchStore.setState({
+          saveStatus: "conflict",
+          saveMessage: (result as { recreated?: boolean }).recreated
+            ? `Delete refused: "${path}" was recreated on the server. Your draft was restored; export it before retrying.`
+            : `Delete refused: "${path}" changed on the server. Your draft was restored; export it before retrying.`,
+        });
+        return;
+      }
+      // Success (or idempotent already-missing): keep the optimistic delete.
+      if (current.saveStatus === "saving") {
+        const stillDirty = Object.values(current.dirtyByPath).some(Boolean);
+        useWorkbenchStore.setState({ saveStatus: stillDirty ? "unsaved" : "saved", saveMessage: null });
+      }
+    } catch (error) {
+      if (useWorkbenchStore.getState().projectId !== projectId) return;
+      const current = useWorkbenchStore.getState();
+      if (!Object.hasOwn(current.filesByPath, path) && hadLocal) restoreDeletedDraft(snapshot, path);
+      useWorkbenchStore.setState({
+        saveStatus: "error",
+        saveMessage: error instanceof Error ? `Delete failed: ${error.message} Your draft was restored; retry the delete.` : `Delete failed for "${path}". Your draft was restored; retry the delete.`,
+      });
+      throw error;
+    }
+  });
+}
+
+function renameFileViaPersistence(snapshot: RenameSnapshot): Promise<void> {
+  const state = useWorkbenchStore.getState();
+  const projectId = state.projectId;
+  const rename = state.persistence.rename;
+  if (!rename) return Promise.resolve();
+  const key = renameOpKey(projectId, snapshot.oldPath, snapshot.trimmed);
+  return chainPending(pendingCloudRenames, key, async () => {
+    if (useWorkbenchStore.getState().projectId !== projectId) return;
+    try {
+      useWorkbenchStore.setState({ saveStatus: "saving", saveMessage: null });
+      const result = await rename(snapshot.oldPath, snapshot.trimmed, snapshot.version, snapshot.incarnation);
+      const current = useWorkbenchStore.getState();
+      if (current.projectId !== projectId) return;
+      if ((result as { conflict?: boolean } | void)?.conflict) {
+        rollbackRenameToOldPath(snapshot, "conflict", (result as { recreated?: boolean }).recreated
+          ? `Rename refused: "${snapshot.oldPath}" was recreated on the server. Your draft was restored; export it before retrying.`
+          : `Rename refused: "${snapshot.oldPath}" changed on the server. Your draft was restored; export it before retrying.`);
+        return;
+      }
+      const after = useWorkbenchStore.getState();
+      if (after.projectId === projectId && (result as { incarnation?: string } | void)?.incarnation !== undefined) {
+        const token = (result as { incarnation?: string }).incarnation!;
+        if (Object.hasOwn(after.filesByPath, snapshot.trimmed) && (fileGenerations.get(snapshot.trimmed) ?? 0) === snapshot.destinationGeneration) {
+          useWorkbenchStore.setState({ incarnationsByPath: { ...after.incarnationsByPath, [snapshot.trimmed]: token } });
+        }
+      }
+      const latest = useWorkbenchStore.getState();
+      useWorkbenchStore.setState({ saveStatus: Object.values(latest.dirtyByPath).some(Boolean) ? "unsaved" : "saved", saveMessage: null });
+    } catch (error) {
+      if (useWorkbenchStore.getState().projectId !== projectId) return;
+      rollbackRenameToOldPath(snapshot, "error", error instanceof Error ? `Rename failed: ${error.message} Your draft was restored; retry the rename.` : `Rename failed for "${snapshot.oldPath}". Your draft was restored; retry the rename.`);
+      throw error;
+    }
+  });
 }
 
 // Build provenance follows source, not tab/layout changes or save acknowledgements.
@@ -935,6 +1241,10 @@ useWorkbenchStore.subscribe((state, previous) => {
     Object.keys(state.filesByPath).length !== Object.keys(previous.filesByPath).length ||
     Object.entries(state.filesByPath).some(([path, content]) => previous.filesByPath[path] !== content)
   );
+  if (projectChanged) fileGenerations.clear();
+  else for (const path of Object.keys(previous.filesByPath)) {
+    if (!Object.hasOwn(state.filesByPath, path)) fileGenerations.set(path, (fileGenerations.get(path) ?? 0) + 1);
+  }
   if (projectChanged) {
     compileSequence += 1;
     activeCompile?.abort();
