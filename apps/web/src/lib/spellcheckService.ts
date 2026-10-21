@@ -68,10 +68,19 @@ const COMMON_TIEBREAK = new Set(
   ),
 );
 
-function rankSuggestions(word: string, candidates: string[], max: number): string[] {
+function rankSuggestions(
+  word: string,
+  candidates: string[],
+  max: number,
+): string[] {
   const lower = word.toLowerCase();
   const seen = new Set<string>();
-  const scored: { text: string; distance: number; common: number; index: number }[] = [];
+  const scored: {
+    text: string;
+    distance: number;
+    common: number;
+    index: number;
+  }[] = [];
   candidates.forEach((raw, index) => {
     const text = raw.trim();
     if (!text || /^[A-Z]{2,}$/.test(text)) return; // drop acronym noise (NEH)
@@ -87,9 +96,7 @@ function rankSuggestions(word: string, candidates: string[], max: number): strin
   });
   scored.sort(
     (a, b) =>
-      a.distance - b.distance ||
-      a.common - b.common ||
-      a.index - b.index,
+      a.distance - b.distance || a.common - b.common || a.index - b.index,
   );
   return scored.slice(0, max).map((s) => s.text);
 }
@@ -147,6 +154,27 @@ export function resetSpellcheckServiceForTests(): void {
   setStatus("idle");
 }
 
+const suggestionCaches = new WeakMap<SpellChecker, Map<string, string[]>>();
+/** Corrections are requested by a visible tooltip, then reused across edits. */
+export function getSpellingSuggestions(
+  checker: SpellChecker,
+  word: string,
+  max = 3,
+): string[] {
+  let cache = suggestionCaches.get(checker);
+  if (!cache) {
+    cache = new Map();
+    suggestionCaches.set(checker, cache);
+  }
+  const key = `${word}\0${max}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const suggestions = checker.suggest(word, max);
+  cache.set(key, suggestions);
+  if (cache.size > 1000) cache.delete(cache.keys().next().value!);
+  return suggestions;
+}
+
 export type DocumentCheckOptions = {
   customWords?: Iterable<string>;
   ignoreWords?: Iterable<string>;
@@ -186,7 +214,10 @@ export function checkDocument(
       word: token.word,
       from: token.from,
       to: token.to,
-      suggestions: checker.suggest(token.word, maxSuggestions),
+      suggestions:
+        maxSuggestions > 0
+          ? getSpellingSuggestions(checker, token.word, maxSuggestions)
+          : [],
     });
   }
   return out;

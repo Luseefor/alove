@@ -19,10 +19,14 @@ import {
   type Extension,
 } from "@codemirror/state";
 import type { Diagnostic } from "@alove/protocol";
-import { setDiagnostics, type Diagnostic as CmDiagnostic } from "@codemirror/lint";
+import {
+  setDiagnostics,
+  type Diagnostic as CmDiagnostic,
+} from "@codemirror/lint";
 import { toCmDiagnostics } from "@/lib/editorDiagnostics";
 import {
   checkDocument,
+  getSpellingSuggestions,
   useEnglishSpellchecker,
   type SpellChecker,
 } from "@/lib/spellcheckService";
@@ -125,58 +129,49 @@ function toSpellcheckDiagnostics(
   },
 ): CmDiagnostic[] {
   if (!opts.enabled || !docText || !opts.checker) return [];
-  const hits = checkDocument(docText, opts.checker, {
+  const checker = opts.checker;
+  const hits = checkDocument(docText, checker, {
     customWords: opts.customWords,
     ignoreWords: opts.ignoreWords,
     maxMisspellings: 100,
-    maxSuggestions: 3,
+    // Mark prose promptly; expensive correction ranking waits for a visible tooltip.
+    maxSuggestions: 0,
   });
   return hits.map((hit) => {
-    const quoted =
-      hit.suggestions.length > 0
-        ? `“${hit.word}” — did you mean ${hit.suggestions
-            .slice(0, 3)
-            .map((s) => `“${matchCase(hit.word, s)}”`)
-            .join(", ")}?`
-        : `Unknown word “${hit.word}”`;
-    if (opts.readOnly) {
-      return {
-        from: hit.from,
-        to: hit.to,
-        severity: "warning" as const,
-        message: quoted,
-        source: "spellcheck",
-      };
-    }
-    const actions: { name: string; apply: (view: EditorView, from: number, to: number) => void }[] = hit.suggestions
-      .slice(0, 3)
-      .map((suggestion) => {
-        const insert = matchCase(hit.word, suggestion);
-        return {
-          name: `Use “${insert}”`,
-          apply: (view: EditorView, from: number, to: number) => {
-            view.dispatch({ changes: { from, to, insert } });
-          },
-        };
-      });
-    if (opts.onAddWord) {
-      const lower = hit.word.toLowerCase();
-      const onAddWord = opts.onAddWord;
-      actions.push({
-        name: "Add to dictionary",
-        apply: () => {
-          onAddWord(lower);
-        },
-      });
-    }
-    return {
+    const diagnostic: CmDiagnostic = {
       from: hit.from,
       to: hit.to,
-      severity: "warning" as const,
-      message: quoted,
+      severity: "warning",
+      message: `Unknown word “${hit.word}”`,
       source: "spellcheck",
-      actions,
+      renderMessage: () => {
+        const suggestions = getSpellingSuggestions(checker, hit.word);
+        const message = document.createElement("span");
+        message.textContent = suggestions.length
+          ? `“${hit.word}” — did you mean ${suggestions.map((word) => `“${matchCase(hit.word, word)}”`).join(", ")}?`
+          : diagnostic.message;
+        if (!opts.readOnly) {
+          const actions = suggestions.map((suggestion) => {
+            const insert = matchCase(hit.word, suggestion);
+            return {
+              name: `Use “${insert}”`,
+              apply: (view: EditorView, from: number, to: number) => {
+                if (view.state.doc.sliceString(from, to) !== hit.word) return;
+                view.dispatch({ changes: { from, to, insert } });
+              },
+            };
+          });
+          if (opts.onAddWord)
+            actions.push({
+              name: "Add to dictionary",
+              apply: () => opts.onAddWord!(hit.word.toLowerCase()),
+            });
+          diagnostic.actions = actions;
+        }
+        return message;
+      },
     };
+    return diagnostic;
   });
 }
 
@@ -329,7 +324,13 @@ export const LatexCodeEditor = forwardRef<
       ignoreWords: spellcheckIgnoreWords,
       checker,
     }),
-    [spellCheck, readOnly, spellcheckCustomWords, spellcheckIgnoreWords, checker],
+    [
+      spellCheck,
+      readOnly,
+      spellcheckCustomWords,
+      spellcheckIgnoreWords,
+      checker,
+    ],
   );
   const spellOptionsRef = useRef(spellOptions);
   spellOptionsRef.current = spellOptions;
@@ -345,13 +346,10 @@ export const LatexCodeEditor = forwardRef<
       diagnostic.filePath,
       diagnostic.mainFile,
     );
-    const spellDiags = toSpellcheckDiagnostics(
-      view.state.doc.toString(),
-      {
-        ...spell,
-        onAddWord: onAddSpellcheckWordRef.current,
-      },
-    );
+    const spellDiags = toSpellcheckDiagnostics(view.state.doc.toString(), {
+      ...spell,
+      onAddWord: onAddSpellcheckWordRef.current,
+    });
     view.dispatch(setDiagnostics(view.state, [...compile, ...spellDiags]));
   }
 
@@ -440,11 +438,7 @@ export const LatexCodeEditor = forwardRef<
           },
         }),
         compartment.of(
-          buildDynamicExtensions(
-            initialTheme,
-            settings,
-            completionRef.current,
-          ),
+          buildDynamicExtensions(initialTheme, settings, completionRef.current),
         ),
         ...restoredHistory,
       ],

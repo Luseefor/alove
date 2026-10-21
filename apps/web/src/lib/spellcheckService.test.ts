@@ -4,6 +4,7 @@ import NSpell from "nspell";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkDocument,
+  getSpellingSuggestions,
   createWordListChecker,
   loadEnglishChecker,
   resetSpellcheckServiceForTests,
@@ -100,6 +101,17 @@ describe("spellcheckService with dictionary-en", () => {
       maxMisspellings: 5,
     });
     expect(hits.length).toBeLessThanOrEqual(5);
+  });
+});
+
+describe("corrections on demand", () => {
+  it("marks repeated misspellings without ranking suggestions while typing", () => {
+    const checker = { correct: () => false, suggest: vi.fn(() => ["the"]) };
+    expect(checkDocument("teh ".repeat(100), checker, { maxSuggestions: 0 })).toHaveLength(100);
+    expect(checker.suggest).not.toHaveBeenCalled();
+    expect(getSpellingSuggestions(checker, "teh")).toEqual(["the"]);
+    expect(getSpellingSuggestions(checker, "teh")).toEqual(["the"]);
+    expect(checker.suggest).toHaveBeenCalledTimes(1);
   });
 });
 

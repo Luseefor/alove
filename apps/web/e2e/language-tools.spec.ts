@@ -83,6 +83,9 @@ test.describe(
           })
           .toBeGreaterThan(0);
 
+        await page.locator(".cm-lintRange-warning").filter({ hasText: "teh" }).first().hover();
+        await expect(page.getByRole("button", { name: /Use “the”/ })).toBeVisible();
+        await page.keyboard.press("Escape");
         await page.getByRole("button", { name: "Spell: On", exact: true }).click();
         await expect(
           page.getByRole("button", { name: "Spell: Off", exact: true }),
