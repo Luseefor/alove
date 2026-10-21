@@ -91,3 +91,10 @@ Implemented and merged in PR #29. Delivered reliability boundaries:
 4. U1: keyboard actions, dialog/drawer focus, labels and responsive source/preview checks (#28).
 
 Issues #32–#40 implement the subsequent authoring baseline: coordinate SyncTeX, project cite/ref, English spellcheck, bounded cross-file search/replacement, GitHub pull/push, server history, memberships, comments and proposed source changes. Automatic tracking of every keystroke and simultaneous character-level merging remain beyond this proposal-based review workflow. Live Clerk/Convex login, deployed two-account authorization and end-user GitHub OAuth remain unverified; local provider mocks and distinct `convex-test` identities do not establish live collaboration readiness.
+
+The next local recovery increment (#43) tests separated change restorations
+before Apply while preserving other same-file edits. See the
+[Overleaf comparison](overleaf-comparison.md) and its real-compiler evidence for
+the narrow workflow distinction, remaining gaps and limits. Deployment/live
+provider checks (#42) remain deferred; a broader superiority claim requires an
+actual matched comparison rather than feature-count parity.

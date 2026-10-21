@@ -1,7 +1,8 @@
-# Compile-tested file recovery
+# Compile-tested change recovery
 
-The first regression-debugger slice answers: **can restoring one changed file
-make this failed source snapshot compile, while keeping changes in other files?**
+Recovery answers: **can restoring one separated change block make this failed
+source snapshot compile, while keeping other edits in the same file and changes
+in other files?** Whole-file restorations remain an explicit fallback.
 It does not claim to find a minimal edit, establish causality, or validate the
 scientific meaning or layout of the result. No comparative Overleaf benchmark
 has been run.
@@ -14,16 +15,19 @@ has been run.
 3. Open **Build recovery** in the toolbar, or **Find breaking change** beside
    a failed preview. Recovery is also available in the Export menu after reload.
 4. Inspect the changed-file comparison. Choose **Test recovery**.
-5. If a trial succeeds, inspect the entire file that will be restored, then
-   choose **Apply tested file restoration**. Edits in other files survive.
-   **Undo file restoration** reverses that action only if the source and
+5. If a focused trial succeeds, inspect its proposed change and choose
+   **Apply tested change restoration**. Source outside that block survives.
+   A whole-file fallback instead offers **Apply tested file restoration** and
+   warns that all edits in that file will be reversed. The matching **Undo**
+   action reverses that restoration only if the source and
    compiler settings still match the expected state.
 6. Rebuild the working project to update its preview.
 
 Applying recovery is currently limited to local projects. Cloud projects can
 inspect and export their local evidence, but cloud mutation/version conflict
-handling needs a separate implementation. Applying replaces a whole file;
-changes within that same file are reversed together. Apply is disabled when
+handling needs a separate implementation. A focused result preserves source
+outside its displayed block; adjacent edits within that block are reversed
+together. Whole-file fallbacks reverse all edits in that file. Apply is disabled when
 working source, root, or compiler settings differ from the tested snapshot.
 
 ## Evidence and storage
@@ -52,7 +56,9 @@ local image must be pulled or built first. HTTPS or localhost is needed for
 WebCrypto fingerprinting.
 
 **Export debugging evidence** downloads both source snapshots, their metadata,
-logs and the trial report as versioned JSON. It contains the full source;
+logs and the trial report as versioned JSON. Trials include the tested scope,
+line and exact source fingerprint; the selected candidate contains the full
+repaired file as well as the changed fragments. It contains the full source;
 review it before sharing. This is evidence export, not a one-command hermetic
 rebuild capsule. Runner policy, kernel resources, timestamps and package
 repository state are not fully captured, and byte-for-byte PDF reproducibility
@@ -67,10 +73,12 @@ time; recording the resolved image distinguishes different builds of that tag.
 3. Recompile the successful source from a clean job directory. If it no longer
    builds, stop rather than attribute the failure to a source edit.
 4. Order changed files by diagnostic path, then source extension, then path.
-5. Test at most five candidates. Each restores exactly one complete file from
-   the good snapshot, preserving every other file from the failed snapshot.
-   Added files are removed; deleted files can be recreated; empty files remain
-   distinct from absent files.
+5. Split eligible text changes into blocks separated by exact unchanged lines.
+   Test up to three focused candidates first, then whole-file fallbacks within
+   the same five-candidate limit, reserving at least two slots for file candidates.
+   Each focused candidate starts from the failed snapshot and reverses exactly
+   one block; source outside it is unchanged. Added/deleted files and binary
+   assets use whole-file fallback. Empty files remain distinct from absent files.
 6. Accept only a completed successful PDF build in the same recorded runtime.
    Stop on infrastructure failures/timeouts. Report unresolved if no candidate
    succeeds within the budget. Never publish trial PDFs as the working preview.
@@ -82,8 +90,16 @@ cancel a job already in Redis or running in Docker. Its compiler deadline starts
 when execution begins. These client limits are not server quotas or public
 hosting isolation. Existing C3/C4/C5 release gates remain open.
 
-The comparison trims shared line prefixes/suffixes and previews at most 80
-changed lines per file; it is not a minimal diff algorithm. Trials are isolated
+Focused analysis is bounded to 1,048,576 UTF-16 code units and 10,000 lines per
+side, 2,000 residual lines per side and 250,000 LCS cells. Candidate ranking and
+the cap run before full repaired strings are created. Oversized changes fall
+back to whole-file analysis; the UI reports analysis/candidate limits. These are
+line blocks, not a proof of the smallest or causally responsible edit. Multiple
+independent faults can remain unresolved, or require a whole-file fallback.
+
+The comparison previews at most 80 changed lines per file, and truncates long
+lines for display. Export the full evidence before inspecting larger changes.
+Trials are isolated
 from the working source. Final apply and undo re-check the exact working map,
 project, root and compiler settings synchronously, guarding edits made while
 trials were running or between render and click.
@@ -100,12 +116,15 @@ compile mocks:
 E2E_BASE_URL=http://127.0.0.1:30127 E2E_REAL_COMPILE=1 bun run --filter web e2e e2e/build-recovery.spec.ts
 ```
 
-It imports a three-file project, builds it, deletes a macro definition, changes
+The original scenario imports a three-file project, builds it, deletes a macro definition, changes
 prose in another file, records a real failure, reloads, runs recovery, exports
 evidence, applies/undoes/reapplies the restoration, and rebuilds successfully.
 The initial run took 38.2 seconds end-to-end, including project setup, initial
 builds, trial compilation, export and final rebuild. This is one development
-machine/run, not a latency benchmark or superiority claim.
+machine/run, not a latency benchmark or superiority claim. A second scenario
+breaks a macro while changing separate prose in the same file and another file,
+checks that the compiling proposal has not yet changed working source, exports
+its fingerprint, applies/undoes/reapplies it, rebuilds and checks durable reload.
 
 Before publishing a claim about outperforming Overleaf, build a public corpus
 of at least 20 failures and compare complete recovery tasks using Overleaf's
@@ -118,9 +137,11 @@ actual writers; publish failures as well as successes.
 
 A technical post can explain canonical snapshots, source/result races, runtime
 identity, conservative trial search, non-minimality and safe recovery. The next
-algorithmic slice is change-hunk recovery with dependency-aware candidates and
-multiple-fault handling, followed by an exportable executable reproduction
-bundle. Those capabilities are not present in this first release.
+algorithmic work is dependency-aware candidates and multiple-fault handling,
+followed by an exportable executable reproduction bundle. Those capabilities
+are not present. Bounded change-block recovery is now implemented; a dated
+[Overleaf capability comparison](overleaf-comparison.md) separates its observed
+workflow distinction from an unexecuted comparative performance study.
 
 A local synthetic baseline is now available in the
 [October 19 performance report](benchmarks/2026-10-19-local-m3-pro/README.md):
