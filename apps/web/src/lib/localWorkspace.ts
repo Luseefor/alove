@@ -576,7 +576,8 @@ export function createLocalWorkspaceRepository(
       let failure: unknown;
       tx.oncomplete = () => {
         db.close();
-        failure ? reject(failure) : resolve(rows);
+        if (failure) reject(failure);
+        else resolve(rows);
       };
       tx.onerror = tx.onabort = () => {
         db.close();
@@ -589,8 +590,15 @@ export function createLocalWorkspaceRepository(
       const request = tx.objectStore(HISTORY).index("id").getAll(id);
       request.onsuccess = () => {
         try {
-          rows = request.result;
-          for (const row of rows) checkStored(row, id);
+          rows = [];
+          for (const row of request.result) {
+            try {
+              checkStored(row, id);
+              rows.push(row);
+            } catch {
+              /* Keep unreadable checkpoint bytes intact, while offering valid rows. */
+            }
+          }
           rows.sort((a, b) => b.revision - a.revision);
         } catch (error) {
           failure = error;
@@ -612,7 +620,11 @@ export function createLocalWorkspaceRepository(
           const ids = new Set(current.result);
           const latest = new Map<string, LocalWorkspace>();
           for (const row of history.result) {
-            checkStored(row);
+            try {
+              checkStored(row);
+            } catch {
+              continue; /* Preserve unreadable rows without hiding other projects. */
+            }
             if (
               !ids.has(row.id) &&
               (!latest.has(row.id) ||

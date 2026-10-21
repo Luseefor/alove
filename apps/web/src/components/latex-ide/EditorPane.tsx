@@ -53,6 +53,7 @@ export function EditorPane() {
 
   const history = useMemo(
     () => ({
+      projectId,
       states: new Map<string, EditorState>(),
       generations: new Map<string, number>(),
     }),

@@ -379,3 +379,20 @@ describe("workspace checkpoints", () => {
     expect(await repo.listHistory(original.id)).toEqual([original]);
   });
 });
+
+it("blocks replacement when its current-source checkpoint exceeds the history byte budget", async () => {
+  const repo = createLocalWorkspaceRepository(newFactory());
+  const input = makeInput({
+    files: { "main.tex": "x".repeat(50 * 1024 * 1024) },
+    activeFile: "main.tex",
+    openFiles: [],
+  });
+  const current = await repo.save(input, 0);
+  await expect(
+    repo.save({ ...input, files: { "main.tex": "replacement" } }, 1),
+  ).rejects.toThrow();
+  expect((await repo.load(current.id))?.files["main.tex"].length).toBe(
+    input.files["main.tex"].length,
+  );
+  expect(await repo.listHistory(current.id)).toEqual([]);
+});

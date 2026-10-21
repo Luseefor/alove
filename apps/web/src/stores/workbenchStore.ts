@@ -107,6 +107,8 @@ export interface WorkbenchState {
   };
   persistence: {
     saveWorkspace?: () => Promise<void>;
+    listHistory?: () => Promise<import("@/lib/localWorkspace").LocalWorkspace[]>;
+    restoreHistory?: (revision: number) => Promise<void>;
     save?: (path: string, content: string, expectedVersion?: number) => Promise<{ version: number; conflict?: boolean } | void>;
     delete?: (path: string) => Promise<void>;
     rename?: (oldPath: string, newPath: string) => Promise<void>;
