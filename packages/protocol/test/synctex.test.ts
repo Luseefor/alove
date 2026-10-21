@@ -35,4 +35,22 @@ describe("synctex protocol types and limits", () => {
     };
     expect(failed.synctex).toBeUndefined();
   });
+
+  it("carries optional preamble and box extents for coordinate mapping", () => {
+    const mapping: SyncTexMapping = {
+      version: 1,
+      truncated: false,
+      preamble: { magnification: 1000, unit: 1, xOffset: 4736287, yOffset: 4736287 },
+      entries: [{ file: "main.tex", line: 3, page: 1, x: 4063232, y: 4128768, width: 983040, height: 150 }],
+    };
+    expect(mapping.preamble?.xOffset).toBe(4736287);
+    expect(mapping.entries[0]?.width).toBe(983040);
+    // Legacy mappings without a preamble stay valid.
+    const legacy: SyncTexMapping = {
+      version: 1,
+      truncated: false,
+      entries: [{ file: "main.tex", line: 3, page: 1, x: 100, y: 200 }],
+    };
+    expect(legacy.preamble).toBeUndefined();
+  });
 });

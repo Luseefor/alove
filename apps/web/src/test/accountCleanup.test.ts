@@ -76,7 +76,7 @@ async function countAll() {
       "historyContents",
       "presence",
     ] as const) {
-      out[table] = (await ctx.db.query(table as never).collect()).length;
+      out[table] = (await ctx.db.query(table).collect()).length;
     }
     return out;
   });

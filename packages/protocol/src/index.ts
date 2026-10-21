@@ -70,7 +70,7 @@ export const COMPILE_REQUEST_LIMITS = {
  * Bounds for the optional SyncTeX mapping carried on CompileJobResult.
  * Keeps BullMQ/Redis job results and Next.js JSON polling responses small:
  * entries are capped and only the anchor coordinates needed for PDF
- * matching (file, line, page, x, y) are preserved.
+ * matching (file, line, page, x, y, box extents, preamble) are preserved.
  */
 export const COMPILE_SYNCTEX_LIMITS = {
   /** Max compressed `.synctex.gz` bytes read from the build workspace. */
@@ -94,6 +94,22 @@ export interface SyncTexEntry {
   x: number;
   /** Vertical anchor in SyncTeX scaled points. */
   y: number;
+  /** Box width in scaled points, when the record carries extents. */
+  width?: number;
+  /** Box height (height + depth) in scaled points, when carried. */
+  height?: number;
+}
+
+/**
+ * SyncTeX preamble needed to convert raw scaled-point anchors into PDF
+ * big points. Defaults when the engine omits them: magnification 1000,
+ * unit 1, zero offsets.
+ */
+export interface SyncTexPreamble {
+  magnification: number;
+  unit: number;
+  xOffset: number;
+  yOffset: number;
 }
 
 export interface SyncTexMapping {
@@ -101,6 +117,8 @@ export interface SyncTexMapping {
   entries: SyncTexEntry[];
   /** True when the engine output exceeded a COMPILE_SYNCTEX_LIMITS cap. */
   truncated: boolean;
+  /** Preamble for coordinate conversion. Absent on legacy mappings. */
+  preamble?: SyncTexPreamble;
 }
 
 export type ValidateCompileRequestOk = {
