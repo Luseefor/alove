@@ -305,26 +305,29 @@ export const applyPull = mutation({
 
 /** Acknowledge a successful GitHub push. CAS on the previous baseline: if a
  *  concurrent pull moved it, this throws and the caller must reconcile via
- *  refresh instead of silently rebasing the baseline. */
+ *  refresh instead of silently rebasing the baseline. `prevSha` is omitted
+ *  only when initializing an empty branch, where the baseline is still
+ *  unset (null normalizes both sides of the comparison). */
 export const recordPush = mutation({
   args: {
     projectId: v.id("projects"),
-    prevSha: v.string(),
+    prevSha: v.optional(v.string()),
     expectedTarget: targetArgs,
     newSha: v.string(),
     trackedPaths: v.array(v.string()),
   },
   handler: async (ctx, args) => {
     const access = await requireProject(ctx, args.projectId, "edit");
-    if (!checkSha(args.prevSha) || !checkSha(args.newSha))
+    if (args.prevSha !== undefined && !checkSha(args.prevSha))
       throw new Error("Invalid commit reference.");
+    if (!checkSha(args.newSha)) throw new Error("Invalid commit reference.");
     const connection = await ctx.db
       .query("githubConnections")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .unique();
     if (!connection) throw new Error("Connect a GitHub repository first.");
     assertTarget(connection, args.expectedTarget);
-    if ((connection.lastCommitSha ?? null) !== args.prevSha) {
+    if ((connection.lastCommitSha ?? null) !== (args.prevSha ?? null)) {
       throw new Error(
         "Sync state changed during the push. Refresh status before continuing; the remote commit was still created.",
       );
