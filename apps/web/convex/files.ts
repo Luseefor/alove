@@ -11,6 +11,13 @@ import {
   utf8ByteLength,
 } from "../src/lib/cloudProjectLimits";
 
+/**
+ * Incarnation token = the row `_id`. Delete+recreate allocates a new row,
+ * so a stale writer holding the old `_id` conflicts even when the version
+ * happens to match (both start at 1). Every row has an `_id`, including
+ * legacy rows, so no schema migration or runtime RNG is needed.
+ */
+
 export const list = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, { projectId }) => {
@@ -31,6 +38,7 @@ export const save = mutation({
     path: v.string(),
     content: v.string(),
     expectedVersion: v.optional(v.number()),
+    expectedIncarnation: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const id = await ctx.auth.getUserIdentity();
@@ -57,8 +65,11 @@ export const save = mutation({
 
     if (!existing) {
       if (expected !== 0) {
-        return { conflict: true as const, version: 0, content: "" };
+        return { conflict: true as const, version: 0, content: "", deleted: true as const, incarnation: undefined as string | undefined };
       }
+      // Create (expectedVersion 0): no token required. There is no row to
+      // overwrite, so any expectedIncarnation is stale context for a deleted
+      // file and creation is still safe.
       const files = await ctx.db
         .query("projectFiles")
         .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -86,7 +97,7 @@ export const save = mutation({
         updatedBy: id.subject,
       });
       await ctx.db.patch(args.projectId, { updatedAt: now });
-      return { id: fid, version: 1, conflict: false as const };
+      return { id: fid, version: 1, conflict: false as const, incarnation: String(fid) };
     }
 
     if (existing.version !== expected) {
@@ -94,6 +105,28 @@ export const save = mutation({
         conflict: true as const,
         version: existing.version,
         content: existing.content,
+        incarnation: String(existing._id),
+      };
+    }
+    // Existing write (expectedVersion > 0): the row token is required.
+    // A missing token is treated as stale so a legacy caller cannot
+    // overwrite a recreated row that happens to share the version.
+    if (args.expectedIncarnation === undefined) {
+      return {
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+        tokenRequired: true as const,
+      };
+    }
+    if (args.expectedIncarnation !== String(existing._id)) {
+      return {
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+        recreated: true as const,
       };
     }
 
@@ -124,7 +157,7 @@ export const save = mutation({
       updatedBy: id.subject,
     });
     await ctx.db.patch(args.projectId, { updatedAt: now });
-    return { conflict: false as const, version: next };
+    return { conflict: false as const, version: next, incarnation: String(existing._id) };
   },
 });
 
@@ -132,6 +165,8 @@ export const deleteFile = mutation({
   args: {
     projectId: v.id("projects"),
     path: v.string(),
+    expectedVersion: v.optional(v.number()),
+    expectedIncarnation: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const id = await ctx.auth.getUserIdentity();
@@ -150,15 +185,50 @@ export const deleteFile = mutation({
       )
       .unique();
 
-    if (existing) {
-      await ctx.db.delete(existing._id);
-      await ctx.db.patch(args.projectId, {
-        updatedAt: Date.now(),
-        ...(project.mainFile === pathCheck.path
-          ? { mainFile: undefined }
-          : {}),
-      });
+    if (!existing) {
+      return { deleted: false as const, alreadyMissing: true as const };
     }
+    // Delete targets an existing row: the row token is required. Without
+    // it a stale delete for an old incarnation could remove the recreated
+    // file, even when the version happens to match.
+    if (args.expectedVersion !== undefined && existing.version !== args.expectedVersion) {
+      return {
+        deleted: false as const,
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+      };
+    }
+    if (args.expectedIncarnation === undefined) {
+      return {
+        deleted: false as const,
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+        tokenRequired: true as const,
+      };
+    }
+    if (args.expectedIncarnation !== String(existing._id)) {
+      return {
+        deleted: false as const,
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+        recreated: true as const,
+      };
+    }
+
+    await ctx.db.delete(existing._id);
+    await ctx.db.patch(args.projectId, {
+      updatedAt: Date.now(),
+      ...(project.mainFile === pathCheck.path
+        ? { mainFile: undefined }
+        : {}),
+    });
+    return { deleted: true as const };
   },
 });
 
@@ -167,6 +237,8 @@ export const renameFile = mutation({
     projectId: v.id("projects"),
     oldPath: v.string(),
     newPath: v.string(),
+    expectedVersion: v.optional(v.number()),
+    expectedIncarnation: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const id = await ctx.auth.getUserIdentity();
@@ -189,8 +261,39 @@ export const renameFile = mutation({
       )
       .unique();
     if (!existing) throw new Error(`No file at "${oldPath}".`);
-    if (oldPath === newPath) return;
-
+    if (oldPath === newPath) return { renamed: true as const, incarnation: String(existing._id) };
+    // Rename targets an existing row: the row token is required. Without
+    // it a stale rename for an old incarnation could steal the recreated
+    // file, even when the version happens to match.
+    if (args.expectedVersion !== undefined && existing.version !== args.expectedVersion) {
+      return {
+        renamed: false as const,
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+      };
+    }
+    if (args.expectedIncarnation === undefined) {
+      return {
+        renamed: false as const,
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+        tokenRequired: true as const,
+      };
+    }
+    if (args.expectedIncarnation !== String(existing._id)) {
+      return {
+        renamed: false as const,
+        conflict: true as const,
+        version: existing.version,
+        content: existing.content,
+        incarnation: String(existing._id),
+        recreated: true as const,
+      };
+    }
     const conflict = await ctx.db
       .query("projectFiles")
       .withIndex("by_project_path", (q) =>
@@ -224,5 +327,6 @@ export const renameFile = mutation({
           }
         : {}),
     });
+    return { renamed: true as const, incarnation: String(existing._id) };
   },
 });

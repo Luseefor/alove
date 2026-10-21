@@ -76,7 +76,9 @@ describe("cloud mutations", () => {
 
   it("enforces compare-and-swap with default 0", async () => {
     const pid = await blankProject();
-    await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "v1" });
+    const created = await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "v1" });
+    expect(created.conflict).toBe(false);
+    const token = (created as { incarnation?: string }).incarnation ?? String((await alice.query(api.files.list, { projectId: pid })).find((f) => f.path === "a.tex")!._id);
     const stale = await alice.mutation(api.files.save, {
       projectId: pid,
       path: "a.tex",
@@ -88,14 +90,59 @@ describe("cloud mutations", () => {
     if (stale.conflict) expect(stale.content).toBe("v1");
     const files = await alice.query(api.files.list, { projectId: pid });
     expect(files.find((f) => f.path === "a.tex")?.content).toBe("v1");
+    // Existing write without the row token is stale, even on version match.
+    const missingToken = await alice.mutation(api.files.save, {
+      projectId: pid,
+      path: "a.tex",
+      content: "no token",
+      expectedVersion: 1,
+    });
+    expect(missingToken.conflict).toBe(true);
     const fresh = await alice.mutation(api.files.save, {
       projectId: pid,
       path: "a.tex",
       content: "v2",
       expectedVersion: 1,
+      expectedIncarnation: token,
     });
     expect(fresh.conflict).toBe(false);
     expect(fresh.version).toBe(2);
+  });
+
+  it("rejects stale incarnation writes after delete and recreate with the same version", async () => {
+    const pid = await blankProject();
+    const created = await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "v1" });
+    const oldToken = (created as { incarnation?: string }).incarnation!;
+    const listed = await alice.query(api.files.list, { projectId: pid });
+    expect(String(listed.find((f) => f.path === "a.tex")!._id)).toBe(oldToken);
+    const removed = await alice.mutation(api.files.deleteFile, { projectId: pid, path: "a.tex", expectedVersion: 1, expectedIncarnation: oldToken });
+    expect(removed.deleted).toBe(true);
+    const recreated = await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "new file" });
+    expect(recreated.conflict).toBe(false);
+    expect(recreated.version).toBe(1);
+    const newToken = (recreated as { incarnation?: string }).incarnation!;
+    expect(newToken).not.toBe(oldToken);
+    // Old incarnation write with a matching version still conflicts.
+    const staleWrite = await alice.mutation(api.files.save, {
+      projectId: pid,
+      path: "a.tex",
+      content: "stale overwrite",
+      expectedVersion: 1,
+      expectedIncarnation: oldToken,
+    });
+    expect(staleWrite.conflict).toBe(true);
+    expect((staleWrite as { recreated?: boolean }).recreated).toBe(true);
+    expect(await alice.query(api.files.list, { projectId: pid }).then((rows) => rows.find((f) => f.path === "a.tex")?.content)).toBe("new file");
+    // Stale delete and stale rename are refused as well.
+    const staleDelete = await alice.mutation(api.files.deleteFile, { projectId: pid, path: "a.tex", expectedVersion: 1, expectedIncarnation: oldToken });
+    expect(staleDelete.deleted).toBe(false);
+    expect(staleDelete.conflict).toBe(true);
+    const staleRename = await alice.mutation(api.files.renameFile, { projectId: pid, oldPath: "a.tex", newPath: "b.tex", expectedVersion: 1, expectedIncarnation: oldToken });
+    expect((staleRename as { conflict?: boolean }).conflict).toBe(true);
+    expect(await alice.query(api.files.list, { projectId: pid }).then((rows) => rows.map((f) => f.path))).toContain("a.tex");
+    // Fresh token still works.
+    const fresh = await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "v2", expectedVersion: 1, expectedIncarnation: newToken });
+    expect(fresh.conflict).toBe(false);
   });
 
   it("requires version 0 to create", async () => {
@@ -243,11 +290,12 @@ describe("cloud mutations", () => {
     const pid = await blankProject();
     await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "a" });
     await alice.mutation(api.files.save, { projectId: pid, path: "b.tex", content: "b" });
+    const tokenA = String((await alice.query(api.files.list, { projectId: pid })).find((f) => f.path === "a.tex")!._id);
     await expect(
       alice.mutation(api.files.renameFile, { projectId: pid, oldPath: "missing.tex", newPath: "x.tex" }),
     ).rejects.toThrow();
     await expect(
-      alice.mutation(api.files.renameFile, { projectId: pid, oldPath: "a.tex", newPath: "b.tex" }),
+      alice.mutation(api.files.renameFile, { projectId: pid, oldPath: "a.tex", newPath: "b.tex", expectedVersion: 1, expectedIncarnation: tokenA }),
     ).rejects.toThrow("already exists");
     await alice.mutation(api.files.renameFile, {
       projectId: pid,
@@ -258,6 +306,8 @@ describe("cloud mutations", () => {
       projectId: pid,
       oldPath: "a.tex",
       newPath: "c.tex",
+      expectedVersion: 1,
+      expectedIncarnation: tokenA,
     });
     const files = await alice.query(api.files.list, { projectId: pid });
     expect(files.map((f) => f.path).sort()).toEqual(["b.tex", "c.tex", "main.tex"]);
@@ -265,16 +315,27 @@ describe("cloud mutations", () => {
 
   it("moves the main file on rename and clears it on delete", async () => {
     const pid = await blankProject();
-    await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "a" });
+    const created = await alice.mutation(api.files.save, { projectId: pid, path: "a.tex", content: "a" });
+    expect(created.conflict).toBe(false);
+    const tokenA = (created as { incarnation?: string }).incarnation!;
     await alice.mutation(api.projects.setMainFile, { projectId: pid, path: "a.tex" });
-    await alice.mutation(api.files.renameFile, {
+    const renamed = await alice.mutation(api.files.renameFile, {
       projectId: pid,
       oldPath: "a.tex",
       newPath: "renamed.tex",
+      expectedVersion: 1,
+      expectedIncarnation: tokenA,
     });
+    expect((renamed as { conflict?: boolean }).conflict).not.toBe(true);
     const afterRename = await alice.query(api.projects.get, { projectId: pid });
     expect(afterRename?.mainFile).toBe("renamed.tex");
-    await alice.mutation(api.files.deleteFile, { projectId: pid, path: "renamed.tex" });
+    const deleted = await alice.mutation(api.files.deleteFile, {
+      projectId: pid,
+      path: "renamed.tex",
+      expectedVersion: 1,
+      expectedIncarnation: (renamed as { incarnation?: string }).incarnation ?? tokenA,
+    });
+    expect((deleted as { conflict?: boolean }).conflict).not.toBe(true);
     const afterDelete = await alice.query(api.projects.get, { projectId: pid });
     expect(afterDelete?.mainFile).toBeUndefined();
   });

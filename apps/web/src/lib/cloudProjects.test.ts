@@ -6,7 +6,7 @@ const handler = (fn: unknown) =>
   (fn as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
     ._handler;
 function context(owner = "owner") {
-  const unique = vi.fn(async () => ({ _id: "file", path: "chapter.tex" }));
+  const unique = vi.fn(async () => ({ _id: "file", path: "chapter.tex", version: 1 }));
   const db = {
     get: vi.fn(async () => ({ _id: "project", ownerId: owner, name: "Paper" })),
     insert: vi.fn(async (table: string, value: unknown) => {
@@ -106,12 +106,14 @@ describe("cloud project controls", () => {
       mainFile: "chapter.tex",
     } as never);
     ctx.unique
-      .mockResolvedValueOnce({ _id: "file", path: "chapter.tex" })
+      .mockResolvedValueOnce({ _id: "file", path: "chapter.tex", version: 1 })
       .mockResolvedValueOnce(null as never);
     await handler(renameFile)(ctx, {
       projectId: "project",
       oldPath: "chapter.tex",
       newPath: "renamed.tex",
+      expectedVersion: 1,
+      expectedIncarnation: "file",
     });
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "project",
@@ -129,6 +131,8 @@ describe("cloud project controls", () => {
     await handler(deleteFile)(ctx, {
       projectId: "project",
       path: "chapter.tex",
+      expectedVersion: 1,
+      expectedIncarnation: "file",
     });
     expect(ctx.db.delete).toHaveBeenCalledWith("file");
     expect(ctx.db.patch).toHaveBeenCalledWith(
