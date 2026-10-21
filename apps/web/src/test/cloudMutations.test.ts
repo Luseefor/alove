@@ -387,4 +387,20 @@ describe("cloud mutations", () => {
     expect(await bob.query(api.projects.get, { projectId: theirs })).not.toBeNull();
     expect(await bob.query(api.files.list, { projectId: theirs })).toHaveLength(1);
   });
+  it("requires both a version and a row identity for destructive existing-file mutations", async () => {
+    const pid = await blankProject();
+    const created = await alice.mutation(api.files.save, { projectId: pid, path: "guard.tex", content: "original" });
+    const token = created.incarnation!;
+    const changed = await alice.mutation(api.files.save, { projectId: pid, path: "guard.tex", content: "newer", expectedVersion: 1, expectedIncarnation: token });
+    expect(changed.conflict).toBe(false);
+    const deleted = await alice.mutation(api.files.deleteFile, { projectId: pid, path: "guard.tex", expectedIncarnation: token });
+    expect(deleted.conflict).toBe(true);
+    const renamed = await alice.mutation(api.files.renameFile, { projectId: pid, oldPath: "guard.tex", newPath: "moved.tex", expectedIncarnation: token });
+    expect(renamed.conflict).toBe(true);
+    const unbound = await alice.mutation(api.files.save, { projectId: pid, path: "guard.tex", content: "stale", expectedVersion: 2 });
+    expect(unbound.conflict).toBe(true);
+    const files = await alice.query(api.files.list, { projectId: pid });
+    expect(files.find((file) => file.path === "guard.tex")?.content).toBe("newer");
+  });
+
 });

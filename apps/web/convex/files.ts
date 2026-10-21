@@ -191,7 +191,7 @@ export const deleteFile = mutation({
     // Delete targets an existing row: the row token is required. Without
     // it a stale delete for an old incarnation could remove the recreated
     // file, even when the version happens to match.
-    if (args.expectedVersion !== undefined && existing.version !== args.expectedVersion) {
+    if (existing.version !== args.expectedVersion) {
       return {
         deleted: false as const,
         conflict: true as const,
@@ -265,7 +265,7 @@ export const renameFile = mutation({
     // Rename targets an existing row: the row token is required. Without
     // it a stale rename for an old incarnation could steal the recreated
     // file, even when the version happens to match.
-    if (args.expectedVersion !== undefined && existing.version !== args.expectedVersion) {
+    if (existing.version !== args.expectedVersion) {
       return {
         renamed: false as const,
         conflict: true as const,
