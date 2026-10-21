@@ -166,6 +166,22 @@ jobs:
         env:
           E2E_REAL_COMPILE: "1"
         run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts e2e/closed-journey.spec.ts e2e/synctex.spec.ts
+      - name: Verify focused recovery preservation and refusal controls
+        env:
+          NEXT_PUBLIC_LOCAL_STANDALONE: "true"
+          ALOVE_LOCAL_COMPILE_ORIGIN: http://127.0.0.1:30131
+        run: |
+          bunx next start apps/web -H 127.0.0.1 -p 30131 > focused-web.log 2>&1 &
+          focused_web_pid=$!
+          trap 'kill "$focused_web_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:30131/api/ready >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:30131/api/ready
+          bun run verify:recovery --base-url http://127.0.0.1:30131 --repeats 1 --output focused-recovery.json
       - name: Stop background worker
         if: always()
         run: |
@@ -181,5 +197,7 @@ jobs:
           path: |
             worker.log
             compose-smoke.log
+            focused-web.log
+            focused-recovery.json
             apps/web/playwright-report
             apps/web/test-results

@@ -23,6 +23,7 @@
     "docker:health": "curl -fsS http://localhost:3000/api/health",
     "smoke:docker": "bash scripts/smoke-docker-stack.sh",
     "bench:recovery": "bun scripts/benchmarks/runRecoveryBenchmark.ts",
+    "verify:recovery": "bun scripts/benchmarks/verifyFocusedRecovery.ts",
     "bench:browser": "bun scripts/benchmarks/browserBenchmark.ts",
     "test:benchmarks": "bun test ./scripts/benchmarks/*.test.ts",
     "bench:report": "python3 scripts/benchmarks/reportBenchmark.py",
