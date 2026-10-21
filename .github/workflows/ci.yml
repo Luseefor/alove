@@ -171,7 +171,7 @@ jobs:
           NEXT_PUBLIC_LOCAL_STANDALONE: "true"
           ALOVE_LOCAL_COMPILE_ORIGIN: http://127.0.0.1:30131
         run: |
-          bunx next start apps/web -H 127.0.0.1 -p 30131 > focused-web.log 2>&1 &
+          node apps/web/node_modules/next/dist/bin/next start apps/web -H 127.0.0.1 -p 30131 > focused-web.log 2>&1 &
           focused_web_pid=$!
           trap 'kill "$focused_web_pid" 2>/dev/null || true' EXIT
           for i in $(seq 1 30); do

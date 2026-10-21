@@ -48,6 +48,8 @@ globalThis.fetch = ((input: Parameters<typeof fetch>[0], init?: RequestInit) =>
   )) as typeof fetch;
 const compilations: Array<Record<string, unknown>> = [];
 const runs: Array<Record<string, unknown>> = [];
+const throttleEvents: Array<Record<string, unknown>> = [];
+let nextSubmissionAt = 0;
 const report: Record<string, unknown> = {
   schema: 1,
   startedAt: new Date().toISOString(),
@@ -59,6 +61,8 @@ const report: Record<string, unknown> = {
   methodology:
     "Real local HTTP/Redis/Docker compilations, sequential functional checks. A whole-file reference performs the documented restore-file operation on the same source; it is not an executed Overleaf session, Error Assist evaluation, speed comparison or user study.",
   repeats,
+  minimumSubmissionIntervalMs: 2200,
+  throttleEvents,
   sourceFiles: {} as Record<string, string>,
   fixtures: focusedRecoveryCorpus,
   runs,
@@ -68,6 +72,7 @@ for (const file of [
   "apps/web/src/lib/buildRecovery.ts",
   "apps/web/src/lib/buildRecoveryHunks.ts",
   "scripts/benchmarks/focusedRecoveryCorpus.ts",
+  "scripts/benchmarks/verifyFocusedRecovery.ts",
 ])
   (report.sourceFiles as Record<string, string>)[file] = createHash("sha256")
     .update(await readFile(file))
@@ -76,17 +81,50 @@ async function checkpoint() {
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, JSON.stringify(report, null, 2) + "\n");
 }
+async function delay(ms: number, signal: AbortSignal) {
+  signal.throwIfAborted();
+  if (ms <= 0) return;
+  await new Promise<void>((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
 async function compile(
   request: CompileJobPayload,
   label: string,
   signal = AbortSignal.timeout(90_000),
 ): Promise<CompileJobResult> {
-  const response = await fetch(new URL("/api/compile", base), {
-    method: "POST",
-    signal,
-    headers: { "content-type": "application/json", origin: base.origin },
-    body: JSON.stringify(request),
-  });
+  let response: Response | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // Leave room below the normal 30/minute local principal quota. This is a
+    // functional check; pacing is excluded from any performance claim.
+    await delay(nextSubmissionAt - Date.now(), signal);
+    nextSubmissionAt = Date.now() + 2200;
+    response = await fetch(new URL("/api/compile", base), {
+      method: "POST",
+      signal,
+      headers: { "content-type": "application/json", origin: base.origin },
+      body: JSON.stringify(request),
+    });
+    if (response.status !== 429 || attempt === 2) break;
+    const retry = Number(response.headers.get("retry-after"));
+    const waitMs =
+      Number.isFinite(retry) && retry > 0
+        ? Math.min(61_000, Math.ceil(retry * 1000))
+        : 2200;
+    throttleEvents.push({ label, attempt: attempt + 1, waitMs });
+    await response.body?.cancel();
+    await checkpoint();
+    await delay(waitMs, signal);
+  }
+  if (!response) throw new Error("No compile response received.");
   if (!response.ok)
     throw new Error(`Compile request refused (${response.status}).`);
   const { jobId } = (await response.json()) as { jobId: string };
