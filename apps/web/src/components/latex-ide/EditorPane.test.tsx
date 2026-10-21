@@ -40,7 +40,9 @@ vi.mock("./LatexCodeEditor", async () => {
         },
         replaceRange: (start, end, insert) => {
           codeEditorRuntime.replaceRange(start, end, insert);
-          props.onChange(`${props.value.slice(0, start)}${insert}${props.value.slice(end)}`);
+          props.onChange(
+            `${props.value.slice(0, start)}${insert}${props.value.slice(end)}`,
+          );
         },
         runCommand: (command) => {
           codeEditorRuntime.runCommand(command);
@@ -65,10 +67,13 @@ vi.mock("./LatexCodeEditor", async () => {
 describe("EditorPane", () => {
   let container: HTMLDivElement;
   let root: Root;
-  const originalCodeMirrorFlag = process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR;
+  const originalCodeMirrorFlag =
+    process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR;
   const originalEditorMode = process.env.NEXT_PUBLIC_EDITOR_MODE;
 
-  function seedStore(overrides: Partial<ReturnType<typeof useWorkbenchStore.getState>> = {}) {
+  function seedStore(
+    overrides: Partial<ReturnType<typeof useWorkbenchStore.getState>> = {},
+  ) {
     useWorkbenchStore.setState(useWorkbenchStore.getInitialState(), true);
     useWorkbenchStore.setState({
       projectId: "project-1",
@@ -137,9 +142,7 @@ describe("EditorPane", () => {
       root.render(<EditorPane />);
     });
 
-    expect(container.textContent).toContain(
-      "No file active",
-    );
+    expect(container.textContent).toContain("No file active");
   });
 
   it("renders CodeMirror path with initial active file content by default", () => {
@@ -160,7 +163,9 @@ describe("EditorPane", () => {
     act(() => {
       root.render(<EditorPane />);
     });
-    expect(container.querySelector('[data-testid="mock-codemirror-editor"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="mock-codemirror-editor"]'),
+    ).toBeNull();
     const textarea = container.querySelector(
       '[data-testid="latex-editor-textarea"]',
     ) as HTMLTextAreaElement | null;
@@ -169,15 +174,27 @@ describe("EditorPane", () => {
   });
 
   it("passes only current diagnostics and honors the code-check preference", () => {
-    const diagnostics = [{ file: "main.tex", line: 1, severity: "error" as const, message: "bad root" }];
-    useWorkbenchStore.setState({ diagnostics, diagnosticRevision: useWorkbenchStore.getState().documentRevision });
+    const diagnostics = [
+      {
+        file: "main.tex",
+        line: 1,
+        severity: "error" as const,
+        message: "bad root",
+      },
+    ];
+    useWorkbenchStore.setState({
+      diagnostics,
+      diagnosticRevision: useWorkbenchStore.getState().documentRevision,
+    });
     act(() => root.render(<EditorPane />));
     expect(codeEditorRuntime.latestProps?.diagnostics).toEqual(diagnostics);
     act(() => useIdeSettingsStore.setState({ editorCodeCheck: false }));
     expect(codeEditorRuntime.latestProps?.diagnostics).toBeUndefined();
     act(() => useIdeSettingsStore.setState({ editorCodeCheck: true }));
     expect(codeEditorRuntime.latestProps?.diagnostics).toEqual(diagnostics);
-    act(() => useWorkbenchStore.getState().updateActiveFileContent("newer source"));
+    act(() =>
+      useWorkbenchStore.getState().updateActiveFileContent("newer source"),
+    );
     expect(codeEditorRuntime.latestProps?.diagnostics).toBeUndefined();
   });
 
@@ -266,15 +283,15 @@ describe("EditorPane", () => {
       root.render(<EditorPane />);
     });
 
-    // In the new UI, there isn't a simple "Compile" button in EditorPane anymore, 
+    // In the new UI, there isn't a simple "Compile" button in EditorPane anymore,
     // it's in ActionToolbar. So we skip the button click test here or just test the wiring via state if needed.
     // Actually, I'll just check if it's missing and skip.
     const compileBtn = Array.from(container.querySelectorAll("button")).find(
       (el) => el.textContent?.trim() === "Compile",
     );
     if (compileBtn) {
-       clickButton("Compile");
-       expect(runCompile).toHaveBeenCalledTimes(1);
+      clickButton("Compile");
+      expect(runCompile).toHaveBeenCalledTimes(1);
     }
 
     act(() => {
@@ -283,6 +300,129 @@ describe("EditorPane", () => {
       });
     });
     expect(codeEditorRuntime.runCommand).toHaveBeenCalledWith("selectAll");
-    expect(useWorkbenchStore.getState().activeSelection).toEqual({ start: 2, end: 4 });
+    expect(useWorkbenchStore.getState().activeSelection).toEqual({
+      start: 2,
+      end: 4,
+    });
+  });
+
+  it("passes per-file historyKey with a shared per-project cache", () => {
+    seedStore({
+      projectId: "project-1",
+      activeFileId: "main.tex",
+      openFiles: ["main.tex", "chapter.tex"],
+      filesByPath: { "main.tex": "Main body", "chapter.tex": "Chapter body" },
+      versionsByPath: { "main.tex": 1, "chapter.tex": 1 },
+      dirtyByPath: { "main.tex": false, "chapter.tex": false },
+    });
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    const firstCache = codeEditorRuntime.latestProps?.historyCache;
+    expect(codeEditorRuntime.latestProps?.historyKey).toBe("main.tex#0");
+    expect(firstCache).toBeInstanceOf(Map);
+
+    clickButton("chapter.tex");
+    expect(codeEditorRuntime.latestProps?.historyKey).toBe("chapter.tex#0");
+    expect(codeEditorRuntime.latestProps?.historyCache).toBe(firstCache);
+
+    act(() => {
+      useWorkbenchStore.setState({ projectId: "project-2" });
+    });
+    expect(codeEditorRuntime.latestProps?.historyCache).not.toBe(firstCache);
+    expect(codeEditorRuntime.latestProps?.historyCache).toBeInstanceOf(Map);
+  });
+
+  it("prunes deleted files but retains closed-then-reopened files", () => {
+    seedStore({
+      activeFileId: "main.tex",
+      openFiles: ["main.tex", "chapter.tex"],
+      filesByPath: { "main.tex": "Main body", "chapter.tex": "Chapter body" },
+      versionsByPath: { "main.tex": 1, "chapter.tex": 1 },
+      dirtyByPath: { "main.tex": false, "chapter.tex": false },
+    });
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    const cache = codeEditorRuntime.latestProps?.historyCache as Map<
+      string,
+      unknown
+    >;
+    expect(cache).toBeInstanceOf(Map);
+    cache.set("main.tex#0", { marker: "main-state" } as unknown as never);
+    cache.set("chapter.tex#0", { marker: "chapter-state" } as unknown as never);
+
+    // Closing a tab keeps the file on disk: retention must survive.
+    act(() => {
+      useWorkbenchStore.getState().closeFile("chapter.tex");
+    });
+    expect(cache.has("chapter.tex#0")).toBe(true);
+
+    // Deleting removes it from filesByPath: retention must be pruned.
+    act(() => {
+      useWorkbenchStore.getState().deleteFile("main.tex");
+    });
+    expect(cache.has("main.tex#0")).toBe(false);
+    expect(cache.has("chapter.tex#0")).toBe(true);
+  });
+
+  it("isolates recreation: delete then recreate the same path starts fresh", () => {
+    seedStore({
+      activeFileId: "main.tex",
+      openFiles: ["main.tex"],
+      filesByPath: { "main.tex": "v1" },
+      versionsByPath: { "main.tex": 1 },
+      dirtyByPath: { "main.tex": false },
+    });
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    const cache = codeEditorRuntime.latestProps?.historyCache as Map<
+      string,
+      unknown
+    >;
+    cache.set("main.tex#0", { marker: "stale-state" } as unknown as never);
+
+    act(() => {
+      useWorkbenchStore.getState().deleteFile("main.tex");
+    });
+    expect(cache.has("main.tex#0")).toBe(false);
+
+    act(() => {
+      useWorkbenchStore.getState().createFile("main.tex", "v1", { open: true });
+    });
+    // Recreation with identical content must not resurrect the deleted history.
+    expect(cache.has("main.tex#0")).toBe(false);
+    expect(codeEditorRuntime.latestProps?.historyKey).toBe("main.tex#1");
+    expect(codeEditorRuntime.latestProps?.value).toBe("v1");
+  });
+
+  it("prunes even when delete and recreate land in the same tick", () => {
+    seedStore({
+      activeFileId: "main.tex",
+      openFiles: ["main.tex"],
+      filesByPath: { "main.tex": "same-content" },
+      versionsByPath: { "main.tex": 1 },
+      dirtyByPath: { "main.tex": false },
+    });
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    const cache = codeEditorRuntime.latestProps?.historyCache as Map<
+      string,
+      unknown
+    >;
+    cache.set("main.tex#0", { marker: "stale" } as unknown as never);
+
+    act(() => {
+      // No intermediate render observes the deletion; the store subscription
+      // must still prune so the recreated file starts fresh.
+      useWorkbenchStore.getState().deleteFile("main.tex");
+      useWorkbenchStore
+        .getState()
+        .createFile("main.tex", "same-content", { open: true });
+    });
+    expect(cache.has("main.tex#0")).toBe(false);
+    expect(codeEditorRuntime.latestProps?.historyKey).toBe("main.tex#1");
   });
 });

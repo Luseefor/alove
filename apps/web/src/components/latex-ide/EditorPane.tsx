@@ -51,10 +51,33 @@ export function EditorPane() {
   );
   const editorKeybindings = useIdeSettingsStore((s) => s.editorKeybindings);
 
-  const historyCache = useMemo(
-    () => ({ projectId, states: new Map<string, EditorState>() }),
+  const history = useMemo(
+    () => ({
+      states: new Map<string, EditorState>(),
+      generations: new Map<string, number>(),
+    }),
     [projectId],
-  ).states;
+  );
+  const historyCache = history.states;
+  useEffect(
+    () =>
+      useWorkbenchStore.subscribe((state, previous) => {
+        if (state.projectId !== projectId || previous.projectId !== projectId)
+          return;
+        // Observe intermediate deletes even when React batches deletion and recreation.
+        for (const path of Object.keys(previous.filesByPath)) {
+          if (!Object.hasOwn(state.filesByPath, path)) {
+            const generation = history.generations.get(path) ?? 0;
+            history.states.delete(`${path}#${generation}`);
+            history.generations.set(path, generation + 1);
+          }
+        }
+      }),
+    [history, projectId],
+  );
+  const historyKey = activeFileId
+    ? `${activeFileId}#${history.generations.get(activeFileId) ?? 0}`
+    : "";
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const codeEditorRef = useRef<LatexCodeEditorHandle | null>(null);
 
@@ -393,10 +416,10 @@ export function EditorPane() {
             </div>
           ) : codeMirrorEnabled ? (
             <LatexCodeEditor
-              key={`${projectId}:${activeFileId}`}
+              key={`${projectId}:${historyKey}`}
               ref={codeEditorRef}
               historyCache={historyCache}
-              historyKey={activeFileId}
+              historyKey={historyKey}
               recordExternalChanges={
                 Boolean(dirtyByPath[activeFileId]) || Boolean(nextSelection)
               }
