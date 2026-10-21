@@ -36,12 +36,16 @@ function makeInput(
 
 function openRaw(factory: IDBFactory): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = factory.open(DB_NAME, 1);
+    const req = factory.open(DB_NAME, 2);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("workspaces")) {
         db.createObjectStore("workspaces", { keyPath: "id" });
       }
+      if (!db.objectStoreNames.contains("checkpoints"))
+        db.createObjectStore("checkpoints", {
+          keyPath: ["id", "revision"],
+        }).createIndex("id", "id");
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -277,5 +281,101 @@ describe("workspace library operations", () => {
       LocalWorkspaceDataError,
     );
     expect(await getRaw(factory, corrupt.id)).toEqual(corrupt);
+  });
+});
+
+describe("workspace checkpoints", () => {
+  it("checkpoints source replacements but not tab-only saves, and bounds retention", async () => {
+    const repo = createLocalWorkspaceRepository(newFactory());
+    let current = await repo.save(makeInput(), 0);
+    current = await repo.save(
+      { ...current, activeFile: "main.tex" },
+      current.revision,
+    );
+    expect(await repo.listHistory(current.id)).toEqual([]);
+    for (let i = 0; i < 25; i++) {
+      current = await repo.save(
+        {
+          ...current,
+          files: { "main.tex": `source ${i}` },
+          activeFile: "main.tex",
+          openFiles: ["main.tex"],
+        },
+        current.revision,
+      );
+    }
+    const rows = await repo.listHistory(current.id);
+    expect(rows).toHaveLength(20);
+    expect(rows[0].files["main.tex"]).toBe("source 23");
+    expect(rows[19].files["main.tex"]).toBe("source 4");
+    expect(await repo.listHistory("unrelated")).toEqual([]);
+  });
+
+  it("atomically refuses replacement or deletion if its checkpoint cannot be written", async () => {
+    const repo = createLocalWorkspaceRepository(newFactory());
+    const original = await repo.save(makeInput(), 0);
+    const proto = FDBObjectStore.prototype;
+    const put = proto.put;
+    proto.put = function (...args: Parameters<typeof put>) {
+      if (this.name === "checkpoints")
+        throw new DOMException("Full", "QuotaExceededError");
+      return put.apply(this, args);
+    };
+    try {
+      await expect(
+        repo.save(
+          {
+            ...original,
+            files: { "main.tex": "replace" },
+            activeFile: "main.tex",
+            openFiles: [],
+          },
+          1,
+        ),
+      ).rejects.toThrow("Full");
+      await expect(repo.remove(original.id, 1)).rejects.toThrow("Full");
+    } finally {
+      proto.put = put;
+    }
+    expect(await repo.load(original.id)).toEqual(original);
+    expect(await repo.listHistory(original.id)).toEqual([]);
+  });
+
+  it("keeps the last source of deleted projects available for recovery as a copy", async () => {
+    const repo = createLocalWorkspaceRepository(newFactory());
+    const original = await repo.save(makeInput(), 0);
+    await repo.remove(original.id, 1);
+    expect(await repo.listDeleted()).toEqual([original]);
+    const restored = await repo.save({ ...original, id: "recovered-copy" }, 0);
+    expect(restored.files).toEqual(original.files);
+    expect(await repo.load(original.id)).toBeNull();
+  });
+
+  it("upgrades an existing v1 database without changing its workspace", async () => {
+    const factory = newFactory();
+    const original = {
+      ...makeInput(),
+      schemaVersion: 1,
+      revision: 7,
+      updatedAt: 1,
+    };
+    const db = await new Promise<IDBDatabase>((resolve) => {
+      const req = factory.open(DB_NAME, 1);
+      req.onupgradeneeded = () =>
+        req.result.createObjectStore("workspaces", { keyPath: "id" });
+      req.onsuccess = () => resolve(req.result);
+    });
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction("workspaces", "readwrite");
+      tx.objectStore("workspaces").put(original);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+    });
+    const repo = createLocalWorkspaceRepository(factory);
+    expect(await repo.load(original.id)).toEqual(original);
+    await repo.save({ ...original, title: "after upgrade" }, 7);
+    expect(await repo.listHistory(original.id)).toEqual([original]);
   });
 });

@@ -37,6 +37,41 @@ export class LocalWorkspaceDataError extends Error {
 
 const DEFAULT_DB = "alove-workspaces";
 const STORE = "workspaces";
+const HISTORY = "checkpoints";
+export const MAX_WORKSPACE_CHECKPOINTS = 20;
+export const MAX_WORKSPACE_HISTORY_BYTES = 50 * 1024 * 1024;
+
+function sourceChanged(a: LocalWorkspaceInput, b: LocalWorkspaceInput) {
+  return (
+    a.title !== b.title ||
+    a.mainFile !== b.mainFile ||
+    JSON.stringify(Object.entries(a.files).sort()) !==
+      JSON.stringify(Object.entries(b.files).sort())
+  );
+}
+
+/** Called inside the same transaction as replacement/deletion: both commit or neither does. */
+function checkpoint(tx: IDBTransaction, workspace: LocalWorkspace) {
+  const history = tx.objectStore(HISTORY);
+  history.put(workspace);
+  const request = history.index("id").getAll(workspace.id);
+  request.onsuccess = () => {
+    const rows = request.result as LocalWorkspace[];
+    rows.sort((a, b) => b.revision - a.revision);
+    let bytes = 0;
+    for (const [i, row] of rows.entries()) {
+      const size = new TextEncoder().encode(JSON.stringify(row)).byteLength;
+      // A single checkpoint too large for retention must block replacement.
+      if (i === 0 && size > MAX_WORKSPACE_HISTORY_BYTES) {
+        tx.abort();
+        return;
+      }
+      bytes += size;
+      if (i >= MAX_WORKSPACE_CHECKPOINTS || bytes > MAX_WORKSPACE_HISTORY_BYTES)
+        history.delete([row.id, row.revision]);
+    }
+  };
+}
 
 function fail(message: string): never {
   throw new LocalWorkspaceDataError(message);
@@ -128,7 +163,7 @@ function openDb(factory: IDBFactory, name: string): Promise<IDBDatabase> {
     let settled = false;
     let req: IDBOpenDBRequest;
     try {
-      req = factory.open(name, 1);
+      req = factory.open(name, 2);
     } catch (error) {
       reject(
         error instanceof Error
@@ -141,6 +176,11 @@ function openDb(factory: IDBFactory, name: string): Promise<IDBDatabase> {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE))
         db.createObjectStore(STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(HISTORY)) {
+        db.createObjectStore(HISTORY, {
+          keyPath: ["id", "revision"],
+        }).createIndex("id", "id");
+      }
     };
     req.onsuccess = () => {
       const db = req.result;
@@ -297,7 +337,7 @@ export function createLocalWorkspaceRepository(
       };
       let tx: IDBTransaction;
       try {
-        tx = db.transaction(STORE, "readwrite");
+        tx = db.transaction([STORE, HISTORY], "readwrite");
       } catch (e) {
         try {
           db.close();
@@ -397,6 +437,8 @@ export function createLocalWorkspaceRepository(
             revision: expectedRevision + 1,
             updatedAt: Date.now(),
           };
+          if (stored && sourceChanged(stored as LocalWorkspace, next))
+            checkpoint(tx, stored as LocalWorkspace);
           let putReq: IDBRequest;
           try {
             putReq = store.put(next);
@@ -489,7 +531,7 @@ export function createLocalWorkspaceRepository(
       fail("Invalid delete request");
     const db = await openDb(resolveFactory(), dbName);
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
+      const tx = db.transaction([STORE, HISTORY], "readwrite");
       let failure: unknown;
       tx.oncomplete = () => {
         db.close();
@@ -516,6 +558,7 @@ export function createLocalWorkspaceRepository(
             throw new LocalWorkspaceConflictError(
               "Project changed in another tab. Refresh before deleting.",
             );
+          checkpoint(tx, request.result as LocalWorkspace);
           store.delete(id);
         } catch (error) {
           failure = error;
@@ -525,5 +568,74 @@ export function createLocalWorkspaceRepository(
     });
   }
 
-  return { load, save, list, remove };
+  async function listHistory(id: string): Promise<LocalWorkspace[]> {
+    const db = await openDb(resolveFactory(), dbName);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(HISTORY, "readonly");
+      let rows: LocalWorkspace[] = [];
+      let failure: unknown;
+      tx.oncomplete = () => {
+        db.close();
+        failure ? reject(failure) : resolve(rows);
+      };
+      tx.onerror = tx.onabort = () => {
+        db.close();
+        reject(
+          failure ??
+            tx.error ??
+            new LocalWorkspaceDataError("History unavailable"),
+        );
+      };
+      const request = tx.objectStore(HISTORY).index("id").getAll(id);
+      request.onsuccess = () => {
+        try {
+          rows = request.result;
+          for (const row of rows) checkStored(row, id);
+          rows.sort((a, b) => b.revision - a.revision);
+        } catch (error) {
+          failure = error;
+          tx.abort();
+        }
+      };
+    });
+  }
+
+  async function listDeleted(): Promise<LocalWorkspace[]> {
+    const db = await openDb(resolveFactory(), dbName);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE, HISTORY], "readonly");
+      const current = tx.objectStore(STORE).getAllKeys();
+      const history = tx.objectStore(HISTORY).getAll();
+      tx.oncomplete = () => {
+        db.close();
+        try {
+          const ids = new Set(current.result);
+          const latest = new Map<string, LocalWorkspace>();
+          for (const row of history.result) {
+            checkStored(row);
+            if (
+              !ids.has(row.id) &&
+              (!latest.has(row.id) ||
+                latest.get(row.id)!.revision < row.revision)
+            )
+              latest.set(row.id, row);
+          }
+          resolve(
+            [...latest.values()].sort((a, b) => b.updatedAt - a.updatedAt),
+          );
+        } catch (error) {
+          reject(error);
+        }
+      };
+      tx.onerror = tx.onabort = () => {
+        db.close();
+        reject(
+          tx.error ??
+            new LocalWorkspaceDataError("Deleted history unavailable"),
+        );
+      };
+    });
+  }
+
+  return { load, save, list, remove, listHistory, listDeleted };
 }
