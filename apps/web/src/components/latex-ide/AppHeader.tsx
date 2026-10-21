@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { IdeSettingsDialog } from "./IdeSettingsDialog";
+import { useProjectTools } from "./ProjectToolsContext";
 import { WorkspaceHistory } from "./WorkspaceHistory";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/primitives";
@@ -72,6 +73,9 @@ function IconButton({
 }
 
 export function AppHeader() {
+  const projectTools = useProjectTools();
+  const role = useWorkbenchStore(s => s.projectRole);
+  const readOnly = role === "viewer";
   const {
     projectTitle,
     saveStatus,
@@ -207,7 +211,7 @@ export function AppHeader() {
                 icon={Save}
                 title="Save (Ctrl+S)"
                 onClick={() => void saveAllDirtyFiles()}
-                disabled={!hasDirty && !activeFileId}
+                disabled={readOnly || (!hasDirty && !activeFileId)}
                 className={
                   hasDirty
                     ? "text-primary hover:bg-primary/90 hover:text-primary-foreground"
@@ -222,11 +226,13 @@ export function AppHeader() {
                 <IconButton
                   icon={Undo2}
                   title="Undo"
+                  disabled={readOnly}
                   onClick={() => requestEditorCommand("undo")}
                 />
                 <IconButton
                   icon={Redo2}
                   title="Redo"
+                  disabled={readOnly}
                   onClick={() => requestEditorCommand("redo")}
                 />
               </div>
@@ -240,6 +246,7 @@ export function AppHeader() {
                 <button
                   ref={renameButtonRef}
                   type="button"
+                  disabled={readOnly}
                   aria-label="Rename project"
                   aria-haspopup="dialog"
                   title="Rename project"
@@ -284,7 +291,7 @@ export function AppHeader() {
           </div>
 
           {/* Right Actions */}
-          <div className="order-2 ml-auto flex shrink-0 items-center gap-1 sm:gap-2 md:order-3 md:ml-0">
+          <div className="order-2 ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1 sm:gap-2 md:order-3 md:ml-0">
             <div className="flex shrink-0 items-center gap-1">
               <IconButton
                 icon={Settings}
@@ -293,8 +300,8 @@ export function AppHeader() {
               />
             </div>
 
-            <div className="mr-1 flex items-center gap-1 border-r border-border pr-2 sm:mr-2 sm:gap-2 sm:pr-3">
-              {
+            <div className="mr-1 flex min-w-0 flex-wrap items-center justify-end gap-1 border-r border-border pr-2 sm:mr-2 sm:gap-2 sm:pr-3">
+              {projectTools ?? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -306,7 +313,7 @@ export function AppHeader() {
                   <Share2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span className="hidden lg:inline">Share</span>
                 </Button>
-              }
+              )}
 
               {/* Workspace history stays visible on narrow layouts next to Export. */}
               <WorkspaceHistory />
@@ -388,7 +395,7 @@ export function AppHeader() {
                 size="sm"
                 data-testid="compile-button"
                 onClick={() => void runCompile()}
-                disabled={buildStatus === "running" || buildStatus === "queued"}
+                disabled={readOnly || buildStatus === "running" || buildStatus === "queued"}
                 className="h-9 shrink-0 gap-2 whitespace-nowrap rounded-md px-3 font-bold sm:px-5"
               >
                 <Play

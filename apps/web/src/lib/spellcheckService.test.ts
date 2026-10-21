@@ -99,6 +99,7 @@ describe("spellcheckService with dictionary-en", () => {
     ).join(" ");
     const hits = checkDocument(alpha, loadRealChecker(), {
       maxMisspellings: 5,
+      maxSuggestions: 0,
     });
     expect(hits.length).toBeLessThanOrEqual(5);
   });
