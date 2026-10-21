@@ -7,10 +7,12 @@ import {
 import {
   buildCiteCompletions,
   buildRefCompletions,
+  createProjectAwareCompletionSource,
   findCiteCompletion,
   findRefCompletion,
   parseBibEntries,
   parseTexLabels,
+  type ProjectLanguageIndex,
 } from "@alove/editor";
 
 describe("parseBibEntries", () => {
@@ -179,5 +181,26 @@ describe("projectLanguage filters", () => {
     expect(filterCitations(citations, "nope")).toHaveLength(0);
     expect(filterLabels(labels, "intro")).toHaveLength(1);
     expect(filterLabels(labels, "nope")).toHaveLength(0);
+  });
+});
+
+describe("project-aware completion source", () => {
+  function fakeContext(doc: string, pos: number) {
+    return { state: { doc: { toString: () => doc } }, pos } as never;
+  }
+
+  it("reads the live index at invocation time without rebuilding", () => {
+    const live: ProjectLanguageIndex = { cites: [], labels: [] };
+    const source = createProjectAwareCompletionSource(() => live);
+    const doc = "See \\cite{";
+    expect(source(fakeContext(doc, doc.length))?.options).toEqual([]);
+    live.cites.push({ key: "einstein1905", title: "Relativity" });
+    live.labels.push({ label: "sec:intro", context: "Intro" });
+    const options = source(fakeContext(doc, doc.length))?.options ?? [];
+    expect(options.map((o) => String(o.label))).toEqual(["einstein1905"]);
+    const refDoc = "See \\ref{";
+    const refOptions =
+      source(fakeContext(refDoc, refDoc.length))?.options ?? [];
+    expect(refOptions.map((o) => String(o.label))).toEqual(["sec:intro"]);
   });
 });

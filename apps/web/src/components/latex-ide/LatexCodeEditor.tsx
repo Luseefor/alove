@@ -106,6 +106,16 @@ type CompletionIndex = {
   labels: ProjectLabelEntry[];
 };
 
+// Module-constant defaults: prop defaults like `= []` allocate a fresh
+// array every render, and effect deps on those identities refire on plain
+// rerenders (e.g. a focus-triggered store update). A view.dispatch from
+// such a spurious refresh can land between Playwright's select-all and
+// insert and collapse the DOM selection, so fill() appends instead of
+// replacing. Never allocate defaults inline.
+const EMPTY_WORDS: string[] = [];
+const EMPTY_CITES: ProjectCiteEntry[] = [];
+const EMPTY_LABELS: ProjectLabelEntry[] = [];
+
 function matchCase(source: string, suggestion: string): string {
   if (
     source.length > 0 &&
@@ -230,10 +240,8 @@ function cacheEditorState(
 function buildDynamicExtensions(
   theme: EditorTheme,
   settings: LatexSettings,
-  completion?: CompletionIndex | null,
+  getCompletion?: () => CompletionIndex,
 ): Extension[] {
-  const cites = completion?.cites ?? [];
-  const labels = completion?.labels ?? [];
   return [
     ...createLatexEditorExtensions(theme, {
       vim: settings.keybindings === "vim",
@@ -243,10 +251,9 @@ function buildDynamicExtensions(
       wordWrap: settings.wordWrap,
       autocomplete: settings.autocompleteEnabled,
       nonBlinkingCursor: settings.nonBlinkingCursor,
-      completionIndex:
-        cites.length > 0 || labels.length > 0
-          ? () => ({ cites, labels })
-          : undefined,
+      // Stable getter: the project-aware source reads the live index at
+      // invocation time, so language updates never rebuild this compartment.
+      completionIndex: getCompletion,
     }),
     EditorView.editable.of(!settings.readOnly),
     EditorView.contentAttributes.of({
@@ -270,12 +277,12 @@ export const LatexCodeEditor = forwardRef<
     className,
     readOnly = false,
     spellCheck = false,
-    spellcheckCustomWords = [],
-    spellcheckIgnoreWords = [],
+    spellcheckCustomWords = EMPTY_WORDS,
+    spellcheckIgnoreWords = EMPTY_WORDS,
     spellcheckChecker,
     onAddSpellcheckWord,
-    citationEntries = [],
-    labelEntries = [],
+    citationEntries = EMPTY_CITES,
+    labelEntries = EMPTY_LABELS,
     wordWrap = true,
     autoCloseBrackets = true,
     autocompleteEnabled = true,
@@ -306,10 +313,14 @@ export const LatexCodeEditor = forwardRef<
   onSelectionChangeRef.current = onSelectionChange;
   onFocusRef.current = onFocus;
 
-  const completionIndex = useMemo<CompletionIndex>(
-    () => ({ cites: citationEntries, labels: labelEntries }),
-    [citationEntries, labelEntries],
-  );
+  const completionRef = useRef<CompletionIndex>({ cites: [], labels: [] });
+  completionRef.current = { cites: citationEntries, labels: labelEntries };
+  // Stable across renders: the completion source reads the live index
+  // through this getter at invocation time, so per-keystroke array
+  // identities from the project store never rebuild the compartment.
+  const getCompletionIndex = useRef<() => CompletionIndex>(
+    () => completionRef.current,
+  ).current;
   // Injected checker (tests). When omitted, the full dictionary-en engine
   // lazy-loads once spellcheck is enabled; there is no bundled-list path.
   const serviceChecker = useEnglishSpellchecker(
@@ -334,8 +345,6 @@ export const LatexCodeEditor = forwardRef<
   );
   const spellOptionsRef = useRef(spellOptions);
   spellOptionsRef.current = spellOptions;
-  const completionRef = useRef(completionIndex);
-  completionRef.current = completionIndex;
 
   function refreshDiagnostics(view: EditorView) {
     const diagnostic = diagnosticRef.current;
@@ -438,7 +447,7 @@ export const LatexCodeEditor = forwardRef<
           },
         }),
         compartment.of(
-          buildDynamicExtensions(initialTheme, settings, completionRef.current),
+          buildDynamicExtensions(initialTheme, settings, getCompletionIndex),
         ),
         ...restoredHistory,
       ],
@@ -452,7 +461,7 @@ export const LatexCodeEditor = forwardRef<
       view.destroy();
       viewRef.current = null;
     };
-  }, []);
+  }, [getCompletionIndex]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -474,7 +483,7 @@ export const LatexCodeEditor = forwardRef<
             keybindings,
             ariaLabel,
           },
-          completionIndex,
+          getCompletionIndex,
         ),
       ),
     });
@@ -483,13 +492,12 @@ export const LatexCodeEditor = forwardRef<
     ariaLabel,
     autoCloseBrackets,
     autocompleteEnabled,
+    getCompletionIndex,
     nonBlinkingCursor,
     keybindings,
     readOnly,
     spellCheck,
     wordWrap,
-    completionIndex,
-    spellOptions,
   ]);
 
   useEffect(() => {
@@ -506,7 +514,7 @@ export const LatexCodeEditor = forwardRef<
           buildDynamicExtensions(
             next,
             settingsRef.current,
-            completionRef.current,
+            getCompletionIndex,
           ),
         ),
       });
@@ -519,7 +527,7 @@ export const LatexCodeEditor = forwardRef<
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [getCompletionIndex]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -537,11 +545,19 @@ export const LatexCodeEditor = forwardRef<
     });
   }, [value, recordExternalChanges]);
 
-  // Immediate refresh for toggles, settings, and checker readiness.
+  // Immediate refresh for compile diagnostics only. Spell config has its
+  // own effect below; completion data never needs a marker refresh.
   useEffect(() => {
     const view = viewRef.current;
     if (view) refreshDiagnostics(view);
-  }, [diagnostics, filePath, mainFile, spellOptions, completionIndex]);
+  }, [diagnostics, filePath, mainFile]);
+
+  // Spell checker/custom-word changes refresh markers without touching
+  // the settings compartment.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view) refreshDiagnostics(view);
+  }, [checker, spellcheckCustomWords, spellcheckIgnoreWords]);
 
   // Debounced refresh for keystrokes: full-dictionary suggest() per
   // misspelling is bounded but not keystroke-cheap, so value edits wait.

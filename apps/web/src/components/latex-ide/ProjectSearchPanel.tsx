@@ -274,6 +274,7 @@ export function ProjectSearchPanel() {
               type="checkbox"
               checked={caseSensitive}
               onChange={(e) => setCaseSensitive(e.target.checked)}
+              aria-label="Case"
               data-testid="project-search-case"
               className="w-3 h-3 rounded border-zinc-300 text-primary focus:ring-primary/20"
             />
@@ -284,6 +285,7 @@ export function ProjectSearchPanel() {
               type="checkbox"
               checked={wholeWord}
               onChange={(e) => setWholeWord(e.target.checked)}
+              aria-label="Whole word"
               data-testid="project-search-whole-word"
               className="w-3 h-3 rounded border-zinc-300 text-primary focus:ring-primary/20"
             />
@@ -294,6 +296,7 @@ export function ProjectSearchPanel() {
               type="checkbox"
               checked={useRegex}
               onChange={(e) => setUseRegex(e.target.checked)}
+              aria-label="Regex"
               data-testid="project-search-regex"
               className="w-3 h-3 rounded border-zinc-300 text-primary focus:ring-primary/20"
             />
@@ -395,7 +398,7 @@ export function ProjectSearchPanel() {
                         data-path={r.path}
                         data-line={r.line}
                         data-column={r.column}
-                        aria-label={`Go to match in ${r.path} line ${r.line}`}
+                        aria-label={`Go to match in ${r.path} line ${r.line}: ${r.preview}`}
                         aria-current={globalIndex === navIndex ? "true" : undefined}
                         onClick={() => navigateTo(globalIndex)}
                         className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
