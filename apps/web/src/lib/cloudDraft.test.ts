@@ -372,3 +372,43 @@ describe("draft write ordering", () => {
     expect((await repo.load(current.userId, current.projectId, current.tabId))?.files["main.tex"]).toBe("new text");
   });
 });
+
+describe("draft incarnation tokens", () => {
+  it("roundtrips incarnation tokens alongside versions", async () => {
+    const repo = createCloudDraftRepository(newFactory());
+    const draft = makeDraft({
+      userId: "u-tok",
+      projectId: "p-tok",
+      tabId: "t-tok",
+      files: { "main.tex": "hello" },
+      versions: { "main.tex": 3 },
+      incarnations: { "main.tex": "row-id-1" },
+    });
+    await repo.save(draft);
+    expect(await repo.load("u-tok", "p-tok", "t-tok")).toEqual(draft);
+  });
+
+  it("accepts legacy drafts without incarnations", async () => {
+    const repo = createCloudDraftRepository(newFactory());
+    const draft = makeDraft({ userId: "u-leg", projectId: "p-leg", tabId: "t-leg" });
+    expect(draft.incarnations).toBeUndefined();
+    await repo.save(draft);
+    expect(await repo.load("u-leg", "p-leg", "t-leg")).toEqual(draft);
+  });
+
+  it("rejects incarnations for unknown paths, bad paths, or empty tokens", async () => {
+    const factory = newFactory();
+    const repo = createCloudDraftRepository(factory);
+    const base = makeDraft({ userId: "u-v", projectId: "p-v", tabId: "t-v" });
+    await expect(
+      repo.save({ ...base, incarnations: { "other.tex": "tok" } }),
+    ).rejects.toBeInstanceOf(CloudDraftDataError);
+    await expect(
+      repo.save({ ...base, incarnations: { "../evil.tex": "tok" } }),
+    ).rejects.toBeInstanceOf(CloudDraftDataError);
+    await expect(
+      repo.save({ ...base, incarnations: { "main.tex": "" } }),
+    ).rejects.toBeInstanceOf(CloudDraftDataError);
+    expect(await repo.load("u-v", "p-v", "t-v")).toBeNull();
+  });
+});

@@ -6,6 +6,10 @@ export type CloudDraft = {
   tabId: string;
   files: Record<string, string>;
   versions: Record<string, number>;
+  /** Row `_id` per path at draft time: the delete+recreate incarnation token.
+   *  Optional for legacy drafts; restore treats a missing token as stale
+   *  (fail closed) instead of rebasing onto the current server token. */
+  incarnations?: Record<string, string>;
   dirtyPaths?: string[];
   title: string;
   mainFile: string | null;
@@ -60,6 +64,18 @@ function checkVersions(
   }
 }
 
+function checkIncarnations(
+  value: unknown,
+  files: Record<string, string>,
+): asserts value is Record<string, string> {
+  if (!isPlainRecord(value)) fail("Invalid incarnations");
+  for (const [k, v] of Object.entries(value)) {
+    if (normalizeCompilePath(k) !== k) fail("Invalid incarnations");
+    if (!Object.hasOwn(files, k)) fail("Invalid incarnations");
+    if (typeof v !== "string" || v.length === 0) fail("Invalid incarnations");
+  }
+}
+
 function checkDraft(value: unknown): asserts value is CloudDraft {
   if (!isPlainRecord(value)) fail("Invalid draft");
   const d = value as Record<string, unknown>;
@@ -74,6 +90,13 @@ function checkDraft(value: unknown): asserts value is CloudDraft {
     d["versions"],
     d["files"] as Record<string, string>,
   );
+  if (d["incarnations"] !== undefined) {
+    if (!isPlainRecord(d["incarnations"])) fail("Invalid incarnations");
+    checkIncarnations(
+      d["incarnations"],
+      d["files"] as Record<string, string>,
+    );
+  }
   if (d["dirtyPaths"] !== undefined && (!Array.isArray(d["dirtyPaths"]) || d["dirtyPaths"].some((path: unknown) => typeof path !== "string" || !Object.hasOwn(d["files"] as object, path)))) fail("Invalid dirty paths");
   const mainFile = d["mainFile"];
   if (mainFile !== null) {

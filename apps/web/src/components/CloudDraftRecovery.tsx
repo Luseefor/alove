@@ -45,7 +45,8 @@ export function CloudDraftRecovery({ userId, projectId, children }: { userId: st
       if (state.cloudUserId !== userId || state.projectId !== projectId || !Object.values(state.dirtyByPath).some(Boolean)) return null;
       const versions = Object.fromEntries(Object.keys(state.filesByPath).map((path) => [path, state.versionsByPath[path] ?? 0]));
       clock = Math.max(Date.now(), clock + 1);
-      return { userId, projectId, tabId: key.current, files: { ...state.filesByPath }, versions, dirtyPaths: Object.keys(state.dirtyByPath).filter((path) => state.dirtyByPath[path] && Object.hasOwn(state.filesByPath, path)), title: state.projectTitle, mainFile: state.mainFile, updatedAt: clock };
+      const incarnations = Object.fromEntries(Object.entries(state.incarnationsByPath).filter(([path]) => Object.hasOwn(state.filesByPath, path)));
+      return { userId, projectId, tabId: key.current, files: { ...state.filesByPath }, versions, incarnations, dirtyPaths: Object.keys(state.dirtyByPath).filter((path) => state.dirtyByPath[path] && Object.hasOwn(state.filesByPath, path)), title: state.projectTitle, mainFile: state.mainFile, updatedAt: clock };
     };
     const save = async () => {
       if (!ready.current || !live) return;
@@ -115,6 +116,7 @@ export function CloudDraftRecovery({ userId, projectId, children }: { userId: st
     const restoredPaths = pending.dirtyPaths ?? Object.keys(pending.files);
     const files = { ...state.filesByPath };
     const versions = { ...state.versionsByPath };
+    const incarnations = { ...state.incarnationsByPath };
     const dirty = { ...state.dirtyByPath };
     let stale = false;
     for (const path of restoredPaths) {
@@ -123,10 +125,15 @@ export function CloudDraftRecovery({ userId, projectId, children }: { userId: st
       dirty[path] = files[path] !== state.filesByPath[path];
       if (dirty[path]) {
         versions[path] = pending.versions[path] ?? 0;
-        if ((state.versionsByPath[path] ?? 0) !== versions[path]) stale = true;
+        const originalIdentity = pending.incarnations?.[path];
+        if (originalIdentity) incarnations[path] = originalIdentity;
+        else delete incarnations[path];
+        // Older drafts lack identity evidence: never rebase them onto a recreated row.
+        if ((state.versionsByPath[path] ?? 0) !== versions[path] ||
+            (versions[path] > 0 && (!originalIdentity || originalIdentity !== state.incarnationsByPath[path]))) stale = true;
       }
     }
-    useWorkbenchStore.setState({ filesByPath: files, dirtyByPath: dirty, versionsByPath: versions,
+    useWorkbenchStore.setState({ filesByPath: files, dirtyByPath: dirty, versionsByPath: versions, incarnationsByPath: incarnations,
       saveStatus: stale ? "conflict" : Object.values(dirty).some(Boolean) ? "unsaved" : "saved", saveMessage: stale ? "Cloud files changed since this draft. Review and export your restored edits before resolving the conflict." : "Draft restored. Review your source, then save.",
     });
     setPending(null); ready.current = true;
