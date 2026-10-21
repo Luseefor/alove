@@ -17,6 +17,7 @@ import {
   Annotation,
   Transaction,
   type Extension,
+  type Text,
 } from "@codemirror/state";
 import type { Diagnostic } from "@alove/protocol";
 import {
@@ -346,20 +347,59 @@ export const LatexCodeEditor = forwardRef<
   const spellOptionsRef = useRef(spellOptions);
   spellOptionsRef.current = spellOptions;
 
+  // Last dispatched diagnostic refresh, per view. A refresh whose inputs
+  // are all identical on an unchanged doc is a no-op and must not
+  // dispatch: e.g. the debounced value timer firing after a checker-ready
+  // immediate refresh would otherwise replace the same diagnostics and
+  // dismiss a hovered lint tooltip (spelling suggestions).
+  const lastRefreshRef = useRef<null | {
+    view: EditorView;
+    doc: Text;
+    diagnostics: Diagnostic[] | undefined;
+    filePath: string | undefined;
+    mainFile: string | null | undefined;
+    spell: typeof spellOptions;
+    onAddWord: ((word: string) => void) | undefined;
+  }>(null);
+
   function refreshDiagnostics(view: EditorView) {
     const diagnostic = diagnosticRef.current;
     const spell = spellOptionsRef.current;
+    const onAddWord = onAddSpellcheckWordRef.current;
+    const doc = view.state.doc;
+    const prev = lastRefreshRef.current;
+    if (
+      prev !== null &&
+      prev.view === view &&
+      prev.doc === doc &&
+      prev.diagnostics === diagnostic.diagnostics &&
+      prev.filePath === diagnostic.filePath &&
+      prev.mainFile === diagnostic.mainFile &&
+      prev.spell === spell &&
+      prev.onAddWord === onAddWord
+    ) {
+      return;
+    }
     const compile = toCmDiagnostics(
-      view.state.doc,
+      doc,
       diagnostic.diagnostics ?? [],
       diagnostic.filePath,
       diagnostic.mainFile,
     );
-    const spellDiags = toSpellcheckDiagnostics(view.state.doc.toString(), {
+    const spellDiags = toSpellcheckDiagnostics(doc.toString(), {
       ...spell,
-      onAddWord: onAddSpellcheckWordRef.current,
+      onAddWord,
     });
     view.dispatch(setDiagnostics(view.state, [...compile, ...spellDiags]));
+    lastRefreshRef.current = {
+      view,
+      doc,
+      diagnostics: diagnostic.diagnostics,
+      filePath: diagnostic.filePath,
+      mainFile: diagnostic.mainFile,
+      spell,
+      onAddWord,
+    };
   }
 
   const compartmentRef = useRef<Compartment | null>(null);
@@ -460,6 +500,7 @@ export const LatexCodeEditor = forwardRef<
       cacheEditorState(mountCache, mountKey, view.state);
       view.destroy();
       viewRef.current = null;
+      lastRefreshRef.current = null;
     };
   }, [getCompletionIndex]);
 

@@ -1397,4 +1397,37 @@ describe("LatexCodeEditor", () => {
     spy.mockRestore();
     expect(ref.current?.getValue()).toBe("hello world");
   });
+
+  it("skips redundant identical refreshes so hovered tooltips survive the debounce timer", async () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const { createWordListChecker } = await import(
+      "@/lib/spellcheckService"
+    );
+    const { getBaseDictionary } = await import("@alove/editor");
+    const doc = "The teh quick brown fox.";
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={true}
+          spellcheckChecker={createWordListChecker(getBaseDictionary())}
+        />,
+      );
+    });
+    // Mount dispatches the initial refresh immediately; the debounced
+    // value timer fires later with identical inputs. It must be a no-op:
+    // re-dispatching the same diagnostics dismisses a hovered lint
+    // tooltip (spelling suggestions).
+    const spy = vi.spyOn(findView(), "dispatch");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+    expect(host().querySelectorAll(".cm-lintRange-warning").length).toBeGreaterThan(0);
+  });
 });
