@@ -66,7 +66,7 @@ Each row is one reviewable change or a short sequence of tightly related commits
 - **Dependable local release:** B0, D1-D4, C1-C3, E1-E3, relevant U1/R1 checks, and C4 local-network restrictions. Acknowledged saves survive refresh; failures visible; source exportable; compile bounded. No cloud account needed.
 - **Private cloud release:** add C4-C5 and S1. Pass the cloud environment matrix and distinct-user authorization checks on the deployed revision.
 - **Shared workspace release:** add S2 and full U1. Demonstrate conflict recovery/revocation before advertising multi-user collaboration.
-- **Later enhancements:** SyncTeX, citation/reference completion, cross-file search, Git integration, comments/track changes, measured compile caching. Prioritize from usage after reliability gates. Dashboard controls require working backing operations.
+- **Later enhancements:** SyncTeX, richer cite/ref completion, spellcheck, cross-file search enhancements, Git/server history, roles/comments/track changes, measured compile caching. Prioritize from usage after reliability gates. Dashboard controls require working backing operations.
 
 ## First implementation batch
 
@@ -83,11 +83,11 @@ This change adds the roadmap only. Passing checks on the starting snapshot are f
 
 ## Reliability follow-up gate (issues #25–#28)
 
-Complete and verify these editing reliability boundaries before starting the later enhancements above:
+Implemented and merged in PR #29. Delivered reliability boundaries:
 
 1. D4: bounded local source checkpoints, preview/cancel/restore, and a checkpoint of current work before replacement or project deletion (#25). Templates, new projects and archive imports continue to create separate projects.
 2. Cloud mutations: compare both file version and row identity, preserve drafts on failed/conflicting delete or rename, and carry the original identity through browser draft recovery (#26).
 3. Per-file undo/redo: retain histories across tabs with project and file-incarnation isolation and bounded retention (#27).
 4. U1: keyboard actions, dialog/drawer focus, labels and responsive source/preview checks (#28).
 
-SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history and comments/track changes remain subsequent work. Passing local mutation tests does not establish live provider or multi-user collaboration readiness.
+SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history, and roles/comments/track changes remain subsequent work and gaps compared with Overleaf. Live Clerk/Convex login and deployed two-account authorization remain unverified; local mocks/unit tests and owner-only cloud code do not establish collaboration readiness.

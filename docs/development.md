@@ -85,11 +85,13 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 
 ## Status
 
-| Area          | In repo                                                            | Gaps                           |
-| ------------- | ------------------------------------------------------------------ | ------------------------------ |
-| Editing       | CM6 LaTeX, folding, brackets, search, Vim, autocomplete            | Richer cite/ref, spellcheck    |
-| Build         | `latexmk` via Docker or host, multiple engines, log parse, timeout | Docker-side hard kill, SyncTeX |
-| Collaboration | Convex + Clerk                                                     | Roles, comments, track changes |
-| Versioning    | IndexedDB source checkpoints and restore; compile snapshots        | Server history, Git            |
+| Area          | In repo                                                            | Gaps                                                        |
+| ------------- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Editing       | CM6 LaTeX, folding, brackets, search, Vim, autocomplete            | Richer cite/ref, spellcheck, cross-file search enhancements |
+| Build         | `latexmk` via Docker or host, multiple engines, log parse, timeout | Docker-side hard kill, SyncTeX                              |
+| Collaboration | Convex + Clerk                                                     | Roles, comments, track changes                              |
+| Versioning    | IndexedDB source checkpoints and restore; compile snapshots        | Server history, Git                                         |
 
-Editing reliability is the current delivery gate: local history restore/checkpoints, cloud CAS and mutation failure recovery, per-file undo retention, then responsive/keyboard accessibility. See [quality-roadmap.md](quality-roadmap.md#reliability-follow-up-gate-issues-2528). SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history and comments/track changes follow that gate.
+Editing reliability follow-up (issues #25–#28, PR #29) is implemented and merged: local history restore/checkpoints, cloud CAS and mutation failure recovery, per-file undo retention, and responsive/keyboard accessibility. See [quality-roadmap.md](quality-roadmap.md#reliability-follow-up-gate-issues-2528).
+
+Feature parity with Overleaf remains incomplete. Subsequent work includes SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history, and roles/comments/track changes. Live Clerk/Convex login and deployed two-account authorization remain unverified; local mocks/unit tests and owner-only cloud code do not establish collaboration readiness.
