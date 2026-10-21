@@ -1,8 +1,9 @@
 import { webcrypto } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { CompileEnvironment, CompileJobPayload, CompileJobResult } from "@alove/protocol";
-import { createBuildRecord, type BuildRecord } from "./buildRecord";
+import { createBuildRecord, hashBuildSource, type BuildRecord } from "./buildRecord";
 import { findBuildRecovery, type RecoveryCompiler } from "./buildRecovery";
+import { restoreCandidateFile } from "./buildRecoveryCandidates";
 
 // jsdom may not provide WebCrypto; buildRecord hashing needs crypto.subtle.
 const g = globalThis as unknown as Record<string, unknown>;
@@ -108,6 +109,66 @@ function mockCompiler(
 const freshSignal = () => new AbortController().signal;
 
 describe("findBuildRecovery", () => {
+  it("tests a separated change before apply while preserving same-file and other-file edits", async () => {
+    const goodFiles = { "main.tex": "macro good\nunchanged\nOriginal prose\nend", "notes.tex": "Old notes" };
+    const failedFiles = { "main.tex": "macro bad\nunchanged\nRevised prose\nend", "notes.tex": "New notes" };
+    const good = await makeBuild({ files: goodFiles, ok: true });
+    const failed = await makeBuild({ files: failedFiles, ok: false,
+      diagnostics: [{ severity: "error", message: "broken macro", file: "main.tex", line: 1 }] });
+    const { compile, calls } = mockCompiler((files) => files["main.tex"].startsWith("macro good")
+      ? successResult() : latexFailure());
+    const report = await findBuildRecovery(good, failed, { signal: freshSignal(), compile });
+    expect(report.status).toBe("verified");
+    expect(report.candidate?.scope).toBe("hunk");
+    expect(report.candidate?.hunk?.before).toContain("macro good");
+    const restored = restoreCandidateFile(failed.files, report.candidate!);
+    expect(restored).toEqual({ "main.tex": "macro good\nunchanged\nRevised prose\nend", "notes.tex": "New notes" });
+    expect(calls[1].request.files).toEqual(restored);
+    expect(report.trials[1].sourceHash).toBe(await hashBuildSource({ ...failed, files: restored }));
+    expect(report.trials.every((trial) => /^[a-f0-9]{64}$/.test(trial.sourceHash ?? ""))).toBe(true);
+    expect(good.files).toEqual(goodFiles);
+    expect(failed.files).toEqual(failedFiles);
+    expect(report).not.toHaveProperty("pdfBase64");
+  });
+
+  it("labels a whole-file fallback when independent blocks cannot recover separately", async () => {
+    const original = "good one\nseparator\ngood two\nseparator two\nOriginal prose";
+    const broken = "bad one\nseparator\nbad two\nseparator two\nRevised prose";
+    const good = await makeBuild({ files: { "main.tex": original }, ok: true });
+    const failed = await makeBuild({ files: { "main.tex": broken }, ok: false });
+    const { compile, calls } = mockCompiler((files) => files["main.tex"].includes("bad") ? latexFailure() : successResult());
+    const report = await findBuildRecovery(good, failed, { signal: freshSignal(), compile });
+    expect(report.status).toBe("verified");
+    expect(report.candidate?.scope).toBe("file");
+    expect(report.candidate?.before).toBe(original);
+    expect(calls.slice(1, -1).every((call) => call.request.files["main.tex"] !== original)).toBe(true);
+    expect(report.trials).toHaveLength(5);
+    expect(report.trials.slice(1, -1).every((trial) => trial.scope === "hunk")).toBe(true);
+    expect(report.trials.at(-1)?.scope).toBe("file");
+  });
+
+  it("does not verify a focused result from a changed runtime", async () => {
+    const good = await makeBuild({ files: { "main.tex": "good\nseparator\nOld prose" }, ok: true });
+    const failed = await makeBuild({ files: { "main.tex": "bad\nseparator\nNew prose" }, ok: false });
+    const { compile } = mockCompiler((_files, n) => successResult(n === 1 ? ENV : OTHER_ENV));
+    const report = await findBuildRecovery(good, failed, { signal: freshSignal(), compile });
+    expect(report.status).toBe("unresolved");
+    expect(report.candidate).toBeNull();
+    expect(report.trials[1].scope).toBe("hunk");
+    expect(report.message).toContain("runtime");
+  });
+
+  it("retains the five-candidate bound when focused and file candidates coexist", async () => {
+    const good = await makeBuild({ files: { "main.tex": "a\ns1\nb\ns2\nc\ns3\nd", "other.tex": "old" }, ok: true });
+    const failed = await makeBuild({ files: { "main.tex": "A\ns1\nB\ns2\nC\ns3\nD", "other.tex": "new" }, ok: false });
+    const { compile, calls } = mockCompiler((_files, n) => n === 1 ? successResult() : latexFailure());
+    const report = await findBuildRecovery(good, failed, { signal: freshSignal(), compile });
+    expect(report.status).toBe("unresolved");
+    expect(calls).toHaveLength(6);
+    expect(report.focusedSearch).toEqual({ candidates: 3, limited: true });
+    expect(report.trials.slice(1).filter((trial) => trial.scope === "file")).toHaveLength(2);
+  });
+
   it("verifies baseline plus one candidate while preserving unrelated files", async () => {
     const good = await makeBuild({ files: { "main.tex": "good", "other.tex": "same" }, ok: true });
     const failed = await makeBuild({
