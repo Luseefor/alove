@@ -4,11 +4,11 @@ alove is a Bun monorepo. Default `bun run dev` is **local standalone**: Next.js 
 
 ## Prerequisites
 
-| Tool | Notes |
-|------|--------|
+| Tool                                                | Notes                                               |
+| --------------------------------------------------- | --------------------------------------------------- |
 | **[Bun](https://bun.sh/docs/installation) 1.3.10+** | Matches `packageManager` in the root `package.json` |
-| **Docker** | Engine + Compose v2 (Redis, Postgres, TeX compiles) |
-| **Clerk + Convex** | Cloud mode only |
+| **Docker**                                          | Engine + Compose v2 (Redis, Postgres, TeX compiles) |
+| **Clerk + Convex**                                  | Cloud mode only                                     |
 
 ```bash
 curl -fsSL https://bun.sh/install | bash   # macOS / Linux; Windows: see Bun docs
@@ -51,29 +51,29 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 
 ## Environment variables
 
-| Variable | Where | Purpose |
-|----------|--------|---------|
-| `NEXT_PUBLIC_LOCAL_STANDALONE` | build / `.env.local` | `true` / `1` selects account-free local UI; does not authorize compile jobs |
-| `ALOVE_LOCAL_COMPILE_ORIGIN` | server only | Exact loopback origin with port for anonymous local compute; unset for cloud deployments |
-| `ALOVE_WEB_PORT` | dev only | Starting port for local Next scan (default **30127**) |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk (cloud). both keys are required for cloud mode; missing authentication fails closed |
-| `NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN` | `apps/web/.env.local` | Convex + Clerk JWT |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | env / `.env.local` | BullMQ (defaults match Compose: `127.0.0.1:6379`) |
-| `COMPILE_USE_DOCKER` | worker | `true` (default) Docker; `false` / `0` host `latexmk`, only with explicit non-production `COMPILE_TRUSTED_LOCAL=true` |
-| `COMPILE_DOCKER_IMAGE` | worker | TeX image override |
-| `COMPILE_DOCKER_PLATFORM` | worker | `docker run --platform`; on **macOS + arm64** defaults to **`linux/amd64`** |
-| `WORKER_CONCURRENCY` | worker | BullMQ concurrency (default `1`, allowed `1`–`4`) |
+| Variable                                                | Where                 | Purpose                                                                                                               |
+| ------------------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_LOCAL_STANDALONE`                          | build / `.env.local`  | `true` / `1` selects account-free local UI; does not authorize compile jobs                                           |
+| `ALOVE_LOCAL_COMPILE_ORIGIN`                            | server only           | Exact loopback origin with port for anonymous local compute; unset for cloud deployments                              |
+| `ALOVE_WEB_PORT`                                        | dev only              | Starting port for local Next scan (default **30127**)                                                                 |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | `apps/web/.env.local` | Clerk (cloud). both keys are required for cloud mode; missing authentication fails closed                             |
+| `NEXT_PUBLIC_CONVEX_URL`, `CLERK_JWT_ISSUER_DOMAIN`     | `apps/web/.env.local` | Convex + Clerk JWT                                                                                                    |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`            | env / `.env.local`    | BullMQ (defaults match Compose: `127.0.0.1:6379`)                                                                     |
+| `COMPILE_USE_DOCKER`                                    | worker                | `true` (default) Docker; `false` / `0` host `latexmk`, only with explicit non-production `COMPILE_TRUSTED_LOCAL=true` |
+| `COMPILE_DOCKER_IMAGE`                                  | worker                | TeX image override                                                                                                    |
+| `COMPILE_DOCKER_PLATFORM`                               | worker                | `docker run --platform`; on **macOS + arm64** defaults to **`linux/amd64`**                                           |
+| `WORKER_CONCURRENCY`                                    | worker                | BullMQ concurrency (default `1`, allowed `1`–`4`)                                                                     |
 
 ## Commands
 
-| Command | Purpose |
-|---------|---------|
-| `bun run build` | Production build (Turbo) |
-| `bun run typecheck` | Typecheck all packages |
-| `bun run lint` | Lint |
-| `bun run test` | Tests |
-| `bun run format` | Prettier |
-| `bun run --filter web lint` | One workspace |
+| Command                                | Purpose                         |
+| -------------------------------------- | ------------------------------- |
+| `bun run build`                        | Production build (Turbo)        |
+| `bun run typecheck`                    | Typecheck all packages          |
+| `bun run lint`                         | Lint                            |
+| `bun run test`                         | Tests                           |
+| `bun run format`                       | Prettier                        |
+| `bun run --filter web lint`            | One workspace                   |
 | `bun run --filter realtime dev:legacy` | Optional legacy realtime server |
 
 ## Layout
@@ -85,9 +85,11 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 
 ## Status
 
-| Area | In repo | Gaps |
-|------|---------|------|
-| Editing | CM6 LaTeX, folding, brackets, search, Vim, autocomplete | Richer cite/ref, spellcheck |
-| Build | `latexmk` via Docker or host, multiple engines, log parse, timeout | Docker-side hard kill, SyncTeX |
-| Collaboration | Convex + Clerk | Roles, comments, track changes |
-| Versioning | IndexedDB compile snapshots | Server history, Git |
+| Area          | In repo                                                            | Gaps                           |
+| ------------- | ------------------------------------------------------------------ | ------------------------------ |
+| Editing       | CM6 LaTeX, folding, brackets, search, Vim, autocomplete            | Richer cite/ref, spellcheck    |
+| Build         | `latexmk` via Docker or host, multiple engines, log parse, timeout | Docker-side hard kill, SyncTeX |
+| Collaboration | Convex + Clerk                                                     | Roles, comments, track changes |
+| Versioning    | IndexedDB source checkpoints and restore; compile snapshots        | Server history, Git            |
+
+Editing reliability is the current delivery gate: local history restore/checkpoints, cloud CAS and mutation failure recovery, per-file undo retention, then responsive/keyboard accessibility. See [quality-roadmap.md](quality-roadmap.md#reliability-follow-up-gate-issues-2528). SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history and comments/track changes follow that gate.
