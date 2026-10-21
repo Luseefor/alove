@@ -41,11 +41,52 @@ import { tags as t } from "@lezer/highlight";
 import { vim } from "@replit/codemirror-vim";
 import { parseLatexOutline, type OutlineHeading } from "./outline";
 import { latexBeginEndFold } from "./latexFold";
-import { latexAutocomplete } from "./snippets";
+import { createLatexAutocomplete } from "./snippets";
 import { editorExtrasKeymap } from "./keymapExtras";
+import type { ProjectLanguageIndex } from "./projectCompletion";
+
+export { latexAutocomplete } from "./snippets";
+export {
+  createLatexAutocomplete,
+  createProjectAwareCompletionSource,
+  createProjectCompletionExtension,
+} from "./snippets";
+export type { ProjectIndexGetter } from "./snippets";
 
 export { parseLatexOutline, type OutlineHeading };
 export { parseInputRefs, type InputRef } from "./inputRefs";
+export {
+  parseBibEntries,
+  parseTexLabels,
+  findCiteCompletion,
+  findRefCompletion,
+  buildCiteCompletions,
+  buildRefCompletions,
+  createProjectCompletionSource,
+  CITE_COMMANDS,
+  REF_COMMANDS,
+} from "./projectCompletion";
+export type {
+  ProjectCiteEntry,
+  ProjectLabelEntry,
+  ProjectLanguageIndex,
+} from "./projectCompletion";
+export {
+  extractProseTokens,
+  maskLatexProse,
+  findMisspellings,
+  suggestCorrections,
+  levenshtein,
+  normalizeWord,
+  normalizeCustomWord,
+  getBaseDictionary,
+  createDictionary,
+} from "./latexSpellcheck";
+export type {
+  ProseToken,
+  Misspelling,
+  SpellcheckOptions,
+} from "./latexSpellcheck";
 export { historyField };
 
 export type EditorTheme = "light" | "dark";
@@ -58,6 +99,8 @@ export type LatexEditorOptions = {
   wordWrap?: boolean;
   autocomplete?: boolean;
   nonBlinkingCursor?: boolean;
+  /** Project cite/label index for `\cite{}` / `\ref{}` completion. */
+  completionIndex?: () => ProjectLanguageIndex;
 };
 
 export type LatexEditorCommand = "undo" | "redo" | "selectAll";
@@ -148,7 +191,9 @@ export function createLatexEditorExtensions(
     bracketMatching(),
     ...(shouldCloseBrackets ? [closeBrackets()] : []),
     StreamLanguage.define(stex),
-    ...(shouldAutocomplete ? [latexAutocomplete] : []),
+    ...(shouldAutocomplete
+      ? [createLatexAutocomplete(options.completionIndex)]
+      : []),
     lintGutter(),
     keymap.of([
       ...(options.emacs ? emacsStyleKeymap : []),

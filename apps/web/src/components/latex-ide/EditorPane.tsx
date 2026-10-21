@@ -9,6 +9,8 @@ import type { EditorState } from "@codemirror/state";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getEditorMode } from "@/lib/editorMode";
+import { buildProjectLanguageIndex } from "@/lib/projectLanguage";
+import { useSpellcheckStatus } from "@/lib/spellcheckService";
 import { LatexCodeEditor, type LatexCodeEditorHandle } from "./LatexCodeEditor";
 
 export function EditorPane() {
@@ -38,6 +40,10 @@ export function EditorPane() {
   } = useWorkbenchStore();
 
   const spellcheckEnabled = useIdeSettingsStore((s) => s.spellcheckEnabled);
+  const spellcheckCustomWords = useIdeSettingsStore(
+    (s) => s.spellcheckCustomWords,
+  );
+  const addSpellcheckWord = useIdeSettingsStore((s) => s.addSpellcheckWord);
   const editorCodeCheck = useIdeSettingsStore((s) => s.editorCodeCheck);
   const setSpellcheckEnabled = useIdeSettingsStore(
     (s) => s.setSpellcheckEnabled,
@@ -50,6 +56,19 @@ export function EditorPane() {
     (s) => s.editorNonBlinkingCursor,
   );
   const editorKeybindings = useIdeSettingsStore((s) => s.editorKeybindings);
+  // Optional role from primary (`owner` local default). Viewers get a
+  // non-editable source surface; the store still guards mutations.
+  const projectRole = useWorkbenchStore(
+    (s) =>
+      (s as unknown as { projectRole?: "owner" | "editor" | "viewer" | null })
+        .projectRole ?? "owner",
+  );
+  const isViewer = projectRole === "viewer";
+
+  const projectLanguageIndex = useMemo(
+    () => buildProjectLanguageIndex(filesByPath),
+    [filesByPath],
+  );
 
   const history = useMemo(
     () => ({
@@ -433,8 +452,12 @@ export function EditorPane() {
                   : undefined
               }
               onChange={updateActiveFileContent}
-              readOnly={false}
+              readOnly={isViewer}
               spellCheck={spellcheckEnabled}
+              spellcheckCustomWords={spellcheckCustomWords}
+              onAddSpellcheckWord={addSpellcheckWord}
+              citationEntries={projectLanguageIndex.citations}
+              labelEntries={projectLanguageIndex.labels}
               wordWrap={editorWordWrap}
               autoCloseBrackets={editorAutoCloseBrackets}
               autocompleteEnabled={editorAutocomplete}
@@ -461,6 +484,7 @@ export function EditorPane() {
               value={content}
               onChange={(e) => updateActiveFileContent(e.target.value)}
               spellCheck={spellcheckEnabled}
+              readOnly={isViewer}
               wrap={editorWordWrap ? "soft" : "off"}
               className={cn(
                 "h-full w-full resize-none bg-background p-6 leading-[22px] outline-none text-foreground font-mono text-[13px]",
@@ -484,17 +508,48 @@ export function EditorPane() {
           <span className="hidden xl:inline text-primary">LaTeX</span>
         </div>
         <div className="flex shrink-0 items-center text-[10px] text-muted-foreground">
-          <button
-            type="button"
-            onClick={() => setSpellcheckEnabled(!spellcheckEnabled)}
-            className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
-            title={`Spellcheck ${spellcheckEnabled ? "on" : "off"}`}
-          >
-            <span>Spell: {spellcheckEnabled ? "On" : "Off"}</span>
-          </button>
+          <SpellcheckToggle
+            enabled={spellcheckEnabled}
+            onToggle={() => setSpellcheckEnabled(!spellcheckEnabled)}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+function SpellcheckToggle({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  const { status, error } = useSpellcheckStatus();
+  const label = !enabled
+    ? "Off"
+    : status === "loading"
+      ? "Loading…"
+      : status === "error"
+        ? "Error"
+        : "On";
+  const title = !enabled
+    ? "Spellcheck off"
+    : status === "error"
+      ? `Spellcheck dictionary failed to load: ${error ?? "network error"}`
+      : status === "loading"
+        ? "Spellcheck loading English dictionary…"
+        : "Spellcheck on";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-1.5 hover:text-muted-foreground transition-colors"
+      title={title}
+      aria-label={`Spell: ${label}`}
+    >
+      <span>Spell: {label}</span>
+    </button>
   );
 }
 

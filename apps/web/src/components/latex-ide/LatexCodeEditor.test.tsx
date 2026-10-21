@@ -1171,4 +1171,129 @@ describe("LatexCodeEditor", () => {
     });
     expect(ref.current?.getValue()).toBe("fresh!");
   });
+
+  it("marks prose misspellings only when spellCheck is on", async () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const doc = "The teh quick brown fox.";
+    const { createWordListChecker } = await import(
+      "@/lib/spellcheckService"
+    );
+    const { getBaseDictionary } = await import("@alove/editor");
+    const checker = createWordListChecker(getBaseDictionary());
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={false}
+          spellcheckChecker={checker}
+        />,
+      );
+    });
+    // Lint markers render async; allow the lint delay to elapse.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(
+      host().querySelectorAll(".cm-lintRange-warning").length,
+    ).toBe(0);
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={true}
+          spellcheckChecker={checker}
+        />,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(
+      host().querySelectorAll(".cm-lintRange-warning").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("ignores custom dictionary words in spellcheck markers", async () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const doc = "The TehCustomWord appears here.";
+    const { createWordListChecker } = await import(
+      "@/lib/spellcheckService"
+    );
+    const { getBaseDictionary } = await import("@alove/editor");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={true}
+          spellcheckChecker={createWordListChecker(getBaseDictionary())}
+          spellcheckCustomWords={["tehcustomword"]}
+        />,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(
+      host().querySelectorAll(".cm-lintRange-warning").length,
+    ).toBe(0);
+  });
+
+  it("reconfigures project completion without resetting view or history", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+    const cites = [{ key: "einstein1905", title: "Relativity" }];
+    const labels = [{ label: "sec:intro", context: "Intro" }];
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={"See "}
+          onChange={onChange}
+          aria-label="latex editor"
+          citationEntries={[]}
+          labelEntries={[]}
+        />,
+      );
+    });
+    const domBefore = host().firstChild;
+    act(() => {
+      ref.current?.replaceRange(4, 4, "X");
+    });
+    const callsAfterEdit = onChange.mock.calls.length;
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={ref.current?.getValue() ?? ""}
+          onChange={onChange}
+          aria-label="latex editor"
+          citationEntries={cites}
+          labelEntries={labels}
+        />,
+      );
+    });
+    expect(host().firstChild).toBe(domBefore);
+    expect(ref.current?.getValue()).toBe("See X");
+    expect(onChange.mock.calls.length).toBe(callsAfterEdit);
+
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("See ");
+    expect(host().firstChild).toBe(domBefore);
+  });
 });
