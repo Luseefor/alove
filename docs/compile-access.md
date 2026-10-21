@@ -1,8 +1,8 @@
 # Compile access
 
-Compile jobs carry a server-generated owner record. Cloud submission requires a Clerk session, a Convex token and ownership of the requested project. Polling requires the submitting user and a fresh project ownership check before the route reads state, logs or PDF data. Missing, foreign and legacy unowned jobs return the same 404 response. Every polling response carries `Cache-Control: private, no-store`.
+Compile jobs carry a server-generated owner record. Cloud submission requires a Clerk session, a Convex token and owner or editor membership in the requested project. Polling requires the submitting user and a fresh project owner/editor access check before the route reads state, logs or PDF data. Missing, foreign and legacy unowned jobs return the same 404 response. Every polling response carries `Cache-Control: private, no-store`.
 
-The API accepts source files from the editor, including unsaved edits. It checks project access, not equality with the files saved in Convex. Project access currently means owner access, matching `projects.get` and the file mutations. Sharing memberships are separate work.
+The API accepts source files from the editor, including unsaved edits. It checks project access, not equality with the files saved in Convex. Current owners and editors can submit source; viewers cannot. Revocation and downgrade take effect on the next request. Jobs remain private to their submitting account, so another project member cannot retrieve that account’s logs or PDF through a guessed job ID.
 
 The web API queues `{ version: 1, owner, request }`. The worker validates this record, then revalidates the compile request before execution. Client requests cannot set `owner` or other internal fields. Legacy jobs lack ownership and are rejected by the new worker and polling route. Stop submission, let running jobs finish, then deploy the web and worker together. This change does not migrate old results or cancel work already running.
 
