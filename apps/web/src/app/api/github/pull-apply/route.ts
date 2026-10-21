@@ -69,6 +69,7 @@ export async function POST(req: Request) {
     const { entries, truncated } = await getTreeRecursive(token, connection.owner, connection.repo, treeSha);
     if (truncated)
       return Response.json({ error: "The repository tree is too large to sync safely." }, { status: 409 });
+    if (entries.filter(entry => entry.type === "blob").length > GITHUB_LIMITS.maxFiles) return Response.json({ error: "The repository has more files than a project can hold." }, { status: 409 });
     const files: { path: string; content: string }[] = [];
     let total = 0;
     for (const entry of entries) {

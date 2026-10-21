@@ -88,3 +88,11 @@ describe("requestJson", () => {
     if (!empty.ok) expect(empty.response.status).toBe(400);
   });
 });
+
+it("refuses non-object JSON before route handlers access request fields", async () => {
+  for (const value of [null, [], "text", 1, true]) {
+    const result = await readJsonBody(post(JSON.stringify(value)), 2048);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.response.status).toBe(400);
+  }
+});

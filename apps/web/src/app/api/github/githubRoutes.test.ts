@@ -497,3 +497,14 @@ describe("repository listing behind the configured proxy", () => {
     expect((await reposGET(new Request("http://web:3000/api/github/repos", { headers: { host: "alove.example", origin: "https://other.example" } }))).status).toBe(403);
   });
 });
+
+it("refuses an oversized file tree before downloading individual blobs", async () => {
+  mockQueries([projectJson(), connection()]);
+  githubServer.getBranchHead.mockResolvedValue(HEAD_A);
+  githubServer.getCommitTreeSha.mockResolvedValue("tree-sha");
+  githubServer.getTreeRecursive.mockResolvedValue({ entries: Array.from({ length: 251 }, (_, i) => ({ path: `${i}.tex`, mode: "100644", type: "blob", sha: HEAD_A, size: 0 })), truncated: false });
+  const result = await applyPOST(post("/api/github/pull-apply", { projectId: "cloud-1", remoteHead: HEAD_A, expected: [], importConfirmed: true }));
+  expect(result.status).toBe(409);
+  expect(githubServer.getBlob).not.toHaveBeenCalled();
+  expect(mocks.fetchMutation).not.toHaveBeenCalled();
+});

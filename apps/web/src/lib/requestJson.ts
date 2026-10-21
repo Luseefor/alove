@@ -97,7 +97,16 @@ export async function readJsonBody(
   const body = await readBoundedText(req, maxBytes);
   if (!body.ok) return body;
   try {
-    return { ok: true, value: JSON.parse(body.text) as unknown };
+    const value: unknown = JSON.parse(body.text);
+    if (value === null || typeof value !== "object" || Array.isArray(value))
+      return {
+        ok: false,
+        response: Response.json(
+          { error: "Expected a JSON object." },
+          { status: 400 },
+        ),
+      };
+    return { ok: true, value };
   } catch {
     return {
       ok: false,
