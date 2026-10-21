@@ -351,3 +351,52 @@ The next complete local run passed 83, skipped two and exposed a spellcheck-hove
 The final complete production browser run passed 84 tests and skipped only the two cloud-provider scenarios in 3.0 minutes. It used the actual Redis/Docker worker for recovery, the complete paper journey, compiler settings, cancellation, compile/download/failure recovery and coordinate SyncTeX navigation. Search/replacement, dictionary hover/toggle, undo retention, history recovery, responsive layouts and keyboard checks also passed. A temporary local config selected the installed Google Chrome because the expected Playwright browser bundle was unavailable; the shipped browser config was unchanged.
 
 Live deployed Clerk login, two-account invitation/revocation and end-user GitHub OAuth pull/push remain unverified. These are explicit validation boundaries, not results inferred from local mocks or Docker CI. Updated Convex schema/functions must deploy with the web application.
+
+## 2026-10-21: focused recovery and the Overleaf comparison, issue #43
+
+Recovery now tests separated change blocks before whole-file fallbacks. Each
+candidate starts from the failed snapshot, reverses one bounded line block and
+compiles in the recorded Docker environment before Apply is offered. The
+proposal preserves source outside that block, including separate edits in the
+same file. The UI previews the tested restoration and labels whole-file
+fallbacks because those can still discard same-file edits. Existing source,
+project, settings, apply and undo guards remain enforced.
+
+Analysis is capped at 1,048,576 UTF-16 units / 10,000 lines per side, 2,000
+residual lines and 250,000 LCS cells. Ranking and candidate limits run before
+full repaired strings are created. At most three focused candidates and the
+remaining whole-file candidates share the existing five-candidate / 60-second
+budget. Every completed trial records its source fingerprint, scope and line.
+The evidence export retains the exact selected repaired file.
+
+The [real-compiler corpus](benchmarks/2026-10-21-focused-recovery/README.md)
+matched 21/21 expected outcomes over seven synthetic fixtures repeated three
+times, with 67 actual compiler jobs. All 12 focused positive runs preserved
+separate same-file prose and the rest of the failed file map. Independent
+faults remained unresolved, changed engine settings were refused, and the three
+whole-file fallback controls explicitly reversed prose. Four separately
+compiled positive whole-file reference operations also compiled, while all four
+lost that prose; these were not Overleaf sessions. Raw inputs, logs, hashes and
+the initial admission-limited attempt are retained.
+
+Corrected checks: the initial unpaced functional runner hit HTTP429 after 30
+jobs. The runner now spaces submissions by at least 2,200 ms and honours bounded
+Retry-After responses. The final run required no admission retry. Application
+quotas, recovery trial budgets, compiler deadlines and browser assertion
+timeouts were not relaxed. A source review also moved repair-string creation
+after the cap and added a bounded line-count check before splitting large text.
+
+All-package typecheck, lint and tests passed; the web suite passed 780 tests in
+69 files, and the production build passed. Both real recovery browser scenarios
+passed, including pre-apply preservation, exported fingerprint, apply/undo,
+rebuild and durable reload. The complete production browser run passed 85 tests
+with only the two cloud-provider skips. Screenshot review prompted higher-contrast
+preview text; the rebuilt application passed both real recovery scenarios again
+with light/dark previews at phone, tablet and desktop widths.
+
+The [dated Overleaf comparison](overleaf-comparison.md) includes premium/AI
+features, the stronger Overleaf visual/collaboration tools, and offline
+self-hosting. Its narrow distinction is compiler evidence before changing the
+working document, compared with the documented Error Assist apply-then-recompile
+interaction. No matched Overleaf speed/success-rate study or general
+superiority is claimed. Deployment and live provider checks remain deferred.

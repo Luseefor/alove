@@ -95,3 +95,9 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 Editing reliability follow-up (issues #25–#28, PR #29) is merged: local history restore/checkpoints, cloud CAS and mutation failure recovery, per-file undo retention, and responsive/keyboard accessibility. The subsequent authoring/collaboration implementation covers issues #32–#40. See [authoring-and-collaboration.md](authoring-and-collaboration.md) for workflows, setup and retention limits, and [quality-progress.md](quality-progress.md) for actual validation evidence.
 
 This is not a claim of full Overleaf parity. Live Clerk/Convex login, deployed multi-account authorization and end-user GitHub OAuth pull/push require separate live validation; mocked provider tests and distinct identities in `convex-test` do not establish those results.
+
+The [dated Overleaf comparison](overleaf-comparison.md) identifies the narrow
+local recovery distinction: separate compiler trials before Apply, preserving
+other edits in the same file. It also records Overleaf's stronger visual and
+collaborative editing and separates local capability evidence from an unrun
+head-to-head performance study. Deployment remains deferred.
