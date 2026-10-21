@@ -1,0 +1,19 @@
+English spellcheck dictionary served to the browser.
+
+Source package : dictionary-en 4.0.0 (npm, installed via apps/web/package.json)
+Upstream       : https://github.com/wooorm/dictionaries/tree/main/dictionaries/en
+Generated from : http://wordlist.aspell.net/dicts/ (SCOWL), normalized by wooorm/dictionaries
+License        : (MIT AND BSD) — see LICENSE.txt in this directory.
+                 Package code is MIT (c) Titus Wormer; dictionary + affix file
+                 are (MIT AND BSD). Upstream reports spelling problems to
+                 wordlist.aspell.net, not to this repo.
+
+Files:
+  index.aff — Hunspell affix rules (prefix/suffix expansion, compounds, ICONV).
+  index.dic — Word stems with affix flags (49,568 lines; stems alone are not
+              valid words — affix handling via the `nspell` dependency is
+              required for correct() / suggest()).
+
+Consumed by apps/web/src/lib/spellcheckService.ts, lazy-fetched once when
+spellcheck is enabled. Check `bun outdated dictionary-en` for updates; after
+bumping, re-copy index.aff/index.dic/LICENSE.txt and update the version above.

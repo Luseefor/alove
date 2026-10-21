@@ -15,15 +15,18 @@ import { dirname, join, relative, isAbsolute, sep } from "node:path";
 import {
   normalizeCompilePath,
   validateCompileRequest,
+  COMPILE_SYNCTEX_LIMITS,
   type CompileJobPayload,
   type CompileJobResult,
   type Diagnostic,
   type CompileEnvironment,
+  type SyncTexMapping,
 } from "@alove/protocol";
 import { parseLatexLog } from "./logParse.js";
 import { decodeCompileFileData } from "./compileFileData.js";
 import { dockerSandboxArgs, resolveDockerSandboxPolicy, sandboxPolicyId } from "./dockerSandbox.js";
 import { ArtifactTooLargeError, readDockerArtifact } from "./dockerArtifact.js";
+import { decodeSyncTexGz } from "./synctex.js";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_FILES = 250;
@@ -248,6 +251,40 @@ function latexmkEngineArgs(engine: CompileJobPayload["engine"]): string[] {
   }
 }
 
+/**
+ * Fixed SyncTeX flag forwarded to the TeX engine via latexmk.
+ * `-latexoption` appends to the engine command line without perl `-e`
+ * evaluation, so no caller input reaches a shell. Verified against the
+ * runner image for pdflatex, xelatex, and lualatex (single-dash form works
+ * for all three through latexmk).
+ */
+export const SYNCTEX_LATEX_OPTION = "-latexoption=-synctex=1";
+
+function synctexRelPath(mainFile: string): string {
+  return mainFile.replace(/\.tex$/u, ".synctex.gz");
+}
+
+function resolveSynctexCaps(): {
+  maxCompressedBytes: number;
+  maxDecompressedBytes: number;
+  maxEntries: number;
+} {
+  return {
+    maxCompressedBytes: parsePositiveInt(
+      process.env.COMPILE_MAX_SYNCTEX_BYTES,
+      COMPILE_SYNCTEX_LIMITS.maxCompressedBytes,
+    ),
+    maxDecompressedBytes: parsePositiveInt(
+      process.env.COMPILE_MAX_SYNCTEX_DECOMPRESSED_BYTES,
+      COMPILE_SYNCTEX_LIMITS.maxDecompressedBytes,
+    ),
+    maxEntries: parsePositiveInt(
+      process.env.COMPILE_MAX_SYNCTEX_ENTRIES,
+      COMPILE_SYNCTEX_LIMITS.maxEntries,
+    ),
+  };
+}
+
 function validatePayload(
   payload: CompileJobPayload,
   limits: CompileLimits,
@@ -412,6 +449,74 @@ async function readArtifact(
   }
 }
 
+async function readSyncTexMapping(args: {
+  dockerContainerName: string | null;
+  work: string;
+  main: string;
+  knownFiles: string[];
+}): Promise<{ mapping?: SyncTexMapping; warning?: Diagnostic }> {
+  const caps = resolveSynctexCaps();
+  const rel = synctexRelPath(args.main);
+  let compressed: Buffer | null = null;
+  try {
+    if (args.dockerContainerName) {
+      const artifact = await readDockerArtifact(
+        args.dockerContainerName,
+        `/work/${rel}`,
+        caps.maxCompressedBytes,
+      );
+      compressed = artifact ? artifact.data : null;
+    } else {
+      const localPath = join(args.work, rel);
+      compressed = (await pathExists(localPath))
+        ? (await readArtifact(args.work, localPath, caps.maxCompressedBytes)).data
+        : null;
+    }
+  } catch (error) {
+    if (error instanceof ArtifactTooLargeError) {
+      return {
+        warning: {
+          severity: "warning",
+          message: `SyncTeX mapping omitted: compressed artifact exceeds ${caps.maxCompressedBytes} bytes.`,
+        },
+      };
+    }
+    // Missing/corrupt synctex never fails the build; navigation is
+    // simply unavailable for this run.
+    return {};
+  }
+  if (!compressed) return {};
+  const mapping =
+    decodeSyncTexGz(compressed, {
+      knownFiles: args.knownFiles,
+      maxCompressedBytes: caps.maxCompressedBytes,
+      maxDecompressedBytes: caps.maxDecompressedBytes,
+      maxEntries: caps.maxEntries,
+    }) ?? undefined;
+  if (!mapping || mapping.entries.length === 0) {
+    if (mapping?.truncated) {
+      return {
+        mapping,
+        warning: {
+          severity: "warning",
+          message: `SyncTeX mapping truncated to ${caps.maxEntries} entries.`,
+        },
+      };
+    }
+    return mapping ? { mapping } : {};
+  }
+  if (mapping.truncated) {
+    return {
+      mapping,
+      warning: {
+        severity: "warning",
+        message: `SyncTeX mapping truncated to ${caps.maxEntries} entries.`,
+      },
+    };
+  }
+  return { mapping };
+}
+
 export async function runCompileJob(
   payload: CompileJobPayload,
   options: RunCompileOptions = {},
@@ -551,6 +656,7 @@ export async function runCompileJob(
         "-norc",
         ...latexmkEngineArgs(payload.engine),
         "-no-shell-escape",
+        SYNCTEX_LATEX_OPTION,
         `-outdir=./${dirname(main)}`,
         "-interaction=nonstopmode",
         "-halt-on-error",
@@ -781,12 +887,21 @@ export async function runCompileJob(
       });
     }
 
+    const synctex = await readSyncTexMapping({
+      dockerContainerName,
+      work,
+      main,
+      knownFiles: validated.value.files.map((f) => f.path),
+    });
+    if (synctex?.warning) diagnostics.push(synctex.warning);
+
     return {
       phase: "ready",
       log: trimmed.text,
       diagnostics,
       pdfBase64,
       mainPdfRelPath: main.replace(/\.tex$/u, ".pdf"),
+      ...(synctex?.mapping ? { synctex: synctex.mapping } : {}),
       texliveImage: image,
         environment,
     };
@@ -821,4 +936,7 @@ export const __testOnly = {
   normalizeRelativePath: normalizeCompilePath,
   validatePayload,
   trimLog,
+  synctexRelPath,
+  resolveSynctexCaps,
+  SYNCTEX_LATEX_OPTION,
 };

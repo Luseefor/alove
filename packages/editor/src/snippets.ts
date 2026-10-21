@@ -2,7 +2,12 @@ import {
   autocompletion,
   type Completion,
   type CompletionContext,
+  type CompletionResult,
 } from "@codemirror/autocomplete";
+import {
+  createProjectCompletionSource,
+  type ProjectLanguageIndex,
+} from "./projectCompletion";
 
 const latexSnippets: readonly Completion[] = [
   { label: "\\begin{itemize}", apply: "\\begin{itemize}\n\\item \n\\end{itemize}" },
@@ -31,6 +36,50 @@ function latexCompletionSource(ctx: CompletionContext) {
   );
   if (!options.length) return null;
   return { from, options };
+}
+
+export type ProjectIndexGetter = () => ProjectLanguageIndex;
+/**
+ * Combined completion: project cite/ref keys take precedence inside
+ * `\cite{...}` / `\ref{...}` braces, snippet commands elsewhere.
+ */
+export function createProjectAwareCompletionSource(
+  getIndex?: ProjectIndexGetter,
+): (ctx: CompletionContext) => CompletionResult | null {
+  const projectSource = createProjectCompletionSource(
+    getIndex ?? (() => ({ cites: [], labels: [] })),
+  );
+  return function projectAwareSource(
+    ctx: CompletionContext,
+  ): CompletionResult | null {
+    return projectSource(ctx) ?? latexCompletionSource(ctx);
+  };
+}
+
+export function createLatexAutocomplete(getIndex?: ProjectIndexGetter) {
+  return autocompletion({
+    override: [createProjectAwareCompletionSource(getIndex)],
+    activateOnTyping: true,
+  });
+}
+
+/**
+ * Project-only completion source (no autocompletion wrapper): prefer
+ * `createLatexAutocomplete` / `createProjectAwareCompletionSource`, which
+ * combine project keys with snippet commands in a single `autocompletion`
+ * extension. Mounting two `autocompletion()` extensions conflicts on the
+ * shared `override` facet.
+ */
+export function createProjectCompletionExtension(
+  cites: readonly ProjectLanguageIndex["cites"][number][],
+  labels: readonly ProjectLanguageIndex["labels"][number][],
+) {
+  const snapshotCites = [...cites];
+  const snapshotLabels = [...labels];
+  return createProjectCompletionSource(() => ({
+    cites: snapshotCites,
+    labels: snapshotLabels,
+  }));
 }
 
 export const latexAutocomplete = autocompletion({

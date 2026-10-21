@@ -37,6 +37,13 @@ export interface CompileJobResult {
   diagnostics: Diagnostic[];
   pdfBase64?: string;
   mainPdfRelPath?: string;
+  /**
+   * Optional per-run SyncTeX mapping parsed from the build's `.synctex.gz`.
+   * Absent when the engine emitted no mapping (failed builds, missing
+   * artifact, oversize/truncated output). Bounded by
+   * COMPILE_SYNCTEX_LIMITS; `truncated` marks entry capping.
+   */
+  synctex?: SyncTexMapping;
   errorMessage?: string;
   errorCode?:
     | "CANCELLED"
@@ -58,6 +65,61 @@ export const COMPILE_REQUEST_LIMITS = {
   minTimeoutMs: 1000,
   maxTimeoutMs: 120000,
 } as const;
+
+/**
+ * Bounds for the optional SyncTeX mapping carried on CompileJobResult.
+ * Keeps BullMQ/Redis job results and Next.js JSON polling responses small:
+ * entries are capped and only the anchor coordinates needed for PDF
+ * matching (file, line, page, x, y, box extents, preamble) are preserved.
+ */
+export const COMPILE_SYNCTEX_LIMITS = {
+  /** Max compressed `.synctex.gz` bytes read from the build workspace. */
+  maxCompressedBytes: 5242880,
+  /** Max gunzipped `.synctex` text bytes parsed. */
+  maxDecompressedBytes: 5242880,
+  /** Max mapping entries preserved per build. Older stream order wins. */
+  maxEntries: 20000,
+  /** Max `Input:` declarations honored per build. */
+  maxInputFiles: 1000,
+} as const;
+
+export interface SyncTexEntry {
+  /** Project-relative source path (validated via normalizeCompilePath). */
+  file: string;
+  /** 1-based source line. */
+  line: number;
+  /** 1-based PDF page. */
+  page: number;
+  /** Horizontal anchor in SyncTeX scaled points. */
+  x: number;
+  /** Vertical anchor in SyncTeX scaled points. */
+  y: number;
+  /** Box width in scaled points, when the record carries extents. */
+  width?: number;
+  /** Box height (height + depth) in scaled points, when carried. */
+  height?: number;
+}
+
+/**
+ * SyncTeX preamble needed to convert raw scaled-point anchors into PDF
+ * big points. Defaults when the engine omits them: magnification 1000,
+ * unit 1, zero offsets.
+ */
+export interface SyncTexPreamble {
+  magnification: number;
+  unit: number;
+  xOffset: number;
+  yOffset: number;
+}
+
+export interface SyncTexMapping {
+  version: 1;
+  entries: SyncTexEntry[];
+  /** True when the engine output exceeded a COMPILE_SYNCTEX_LIMITS cap. */
+  truncated: boolean;
+  /** Preamble for coordinate conversion. Absent on legacy mappings. */
+  preamble?: SyncTexPreamble;
+}
 
 export type ValidateCompileRequestOk = {
   ok: true;

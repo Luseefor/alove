@@ -97,6 +97,8 @@ test("a paper survives its complete create, recover, export, import and delete j
   });
 
   await test.step("Break a dependency, retain the preview and recover without losing prose", async () => {
+    // This assertion covers embedded-viewer persistence; SyncTeX canvas has a dedicated real-worker test.
+    await page.getByRole("button", { name: "Default", exact: true }).click();
     const pdf = await page.locator('iframe[title="Compiled PDF"]').getAttribute("src");
     await open("preamble.tex");
     await source.fill("% Macro removed by mistake\n");
@@ -190,6 +192,8 @@ test("a damaged uploaded image exposes the converter error without returning a P
   await page.getByTestId("compile-button").click();
   await expect(page.getByTestId("pdf-preview-pane")).toHaveAttribute("data-status", "failed", { timeout: 60_000 });
   await expect(page.locator('iframe[title="Compiled PDF"]')).toHaveCount(0);
+  await expect(page.getByTestId("pdf-canvas-viewer")).toHaveCount(0);
+  await expect(page.getByTestId("pdf-sync-highlight")).toHaveCount(0);
   await expect(page.getByTestId("build-output-content")).toContainText(/libpng error|xdvipdfmx:fatal/i);
   await page.getByRole("button", { name: "Log", exact: true }).click();
   await expect(page.getByTestId("build-output-content")).toContainText(/libpng error|xdvipdfmx:fatal/i);

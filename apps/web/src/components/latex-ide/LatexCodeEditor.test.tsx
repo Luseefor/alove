@@ -1171,4 +1171,263 @@ describe("LatexCodeEditor", () => {
     });
     expect(ref.current?.getValue()).toBe("fresh!");
   });
+
+  it("marks prose misspellings only when spellCheck is on", async () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const doc = "The teh quick brown fox.";
+    const { createWordListChecker } = await import(
+      "@/lib/spellcheckService"
+    );
+    const { getBaseDictionary } = await import("@alove/editor");
+    const checker = createWordListChecker(getBaseDictionary());
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={false}
+          spellcheckChecker={checker}
+        />,
+      );
+    });
+    // Lint markers render async; allow the lint delay to elapse.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(
+      host().querySelectorAll(".cm-lintRange-warning").length,
+    ).toBe(0);
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={true}
+          spellcheckChecker={checker}
+        />,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(
+      host().querySelectorAll(".cm-lintRange-warning").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("ignores custom dictionary words in spellcheck markers", async () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const doc = "The TehCustomWord appears here.";
+    const { createWordListChecker } = await import(
+      "@/lib/spellcheckService"
+    );
+    const { getBaseDictionary } = await import("@alove/editor");
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={true}
+          spellcheckChecker={createWordListChecker(getBaseDictionary())}
+          spellcheckCustomWords={["tehcustomword"]}
+        />,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(
+      host().querySelectorAll(".cm-lintRange-warning").length,
+    ).toBe(0);
+  });
+
+  it("reconfigures project completion without resetting view or history", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+    const cites = [{ key: "einstein1905", title: "Relativity" }];
+    const labels = [{ label: "sec:intro", context: "Intro" }];
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={"See "}
+          onChange={onChange}
+          aria-label="latex editor"
+          citationEntries={[]}
+          labelEntries={[]}
+        />,
+      );
+    });
+    const domBefore = host().firstChild;
+    act(() => {
+      ref.current?.replaceRange(4, 4, "X");
+    });
+    const callsAfterEdit = onChange.mock.calls.length;
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={ref.current?.getValue() ?? ""}
+          onChange={onChange}
+          aria-label="latex editor"
+          citationEntries={cites}
+          labelEntries={labels}
+        />,
+      );
+    });
+    expect(host().firstChild).toBe(domBefore);
+    expect(ref.current?.getValue()).toBe("See X");
+    expect(onChange.mock.calls.length).toBe(callsAfterEdit);
+
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("See ");
+    expect(host().firstChild).toBe(domBefore);
+  });
+
+  it("keeps the exact doc across per-keystroke project churn", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={"\\section{Intro}"}
+          onChange={onChange}
+          aria-label="latex editor"
+          citationEntries={[]}
+          labelEntries={[]}
+        />,
+      );
+    });
+    const domBefore = host().firstChild;
+    // Simulate native-input keystrokes: each edit is followed by a render
+    // with fresh project array identities (new filesByPath object upstream).
+    const typed = " alpha omega";
+    for (let i = 0; i < typed.length; i += 1) {
+      const at = (ref.current?.getValue() ?? "").length;
+      act(() => {
+        ref.current?.replaceRange(at, at, typed[i]!);
+      });
+      const current = ref.current?.getValue() ?? "";
+      act(() => {
+        root.render(
+          <LatexCodeEditor
+            ref={ref}
+            value={current}
+            onChange={onChange}
+            aria-label="latex editor"
+            citationEntries={[{ key: `cite-${i}` }]}
+            labelEntries={[{ label: `sec-${i}` }]}
+          />,
+        );
+      });
+      expect(host().firstChild).toBe(domBefore);
+    }
+    expect(ref.current?.getValue()).toBe("\\section{Intro} alpha omega");
+    // Every keystroke stays its own undo step back to the template.
+    for (let i = 0; i < typed.length; i += 1) {
+      act(() => {
+        ref.current?.runCommand("undo");
+      });
+    }
+    expect(ref.current?.getValue()).toBe("\\section{Intro}");
+    expect(host().firstChild).toBe(domBefore);
+  });
+
+  it("does not dispatch on plain rerenders (stable array defaults)", async () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const { createWordListChecker } = await import(
+      "@/lib/spellcheckService"
+    );
+    const { getBaseDictionary } = await import("@alove/editor");
+    const checker = createWordListChecker(getBaseDictionary());
+    const renderEditor = (extra?: {
+      citationEntries?: { key: string }[];
+      labelEntries?: { label: string }[];
+    }) =>
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={"hello world"}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={true}
+          spellcheckChecker={checker}
+          citationEntries={extra?.citationEntries}
+          labelEntries={extra?.labelEntries}
+        />,
+      );
+
+    act(() => {
+      renderEditor();
+    });
+    const spy = vi.spyOn(findView(), "dispatch");
+    // Fresh array identities each render (what EditorPane produces per
+    // filesByPath update); omitted word-list props use module defaults.
+    // Neither may cause a view.dispatch: one fired between Playwright's
+    // select-all and insert collapses the DOM selection, so fill()
+    // appends instead of replacing.
+    act(() => {
+      renderEditor({ citationEntries: [{ key: "k1" }] });
+    });
+    act(() => {
+      renderEditor({
+        citationEntries: [{ key: "k2" }],
+        labelEntries: [{ label: "sec-a" }],
+      });
+    });
+    act(() => {
+      ref.current?.focus();
+    });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+    expect(ref.current?.getValue()).toBe("hello world");
+  });
+
+  it("skips redundant identical refreshes so hovered tooltips survive the debounce timer", async () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const { createWordListChecker } = await import(
+      "@/lib/spellcheckService"
+    );
+    const { getBaseDictionary } = await import("@alove/editor");
+    const doc = "The teh quick brown fox.";
+
+    act(() => {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={doc}
+          onChange={() => {}}
+          aria-label="latex editor"
+          spellCheck={true}
+          spellcheckChecker={createWordListChecker(getBaseDictionary())}
+        />,
+      );
+    });
+    // Mount dispatches the initial refresh immediately; the debounced
+    // value timer fires later with identical inputs. It must be a no-op:
+    // re-dispatching the same diagnostics dismisses a hovered lint
+    // tooltip (spelling suggestions).
+    const spy = vi.spyOn(findView(), "dispatch");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+    expect(host().querySelectorAll(".cm-lintRange-warning").length).toBeGreaterThan(0);
+  });
 });

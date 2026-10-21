@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import { FileText, Loader2, Play } from "lucide-react";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
+import { PdfCanvasViewer } from "./PdfCanvasViewer";
 
 export function PdfPreviewPane() {
   const {
@@ -12,13 +13,28 @@ export function PdfPreviewPane() {
     buildMessage,
     runCompile,
     mainFile,
+    activeFileId,
+    cursor,
     documentRevision,
     pdfSourceRevision,
     pdfMainFile,
+    pdfPage,
+    setPdfPage,
+    setPdfPageCount,
+    synctexMapping,
+    synctexRevision,
+    pdfHighlight,
+    goToPdfForCursor,
+    goToSourceForPdfPage,
+    goToSourceForPdfPoint,
     setBuildRecoveryOpen,
   } = useWorkbenchStore();
   const viewerStyle = useIdeSettingsStore((s) => s.pdfViewerStyle);
   const [browserUrl, setBrowserUrl] = useState<string | null>(null);
+  const [syncedPage, setSyncedPage] = useState<number | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [reversePage, setReversePage] = useState<string>("");
+  const [viewerMode, setViewerMode] = useState<"auto" | "iframe" | "interactive">("auto");
   useEffect(() => {
     if (!pdfDataUrl || typeof URL.createObjectURL !== "function") {
       setBrowserUrl(null);
@@ -33,12 +49,45 @@ export function PdfPreviewPane() {
     setBrowserUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [pdfDataUrl]);
+  // A new build invalidates the last sync jump; stale-source guard below
+  // blocks navigation until the next successful compile.
+  useEffect(() => {
+    setSyncedPage(null);
+    setSyncMessage(null);
+  }, [pdfDataUrl, synctexRevision]);
+  // Decode once for the interactive canvas viewer. The iframe and browser
+  // flows keep using the data URL untouched.
+  const pdfBytes = useMemo(() => {
+    if (!pdfDataUrl) return null;
+    const encoded = pdfDataUrl.split(",")[1];
+    if (!encoded) return null;
+    try {
+      return Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
+    } catch {
+      return null;
+    }
+  }, [pdfDataUrl]);
   const busy = buildStatus === "queued" || buildStatus === "running";
   const failed = buildStatus === "failed";
   const stale =
     Boolean(pdfDataUrl) &&
     pdfSourceRevision !== null &&
     documentRevision !== pdfSourceRevision;
+  const synctexStale =
+    synctexRevision === null || documentRevision !== synctexRevision;
+  const hasSynctex =
+    Boolean(synctexMapping) && (synctexMapping?.entries.length ?? 0) > 0;
+  const syncDisabled = busy || !pdfDataUrl || !hasSynctex || synctexStale;
+  // The interactive canvas viewer needs decoded bytes plus a fresh mapping.
+  // Auto mode enables it exactly then; the browser-object-URL flow stays on
+  // the native viewer. Without a mapping the default iframe render is
+  // byte-for-byte what the existing tests assert.
+  const interactiveAvailable =
+    hasSynctex && !synctexStale && viewerStyle !== "browser" && pdfBytes !== null;
+  const interactiveActive =
+    pdfDataUrl !== null &&
+    viewerMode !== "iframe" &&
+    (viewerMode === "interactive" || (viewerMode === "auto" && interactiveAvailable));
   const filename = (pdfMainFile ?? mainFile ?? "main.tex")
     .split("/")
     .at(-1)!
@@ -119,14 +168,158 @@ export function PdfPreviewPane() {
               </p>
             )}
           </div>
-          {viewerStyle === "browser" ? (
+          <div
+            className="shrink-0 border-b border-border bg-background px-3 py-2"
+            data-testid="synctex-controls"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={syncDisabled}
+                onClick={() => {
+                  const page = goToPdfForCursor();
+                  if (page !== null) {
+                    setSyncedPage(page);
+                    setSyncMessage(
+                      `PDF page ${page} for ${activeFileId ?? "source"}:${cursor?.line ?? 1}`,
+                    );
+                  } else if (!hasSynctex) {
+                    setSyncMessage("No SyncTeX mapping for this build.");
+                  } else if (synctexStale) {
+                    setSyncMessage(
+                      "Source changed since last build. Rebuild to sync.",
+                    );
+                  } else {
+                    setSyncMessage("No PDF position for the current cursor.");
+                  }
+                }}
+                className="shrink-0 rounded border border-border px-2 py-1 text-xs disabled:opacity-50"
+              >
+                Go to PDF for cursor
+              </button>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                Page
+                <input
+                  aria-label="PDF page for reverse sync"
+                  inputMode="numeric"
+                  value={reversePage}
+                  placeholder={String(pdfPage)}
+                  onChange={(e) => setReversePage(e.target.value)}
+                  className="w-12 rounded border border-border bg-background px-1 py-0.5 text-xs"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={syncDisabled}
+                onClick={() => {
+                  const raw = reversePage.trim();
+                  const page = raw === "" ? pdfPage : Number.parseInt(raw, 10);
+                  if (!Number.isSafeInteger(page) || page <= 0) {
+                    setSyncMessage("Enter a valid PDF page number.");
+                    return;
+                  }
+                  const target = goToSourceForPdfPage(page);
+                  if (target) {
+                    setSyncMessage(
+                      `Source ${target.file}:${target.line} for PDF page ${page}`,
+                    );
+                  } else if (!hasSynctex) {
+                    setSyncMessage("No SyncTeX mapping for this build.");
+                  } else if (synctexStale) {
+                    setSyncMessage(
+                      "Source changed since last build. Rebuild to sync.",
+                    );
+                  } else {
+                    setSyncMessage(`No source mapped for PDF page ${page}.`);
+                  }
+                }}
+                className="shrink-0 rounded border border-border px-2 py-1 text-xs disabled:opacity-50"
+              >
+                Go to source for page
+              </button>
+            </div>
+            <p
+              className="mt-1 text-xs text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {!hasSynctex
+                ? "SyncTeX unavailable for this build."
+                : synctexStale
+                  ? "SyncTeX stale. Rebuild to re-enable source–PDF sync."
+                  : (syncMessage ??
+                    "SyncTeX ready. Jump between source and PDF.")}
+              {synctexMapping?.truncated
+                ? " Mapping truncated to transport limits."
+                : ""}
+            </p>
+            {hasSynctex && viewerStyle !== "browser" && (
+              <div
+                className="mt-2 flex items-center gap-1"
+                role="group"
+                aria-label="PDF viewer"
+              >
+                <button
+                  type="button"
+                  aria-pressed={!interactiveActive}
+                  onClick={() => setViewerMode("iframe")}
+                  className="rounded border border-border px-2 py-0.5 text-xs aria-pressed:bg-primary/10 aria-pressed:text-primary"
+                >
+                  Default
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={interactiveActive}
+                  disabled={!interactiveAvailable && viewerMode !== "interactive"}
+                  onClick={() => setViewerMode("interactive")}
+                  title={
+                    interactiveAvailable
+                      ? "Coordinate SyncTeX with click-to-source"
+                      : "Rebuild to enable the interactive viewer"
+                  }
+                  className="rounded border border-border px-2 py-0.5 text-xs disabled:opacity-50 aria-pressed:bg-primary/10 aria-pressed:text-primary"
+                >
+                  Interactive
+                </button>
+              </div>
+            )}
+          </div>
+          {interactiveActive ? (
+            <PdfCanvasViewer
+              pdfBytes={pdfBytes}
+              page={pdfPage}
+              onPageChange={setPdfPage}
+              onPageCount={setPdfPageCount}
+              highlight={pdfHighlight}
+              stale={synctexStale}
+              onCanvasDoubleClick={(click) => {
+                const target = goToSourceForPdfPoint(click);
+                if (target) {
+                  setSyncMessage(
+                    `Source ${target.file}:${target.line} for PDF page ${click.page}`,
+                  );
+                } else if (synctexStale) {
+                  setSyncMessage(
+                    "Source changed since last build. Rebuild to sync.",
+                  );
+                } else {
+                  setSyncMessage(`No source mapped for PDF page ${click.page}.`);
+                }
+              }}
+              onError={(message) => setSyncMessage(message)}
+            />
+          ) : viewerStyle === "browser" ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-5 text-center">
               <p className="text-xs text-muted-foreground">
                 Open this build in your browser’s PDF viewer.
               </p>
               {browserUrl && (
                 <a
-                  href={browserUrl}
+                  href={
+                    syncedPage === null
+                      ? browserUrl
+                      : `${browserUrl}#page=${syncedPage}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded bg-primary px-3 py-2 text-xs text-primary-foreground"
@@ -138,9 +331,13 @@ export function PdfPreviewPane() {
           ) : (
             <iframe
               src={
-                viewerStyle === "overleaf"
-                  ? `${pdfDataUrl}#view=FitH&toolbar=0`
-                  : pdfDataUrl
+                syncedPage === null
+                  ? viewerStyle === "overleaf"
+                    ? `${pdfDataUrl}#view=FitH&toolbar=0`
+                    : pdfDataUrl
+                  : viewerStyle === "overleaf"
+                    ? `${pdfDataUrl}#page=${syncedPage}&view=FitH&toolbar=0`
+                    : `${pdfDataUrl}#page=${syncedPage}`
               }
               className="min-h-0 w-full flex-1 border-0"
               title="Compiled PDF"

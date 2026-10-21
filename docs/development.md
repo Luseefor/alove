@@ -1,6 +1,6 @@
 # Development
 
-alove is a Bun monorepo. Default `bun run dev` is **local standalone**: Next.js editor + BullMQ compile worker, **no Clerk or Convex**. Owner-scoped cloud sync uses `dev:cloud` and Convex; invitations and multi-user editing are not implemented.
+alove is a Bun monorepo. Default `bun run dev` is **local standalone**: Next.js editor + BullMQ compile worker, **no Clerk or Convex**. Cloud projects use `dev:cloud`, Clerk and Convex, with owner/editor/viewer access, invitations, source history and review tools.
 
 ## Prerequisites
 
@@ -45,7 +45,7 @@ bun run --filter compile-worker dev
 bun run convex:dev                  # keep running, or use bun run dev:with-convex
 ```
 
-Then [http://localhost:3000/editor](http://localhost:3000/editor). Sign in with Clerk. Use a distinct second account to verify that private projects are inaccessible, not as a shared-editing check. For publishing, use the [release runbook](release-runbook.md).
+Then [http://localhost:3000/editor](http://localhost:3000/editor). Sign in with Clerk. Use distinct accounts to verify private-project denial, recipient-specific invitation acceptance, editor access, viewer write denial and immediate revocation. For publishing, use the [release runbook](release-runbook.md).
 
 Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example).
 
@@ -85,13 +85,13 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 
 ## Status
 
-| Area          | In repo                                                            | Gaps                                                        |
-| ------------- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Editing       | CM6 LaTeX, folding, brackets, search, Vim, autocomplete            | Richer cite/ref, spellcheck, cross-file search enhancements |
-| Build         | `latexmk` via Docker or host, multiple engines, log parse, timeout | Docker-side hard kill, SyncTeX                              |
-| Collaboration | Convex + Clerk                                                     | Roles, comments, track changes                              |
-| Versioning    | IndexedDB source checkpoints and restore; compile snapshots        | Server history, Git                                         |
+| Area | In repo | Further work / validation |
+| --- | --- | --- |
+| Editing | CM6 LaTeX, project-wide cite/ref completion, English Hunspell spellcheck and personal dictionary, cross-file search with previewed replacement | More languages and semantic authoring tools |
+| Build | `latexmk`, three engines, bounded SyncTeX maps, source highlighting and PDF point reverse navigation | Measured caching; broader document/engine coverage |
+| Collaboration | Owner/editor/viewer roles, recipient-specific invitations, presence, anchored comments and proposed source changes with accept/reject | Live deployed Clerk/two-account validation; simultaneous character-level merging and automatic tracking of every keystroke |
+| Versioning | Local checkpoints, server file history, complete project checkpoints, GitHub repository/branch pull and push | Live GitHub OAuth validation; other Git hosting/protocol workflows |
 
-Editing reliability follow-up (issues #25–#28, PR #29) is implemented and merged: local history restore/checkpoints, cloud CAS and mutation failure recovery, per-file undo retention, and responsive/keyboard accessibility. See [quality-roadmap.md](quality-roadmap.md#reliability-follow-up-gate-issues-2528).
+Editing reliability follow-up (issues #25–#28, PR #29) is merged: local history restore/checkpoints, cloud CAS and mutation failure recovery, per-file undo retention, and responsive/keyboard accessibility. The subsequent authoring/collaboration implementation covers issues #32–#40. See [authoring-and-collaboration.md](authoring-and-collaboration.md) for workflows, setup and retention limits, and [quality-progress.md](quality-progress.md) for actual validation evidence.
 
-Feature parity with Overleaf remains incomplete. Subsequent work includes SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history, and roles/comments/track changes. Live Clerk/Convex login and deployed two-account authorization remain unverified; local mocks/unit tests and owner-only cloud code do not establish collaboration readiness.
+This is not a claim of full Overleaf parity. Live Clerk/Convex login, deployed multi-account authorization and end-user GitHub OAuth pull/push require separate live validation; mocked provider tests and distinct identities in `convex-test` do not establish those results.

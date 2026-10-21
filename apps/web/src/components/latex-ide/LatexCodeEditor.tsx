@@ -4,6 +4,8 @@ import {
   historyField,
   runLatexEditorCommand,
   type EditorTheme,
+  type ProjectCiteEntry,
+  type ProjectLabelEntry,
   createLatexEditorExtensions,
   createLatexEditorView,
 } from "@alove/editor";
@@ -15,12 +17,28 @@ import {
   Annotation,
   Transaction,
   type Extension,
+  type Text,
 } from "@codemirror/state";
 import type { Diagnostic } from "@alove/protocol";
-import { setDiagnostics } from "@codemirror/lint";
+import {
+  setDiagnostics,
+  type Diagnostic as CmDiagnostic,
+} from "@codemirror/lint";
 import { toCmDiagnostics } from "@/lib/editorDiagnostics";
+import {
+  checkDocument,
+  getSpellingSuggestions,
+  useEnglishSpellchecker,
+  type SpellChecker,
+} from "@/lib/spellcheckService";
 import React from "react";
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import { cn } from "@/lib/utils";
 
 export type LatexCodeEditorProps = {
@@ -32,6 +50,20 @@ export type LatexCodeEditorProps = {
   className?: string;
   readOnly?: boolean;
   spellCheck?: boolean;
+  /** Personal dictionary words (lowercase or mixed) excluded from spellcheck. */
+  spellcheckCustomWords?: string[];
+  /** Session-scoped ignored words excluded from spellcheck. */
+  spellcheckIgnoreWords?: string[];
+  /**
+   * Injected checker (unit-test seam). When omitted, the component lazy-loads
+   * the full dictionary-en engine; the bundled word list is never used here.
+   */
+  spellcheckChecker?: SpellChecker | null;
+  onAddSpellcheckWord?: (word: string) => void;
+  /** Project-wide bibliography entries for `\cite{...}` completion. */
+  citationEntries?: ProjectCiteEntry[];
+  /** Project-wide `\label{...}` entries for `\ref{...}` completion. */
+  labelEntries?: ProjectLabelEntry[];
   wordWrap?: boolean;
   autoCloseBrackets?: boolean;
   autocompleteEnabled?: boolean;
@@ -69,6 +101,90 @@ type LatexSettings = {
   keybindings: EditorKeybindings;
   ariaLabel: string;
 };
+
+type CompletionIndex = {
+  cites: ProjectCiteEntry[];
+  labels: ProjectLabelEntry[];
+};
+
+// Module-constant defaults: prop defaults like `= []` allocate a fresh
+// array every render, and effect deps on those identities refire on plain
+// rerenders (e.g. a focus-triggered store update). A view.dispatch from
+// such a spurious refresh can land between Playwright's select-all and
+// insert and collapse the DOM selection, so fill() appends instead of
+// replacing. Never allocate defaults inline.
+const EMPTY_WORDS: string[] = [];
+const EMPTY_CITES: ProjectCiteEntry[] = [];
+const EMPTY_LABELS: ProjectLabelEntry[] = [];
+
+function matchCase(source: string, suggestion: string): string {
+  if (
+    source.length > 0 &&
+    source[0] === source[0]!.toUpperCase() &&
+    source.slice(1) === source.slice(1).toLowerCase()
+  ) {
+    return suggestion.charAt(0).toUpperCase() + suggestion.slice(1);
+  }
+  return suggestion;
+}
+
+function toSpellcheckDiagnostics(
+  docText: string,
+  opts: {
+    enabled: boolean;
+    readOnly: boolean;
+    customWords: string[];
+    ignoreWords: string[];
+    checker: SpellChecker | null;
+    onAddWord?: (word: string) => void;
+  },
+): CmDiagnostic[] {
+  if (!opts.enabled || !docText || !opts.checker) return [];
+  const checker = opts.checker;
+  const hits = checkDocument(docText, checker, {
+    customWords: opts.customWords,
+    ignoreWords: opts.ignoreWords,
+    maxMisspellings: 100,
+    // Mark prose promptly; expensive correction ranking waits for a visible tooltip.
+    maxSuggestions: 0,
+  });
+  return hits.map((hit) => {
+    const diagnostic: CmDiagnostic = {
+      from: hit.from,
+      to: hit.to,
+      severity: "warning",
+      message: `Unknown word “${hit.word}”`,
+      source: "spellcheck",
+      renderMessage: () => {
+        const suggestions = getSpellingSuggestions(checker, hit.word);
+        const message = document.createElement("span");
+        message.textContent = suggestions.length
+          ? `“${hit.word}” — did you mean ${suggestions.map((word) => `“${matchCase(hit.word, word)}”`).join(", ")}?`
+          : diagnostic.message;
+        if (!opts.readOnly) {
+          const actions = suggestions.map((suggestion) => {
+            const insert = matchCase(hit.word, suggestion);
+            return {
+              name: `Use “${insert}”`,
+              apply: (view: EditorView, from: number, to: number) => {
+                if (view.state.doc.sliceString(from, to) !== hit.word) return;
+                view.dispatch({ changes: { from, to, insert } });
+              },
+            };
+          });
+          if (opts.onAddWord)
+            actions.push({
+              name: "Add to dictionary",
+              apply: () => opts.onAddWord!(hit.word.toLowerCase()),
+            });
+          diagnostic.actions = actions;
+        }
+        return message;
+      },
+    };
+    return diagnostic;
+  });
+}
 
 // Marks controlled-prop / server refetch syncs so updateListener can
 // suppress the onChange echo without suppressing genuine user edits.
@@ -125,6 +241,7 @@ function cacheEditorState(
 function buildDynamicExtensions(
   theme: EditorTheme,
   settings: LatexSettings,
+  getCompletion?: () => CompletionIndex,
 ): Extension[] {
   return [
     ...createLatexEditorExtensions(theme, {
@@ -135,6 +252,9 @@ function buildDynamicExtensions(
       wordWrap: settings.wordWrap,
       autocomplete: settings.autocompleteEnabled,
       nonBlinkingCursor: settings.nonBlinkingCursor,
+      // Stable getter: the project-aware source reads the live index at
+      // invocation time, so language updates never rebuild this compartment.
+      completionIndex: getCompletion,
     }),
     EditorView.editable.of(!settings.readOnly),
     EditorView.contentAttributes.of({
@@ -158,6 +278,12 @@ export const LatexCodeEditor = forwardRef<
     className,
     readOnly = false,
     spellCheck = false,
+    spellcheckCustomWords = EMPTY_WORDS,
+    spellcheckIgnoreWords = EMPTY_WORDS,
+    spellcheckChecker,
+    onAddSpellcheckWord,
+    citationEntries = EMPTY_CITES,
+    labelEntries = EMPTY_LABELS,
     wordWrap = true,
     autoCloseBrackets = true,
     autocompleteEnabled = true,
@@ -181,10 +307,100 @@ export const LatexCodeEditor = forwardRef<
   const initialHistoryRef = useRef({ historyCache, historyKey });
   const diagnosticRef = useRef({ diagnostics, filePath, mainFile });
   diagnosticRef.current = { diagnostics, filePath, mainFile };
+  const onAddSpellcheckWordRef = useRef(onAddSpellcheckWord);
+  onAddSpellcheckWordRef.current = onAddSpellcheckWord;
 
   onChangeRef.current = onChange;
   onSelectionChangeRef.current = onSelectionChange;
   onFocusRef.current = onFocus;
+
+  const completionRef = useRef<CompletionIndex>({ cites: [], labels: [] });
+  completionRef.current = { cites: citationEntries, labels: labelEntries };
+  // Stable across renders: the completion source reads the live index
+  // through this getter at invocation time, so per-keystroke array
+  // identities from the project store never rebuild the compartment.
+  const getCompletionIndex = useRef<() => CompletionIndex>(
+    () => completionRef.current,
+  ).current;
+  // Injected checker (tests). When omitted, the full dictionary-en engine
+  // lazy-loads once spellcheck is enabled; there is no bundled-list path.
+  const serviceChecker = useEnglishSpellchecker(
+    spellCheck && !spellcheckChecker,
+  );
+  const checker = spellcheckChecker ?? serviceChecker;
+  const spellOptions = useMemo(
+    () => ({
+      enabled: spellCheck,
+      readOnly,
+      customWords: spellcheckCustomWords,
+      ignoreWords: spellcheckIgnoreWords,
+      checker,
+    }),
+    [
+      spellCheck,
+      readOnly,
+      spellcheckCustomWords,
+      spellcheckIgnoreWords,
+      checker,
+    ],
+  );
+  const spellOptionsRef = useRef(spellOptions);
+  spellOptionsRef.current = spellOptions;
+
+  // Last dispatched diagnostic refresh, per view. A refresh whose inputs
+  // are all identical on an unchanged doc is a no-op and must not
+  // dispatch: e.g. the debounced value timer firing after a checker-ready
+  // immediate refresh would otherwise replace the same diagnostics and
+  // dismiss a hovered lint tooltip (spelling suggestions).
+  const lastRefreshRef = useRef<null | {
+    view: EditorView;
+    doc: Text;
+    diagnostics: Diagnostic[] | undefined;
+    filePath: string | undefined;
+    mainFile: string | null | undefined;
+    spell: typeof spellOptions;
+    onAddWord: ((word: string) => void) | undefined;
+  }>(null);
+
+  function refreshDiagnostics(view: EditorView) {
+    const diagnostic = diagnosticRef.current;
+    const spell = spellOptionsRef.current;
+    const onAddWord = onAddSpellcheckWordRef.current;
+    const doc = view.state.doc;
+    const prev = lastRefreshRef.current;
+    if (
+      prev !== null &&
+      prev.view === view &&
+      prev.doc === doc &&
+      prev.diagnostics === diagnostic.diagnostics &&
+      prev.filePath === diagnostic.filePath &&
+      prev.mainFile === diagnostic.mainFile &&
+      prev.spell === spell &&
+      prev.onAddWord === onAddWord
+    ) {
+      return;
+    }
+    const compile = toCmDiagnostics(
+      doc,
+      diagnostic.diagnostics ?? [],
+      diagnostic.filePath,
+      diagnostic.mainFile,
+    );
+    const spellDiags = toSpellcheckDiagnostics(doc.toString(), {
+      ...spell,
+      onAddWord,
+    });
+    view.dispatch(setDiagnostics(view.state, [...compile, ...spellDiags]));
+    lastRefreshRef.current = {
+      view,
+      doc,
+      diagnostics: diagnostic.diagnostics,
+      filePath: diagnostic.filePath,
+      mainFile: diagnostic.mainFile,
+      spell,
+      onAddWord,
+    };
+  }
 
   const compartmentRef = useRef<Compartment | null>(null);
   if (!compartmentRef.current) {
@@ -270,31 +486,23 @@ export const LatexCodeEditor = forwardRef<
             return false;
           },
         }),
-        compartment.of(buildDynamicExtensions(initialTheme, settings)),
+        compartment.of(
+          buildDynamicExtensions(initialTheme, settings, getCompletionIndex),
+        ),
         ...restoredHistory,
       ],
     });
 
     const view = createLatexEditorView(host, state);
     viewRef.current = view;
-    const diagnostic = diagnosticRef.current;
-    view.dispatch(
-      setDiagnostics(
-        view.state,
-        toCmDiagnostics(
-          view.state.doc,
-          diagnostic.diagnostics ?? [],
-          diagnostic.filePath,
-          diagnostic.mainFile,
-        ),
-      ),
-    );
+    refreshDiagnostics(view);
     return () => {
       cacheEditorState(mountCache, mountKey, view.state);
       view.destroy();
       viewRef.current = null;
+      lastRefreshRef.current = null;
     };
-  }, []);
+  }, [getCompletionIndex]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -304,34 +512,28 @@ export const LatexCodeEditor = forwardRef<
     themeRef.current = theme;
     view.dispatch({
       effects: compartment.reconfigure(
-        buildDynamicExtensions(theme, {
-          readOnly,
-          spellCheck,
-          wordWrap,
-          autoCloseBrackets,
-          autocompleteEnabled,
-          nonBlinkingCursor,
-          keybindings,
-          ariaLabel,
-        }),
-      ),
-    });
-    const diagnostic = diagnosticRef.current;
-    view.dispatch(
-      setDiagnostics(
-        view.state,
-        toCmDiagnostics(
-          view.state.doc,
-          diagnostic.diagnostics ?? [],
-          diagnostic.filePath,
-          diagnostic.mainFile,
+        buildDynamicExtensions(
+          theme,
+          {
+            readOnly,
+            spellCheck,
+            wordWrap,
+            autoCloseBrackets,
+            autocompleteEnabled,
+            nonBlinkingCursor,
+            keybindings,
+            ariaLabel,
+          },
+          getCompletionIndex,
         ),
       ),
-    );
+    });
+    refreshDiagnostics(view);
   }, [
     ariaLabel,
     autoCloseBrackets,
     autocompleteEnabled,
+    getCompletionIndex,
     nonBlinkingCursor,
     keybindings,
     readOnly,
@@ -350,21 +552,14 @@ export const LatexCodeEditor = forwardRef<
       if (!view) return;
       view.dispatch({
         effects: compartment.reconfigure(
-          buildDynamicExtensions(next, settingsRef.current),
-        ),
-      });
-      const diagnostic = diagnosticRef.current;
-      view.dispatch(
-        setDiagnostics(
-          view.state,
-          toCmDiagnostics(
-            view.state.doc,
-            diagnostic.diagnostics ?? [],
-            diagnostic.filePath,
-            diagnostic.mainFile,
+          buildDynamicExtensions(
+            next,
+            settingsRef.current,
+            getCompletionIndex,
           ),
         ),
-      );
+      });
+      refreshDiagnostics(view);
     });
     observer.observe(document.documentElement, {
       attributes: true,
@@ -373,7 +568,7 @@ export const LatexCodeEditor = forwardRef<
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [getCompletionIndex]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -391,21 +586,29 @@ export const LatexCodeEditor = forwardRef<
     });
   }, [value, recordExternalChanges]);
 
+  // Immediate refresh for compile diagnostics only. Spell config has its
+  // own effect below; completion data never needs a marker refresh.
   useEffect(() => {
     const view = viewRef.current;
-    if (view)
-      view.dispatch(
-        setDiagnostics(
-          view.state,
-          toCmDiagnostics(
-            view.state.doc,
-            diagnostics ?? [],
-            filePath,
-            mainFile,
-          ),
-        ),
-      );
-  }, [diagnostics, filePath, mainFile, value]);
+    if (view) refreshDiagnostics(view);
+  }, [diagnostics, filePath, mainFile]);
+
+  // Spell checker/custom-word changes refresh markers without touching
+  // the settings compartment.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view) refreshDiagnostics(view);
+  }, [checker, spellcheckCustomWords, spellcheckIgnoreWords]);
+
+  // Debounced refresh for keystrokes: full-dictionary suggest() per
+  // misspelling is bounded but not keystroke-cheap, so value edits wait.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const view = viewRef.current;
+      if (view) refreshDiagnostics(view);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [value]);
 
   useImperativeHandle(
     ref,

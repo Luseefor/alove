@@ -76,7 +76,7 @@ export async function canAccessCompileProject(
   projectId: string,
 ): Promise<boolean> {
   if (principal.owner.kind === "local") return true;
-  // The query enforces the same owner policy as project/file mutations.
+  // The query enforces current membership; viewers cannot submit source for compilation.
   const project = await fetchQuery(
     api.projects.get,
     { projectId },
@@ -85,7 +85,7 @@ export async function canAccessCompileProject(
       url: process.env.NEXT_PUBLIC_CONVEX_URL,
     },
   );
-  return project !== null && project.ownerId === principal.owner.userId;
+  return project !== null && (project.ownerId === principal.owner.userId || project.role === "editor");
 }
 
 export function ownsCompileJob(

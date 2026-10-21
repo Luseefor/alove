@@ -3,6 +3,9 @@
 import { useEffect, useState, Suspense, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { ProjectToolsProvider } from "./latex-ide/ProjectToolsContext";
+import { GitHubSyncDialog } from "./latex-ide/GitHubSyncDialog";
+import { CloudProjectTools } from "./latex-ide/CloudProjectTools";
 import { CloudDraftRecovery } from "./CloudDraftRecovery";
 import { LatexEditorApp } from "./latex-ide";
 import { isLocalStandalone } from "@/lib/localStandalone";
@@ -13,6 +16,8 @@ import { DEMO_FILES } from "@/demo/demoProject";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createLocalWorkspaceRepository } from "@/lib/localWorkspace";
 import { TEMPLATES, type TemplateId } from "@/lib/templates";
+import { serializeWorkspaceSource } from "@/lib/workspaceArchive";
+import { prepareSourceReplacement } from "@/lib/prepareSourceReplacement";
 import { createLocalWorkspaceSession } from "@/lib/localWorkspaceSession";
 
 function EditorWorkbenchConvex() {
@@ -32,6 +37,7 @@ function EditorWorkbenchConvex() {
   const renameProject = useMutation(api.projects.rename);
   const persistMainFile = useMutation(api.projects.setMainFile);
   const saveFile = useMutation(api.files.save);
+  const checkpointSource = useMutation(api.sourceHistory.checkpoint);
   const deleteFile = useMutation(api.files.deleteFile);
   const renameFileMutation = useMutation(api.files.renameFile);
   const [projectId, setProjectId] = useState<Id<"projects"> | null>(null);
@@ -97,6 +103,14 @@ function EditorWorkbenchConvex() {
   );
 
   useEffect(() => {
+    if (project === null || !isAuthenticated) {
+      useWorkbenchStore.getState().stopCompilePolling();
+      setPersistenceHandlers({});
+      useWorkbenchStore.setState({ projectRole: "viewer" });
+    }
+  }, [project, isAuthenticated, setPersistenceHandlers]);
+
+  useEffect(() => {
     if (rows && projectId) {
       const files = rows.map((r) => ({
         path: r.path,
@@ -104,7 +118,7 @@ function EditorWorkbenchConvex() {
         version: r.version,
         incarnation: String(r._id),
       }));
-      useWorkbenchStore.setState({ cloudUserId: user?.id ?? null });
+      useWorkbenchStore.setState({ cloudUserId: user?.id ?? null, projectRole: project?.role ?? null });
       mergeRemoteProject({
         projectId,
         title: project?.name,
@@ -119,11 +133,17 @@ function EditorWorkbenchConvex() {
       )
         useWorkbenchStore.setState({ mainFile: project.mainFile });
     }
-  }, [rows, projectId, project?.name, project?.mainFile, mergeRemoteProject, user?.id]);
+  }, [rows, projectId, project?.name, project?.mainFile, project?.role, mergeRemoteProject, user?.id]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !project || !isAuthenticated) return;
     setPersistenceHandlers({
+      prepareSourceReplacement,
+      checkpointSource: async (expectedRevision) => {
+        const state = useWorkbenchStore.getState();
+        if (state.projectId !== projectId || state.documentRevision !== expectedRevision) throw new Error("Source changed before checkpointing.");
+        await checkpointSource({ projectId, expected: Object.keys(state.filesByPath).map(path => ({ path, version: state.versionsByPath[path], incarnation: state.incarnationsByPath[path] })) });
+      },
       setMainFile: async (path) => {
         await persistMainFile({ projectId, path });
       },
@@ -164,11 +184,14 @@ function EditorWorkbenchConvex() {
     };
   }, [
     projectId,
+    project,
+    isAuthenticated,
     saveFile,
     deleteFile,
     renameFileMutation,
     renameProject,
     persistMainFile,
+    checkpointSource,
     setPersistenceHandlers,
   ]);
 
@@ -193,7 +216,13 @@ function EditorWorkbenchConvex() {
   if (projectId && project === null)
     return (
       <div role="alert" className="p-6">
-        Project not found or access denied.{" "}
+        Project not found or access denied. Export any source still open on this device before leaving.{" "}
+        <button type="button" className="underline" onClick={() => {
+          const state = useWorkbenchStore.getState();
+          if (state.projectId !== projectId) return;
+          const url = URL.createObjectURL(new Blob([serializeWorkspaceSource({ title: state.projectTitle, files: state.filesByPath, mainFile: state.mainFile })], { type: "application/json" }));
+          const link = document.createElement("a"); link.href = url; link.download = "recovered-source.alove.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }}>Export open source</button>{" "}
         <a href="/projects" className="underline">
           Back to projects
         </a>
@@ -205,7 +234,7 @@ function EditorWorkbenchConvex() {
         Opening cloud project…
       </div>
     );
-  return <CloudDraftRecovery key={`${user.id}:${projectId}`} userId={user.id} projectId={projectId!}><LatexEditorApp /></CloudDraftRecovery>;
+  return <CloudDraftRecovery key={`${user.id}:${projectId}`} userId={user.id} projectId={projectId!}><ProjectToolsProvider value={<><CloudProjectTools key={projectId!} projectId={projectId!} /><GitHubSyncDialog key={`git:${projectId}`} /></>}><LatexEditorApp /></ProjectToolsProvider></CloudDraftRecovery>;
 }
 
 function EditorWorkbenchLocal() {

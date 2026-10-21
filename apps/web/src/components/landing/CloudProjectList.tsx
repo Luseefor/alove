@@ -73,7 +73,7 @@ function buildCloudImportPayload(source: {
   };
 }
 
-type CloudProject = Doc<"projects">;
+type CloudProject = Doc<"projects"> & { role?: "owner" | "editor" | "viewer" };
 type BusyKind = "rename" | "delete";
 type LastAction =
   | { kind: "rename"; project: CloudProject; name: string }
@@ -96,6 +96,8 @@ export function CloudProjectList() {
     api.projects.listMine,
     isAuthenticated ? {} : "skip",
   );
+  const invitations = useQuery(api.members.pending, isAuthenticated ? {} : "skip");
+  const acceptInvitation = useMutation(api.members.accept);
   const renameProject = useMutation(api.projects.rename);
   const removeProject = useMutation(api.projects.remove);
   const importSource = useMutation(api.projects.importSource);
@@ -295,6 +297,8 @@ export function CloudProjectList() {
           <UserButton />
         </div>
       </div>
+
+      {invitations?.map(invitation => <div key={invitation._id} className="flex flex-wrap items-center gap-3 rounded border border-border p-3 text-sm"><span className="flex-1">Invitation: {invitation.projectName} ({invitation.role})</span><button type="button" className="rounded border px-3 py-2 hover:bg-muted" onClick={() => { void acceptInvitation({ invitationId: invitation._id }).then(id => router.push(`/editor?project=${encodeURIComponent(id)}`)).catch(() => setActionError("Could not accept invitation. It may have expired or been revoked.")); }}>Accept invitation</button></div>)}
 
       <div className="flex flex-wrap gap-2 text-xs">
         <Link
@@ -525,7 +529,7 @@ export function CloudProjectList() {
                       </Link>
                     )}
                     <p className="truncate text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
-                      {formatUpdatedAt(project.updatedAt)}
+                      {formatUpdatedAt(project.updatedAt)} · {project.role ?? "owner"}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -563,7 +567,7 @@ export function CloudProjectList() {
                         </Link>
                         <button
                           type="button"
-                          disabled={isBusy}
+                          disabled={isBusy || project.role === "viewer"}
                           onClick={() => startRename(project)}
                           aria-label={`Rename ${project.name || "untitled project"}`}
                           className="inline-flex items-center justify-center rounded-2xl border border-border bg-background px-3 py-2 text-[11px] font-black uppercase tracking-widest text-foreground transition-colors hover:bg-muted disabled:opacity-50"
@@ -572,7 +576,7 @@ export function CloudProjectList() {
                         </button>
                         <button
                           type="button"
-                          disabled={isBusy}
+                          disabled={isBusy || (project.role !== undefined && project.role !== "owner")}
                           onClick={() => void confirmDelete(project)}
                           aria-label={`Delete ${project.name || "untitled project"}`}
                           className="inline-flex items-center justify-center rounded-2xl border border-error-border bg-error-bg px-3 py-2 text-[11px] font-black uppercase tracking-widest text-error transition-colors hover:bg-background disabled:opacity-50"

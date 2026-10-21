@@ -425,4 +425,55 @@ describe("EditorPane", () => {
     expect(cache.has("main.tex#0")).toBe(false);
     expect(codeEditorRuntime.latestProps?.historyKey).toBe("main.tex#1");
   });
+
+  it("passes project citations/labels and custom words to the code editor", () => {
+    seedStore({
+      filesByPath: {
+        "main.tex":
+          "\\section{Intro}\\label{sec:intro}\nSee \\cite{einstein1905}.",
+        "refs.bib":
+          "@article{einstein1905,\ntitle={Relativity},\nauthor={Einstein},\nyear={1905}\n}",
+      },
+    });
+    useIdeSettingsStore.setState({ spellcheckCustomWords: ["tehcustomword"] });
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    expect(
+      codeEditorRuntime.latestProps?.citationEntries?.map((c) => c.key),
+    ).toEqual(["einstein1905"]);
+    expect(
+      codeEditorRuntime.latestProps?.labelEntries?.map((l) => l.label),
+    ).toEqual(["sec:intro"]);
+    expect(
+      codeEditorRuntime.latestProps?.spellcheckCustomWords,
+    ).toEqual(["tehcustomword"]);
+    expect(typeof codeEditorRuntime.latestProps?.onAddSpellcheckWord).toBe(
+      "function",
+    );
+    act(() => {
+      codeEditorRuntime.latestProps?.onAddSpellcheckWord?.("newword");
+    });
+    expect(useIdeSettingsStore.getState().spellcheckCustomWords).toContain(
+      "newword",
+    );
+  });
+
+  it("sets the editor readOnly when the project role is viewer", () => {
+    seedStore({});
+    useWorkbenchStore.setState({ projectRole: "viewer" } as never);
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    expect(codeEditorRuntime.latestProps?.readOnly).toBe(true);
+    useWorkbenchStore.setState({ projectRole: "owner" } as never);
+  });
+
+  it("leaves the editor editable for owner roles", () => {
+    seedStore({});
+    act(() => {
+      root.render(<EditorPane />);
+    });
+    expect(codeEditorRuntime.latestProps?.readOnly).toBe(false);
+  });
 });

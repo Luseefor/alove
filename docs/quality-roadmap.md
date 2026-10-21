@@ -66,7 +66,7 @@ Each row is one reviewable change or a short sequence of tightly related commits
 - **Dependable local release:** B0, D1-D4, C1-C3, E1-E3, relevant U1/R1 checks, and C4 local-network restrictions. Acknowledged saves survive refresh; failures visible; source exportable; compile bounded. No cloud account needed.
 - **Private cloud release:** add C4-C5 and S1. Pass the cloud environment matrix and distinct-user authorization checks on the deployed revision.
 - **Shared workspace release:** add S2 and full U1. Demonstrate conflict recovery/revocation before advertising multi-user collaboration.
-- **Later enhancements:** SyncTeX, richer cite/ref completion, spellcheck, cross-file search enhancements, Git/server history, roles/comments/track changes, measured compile caching. Prioritize from usage after reliability gates. Dashboard controls require working backing operations.
+- **Later enhancements:** The authoring baseline for SyncTeX, project cite/ref, English spellcheck, cross-file search, GitHub/server history, roles/comments and source change proposals is implemented under issues #32–#40 after the reliability gate. See [authoring and collaboration](authoring-and-collaboration.md). Measured compile caching, additional languages and broader collaboration remain further work. Dashboard controls require working backing operations.
 
 ## First implementation batch
 
@@ -90,4 +90,4 @@ Implemented and merged in PR #29. Delivered reliability boundaries:
 3. Per-file undo/redo: retain histories across tabs with project and file-incarnation isolation and bounded retention (#27).
 4. U1: keyboard actions, dialog/drawer focus, labels and responsive source/preview checks (#28).
 
-SyncTeX, richer cite/ref, spellcheck, cross-file search enhancements, Git/server history, and roles/comments/track changes remain subsequent work and gaps compared with Overleaf. Live Clerk/Convex login and deployed two-account authorization remain unverified; local mocks/unit tests and owner-only cloud code do not establish collaboration readiness.
+Issues #32–#40 implement the subsequent authoring baseline: coordinate SyncTeX, project cite/ref, English spellcheck, bounded cross-file search/replacement, GitHub pull/push, server history, memberships, comments and proposed source changes. Automatic tracking of every keystroke and simultaneous character-level merging remain beyond this proposal-based review workflow. Live Clerk/Convex login, deployed two-account authorization and end-user GitHub OAuth remain unverified; local provider mocks and distinct `convex-test` identities do not establish live collaboration readiness.

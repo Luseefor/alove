@@ -240,6 +240,8 @@ test("global search handles regex failures, clears input, and jumps to matching 
   await input.fill("needle");
   await input.press("Enter");
   await page.getByRole("button", { name: /needle here/ }).click();
+  // Project search now selects the exact hit; collapse it before inserting a prefix.
+  await page.keyboard.press("ArrowLeft");
   await page.keyboard.insertText("JUMP ");
   await expect(source).toContainText("JUMP needle here");
 });

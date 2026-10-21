@@ -103,6 +103,12 @@ jobs:
         env:
           COMPILE_DOCKER_IMAGE: alove-tex:local
         run: bun test ./test/runCompile.docker.integration.js
+      - name: Verify SyncTeX coordinates against all three engine CLIs
+        working-directory: apps/compile-worker
+        env:
+          COMPILE_DOCKER_IMAGE: alove-tex:local
+          SYNCTEX_FIXTURE_CHECK: "1"
+        run: bun test ./test/synctex.coords.docker.test.js
       - name: Wait for dedicated Redis on 6379
         run: |
           for i in $(seq 1 30); do
@@ -159,7 +165,7 @@ jobs:
         working-directory: apps/web
         env:
           E2E_REAL_COMPILE: "1"
-        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts e2e/closed-journey.spec.ts
+        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts e2e/closed-journey.spec.ts e2e/synctex.spec.ts
       - name: Stop background worker
         if: always()
         run: |

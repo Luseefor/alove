@@ -15,6 +15,10 @@ export interface IdeSettingsState {
   pdfViewerStyle: PdfViewerStyle;
   referenceSearchMode: "default" | "fuzzy" | "bibtex";
   spellcheckEnabled: boolean;
+  /** Personal dictionary: lowercase words excluded from spellcheck. */
+  spellcheckCustomWords: string[];
+  /** Dictionary language tag (currently `en`; reserved for future locales). */
+  spellcheckLanguage: "en";
   defaultCompilerEngine: CompilerEngine;
   compilerCleanAux: boolean;
   setEditorAutocomplete: (v: boolean) => void;
@@ -25,6 +29,9 @@ export interface IdeSettingsState {
   setPdfViewerStyle: (v: PdfViewerStyle) => void;
   setReferenceSearchMode: (v: IdeSettingsState["referenceSearchMode"]) => void;
   setSpellcheckEnabled: (v: boolean) => void;
+  addSpellcheckWord: (word: string) => void;
+  removeSpellcheckWord: (word: string) => void;
+  setSpellcheckLanguage: (v: IdeSettingsState["spellcheckLanguage"]) => void;
   setDefaultCompilerEngine: (v: CompilerEngine) => void;
   setCompilerCleanAux: (v: boolean) => void;
 }
@@ -40,6 +47,8 @@ export const useIdeSettingsStore = create<IdeSettingsState>()(
       pdfViewerStyle: "embedded",
       referenceSearchMode: "default",
       spellcheckEnabled: false,
+      spellcheckCustomWords: [],
+      spellcheckLanguage: "en",
       defaultCompilerEngine: "xelatex",
       compilerCleanAux: false,
       setEditorAutocomplete: (v) => set({ editorAutocomplete: v }),
@@ -50,6 +59,21 @@ export const useIdeSettingsStore = create<IdeSettingsState>()(
       setPdfViewerStyle: (v) => set({ pdfViewerStyle: v }),
       setReferenceSearchMode: (v) => set({ referenceSearchMode: v }),
       setSpellcheckEnabled: (v) => set({ spellcheckEnabled: v }),
+      addSpellcheckWord: (word) =>
+        set((state) => {
+          const w = word.trim().toLowerCase();
+          if (!w || state.spellcheckCustomWords.includes(w)) return state;
+          return {
+            spellcheckCustomWords: [...state.spellcheckCustomWords, w].sort(),
+          };
+        }),
+      removeSpellcheckWord: (word) =>
+        set((state) => ({
+          spellcheckCustomWords: state.spellcheckCustomWords.filter(
+            (w) => w !== word.trim().toLowerCase(),
+          ),
+        })),
+      setSpellcheckLanguage: (v) => set({ spellcheckLanguage: v }),
       setDefaultCompilerEngine: (v) => set({ defaultCompilerEngine: v }),
       setCompilerCleanAux: (v) => set({ compilerCleanAux: v }),
     }),

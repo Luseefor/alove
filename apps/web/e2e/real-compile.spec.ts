@@ -21,6 +21,8 @@ ALOVE BROWSER REAL PDF PROOF
   expect((await response.json()).jobId).toBeTruthy();
   const preview = page.getByTestId("pdf-preview-pane");
   await expect(preview).toHaveAttribute("data-status", "ready", { timeout: 60000 });
+  // Verify the embedded viewer path explicitly; fresh SyncTeX builds open the interactive viewer.
+  await page.getByRole("button", { name: "Default", exact: true }).click();
   const frame = page.locator('iframe[title="Compiled PDF"]');
   const successfulPdf = await frame.getAttribute("src");
   const downloadPromise = page.waitForEvent("download");

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { utf8ByteLength, MAX_PROJECT_BYTES } from "../src/lib/cloudProjectLimits";
 
@@ -12,12 +13,45 @@ function isUsableClerkId(value: string): boolean {
   return value.length > 0 && value.length <= CLERK_ID_MAX;
 }
 
+export async function purgeProjectMetadata(ctx: MutationCtx, projectId: Id<"projects">): Promise<boolean> {
+  let more = false;
+  for (const table of ["memberships", "invitations", "commentThreads", "commentMessages", "suggestions", "githubConnections"] as const) {
+    const rows = await ctx.db.query(table).withIndex("by_project", q => q.eq("projectId", projectId)).take(101);
+    more ||= rows.length > 100;
+    for (const row of rows.slice(0, 100)) await ctx.db.delete(row._id);
+  }
+  const checkpoints = await ctx.db.query("projectCheckpoints").withIndex("by_project", q => q.eq("projectId", projectId)).take(1);
+  for (const row of checkpoints) { for (const file of row.files) await ctx.db.delete(file.contentId); await ctx.db.delete(row._id); }
+  more ||= checkpoints.length > 0;
+  const history = await ctx.db.query("sourceHistory").withIndex("by_project", q => q.eq("projectId", projectId)).take(5);
+  more ||= history.length > 4;
+  for (const row of history.slice(0, 4)) { await ctx.db.delete(row.contentId); await ctx.db.delete(row._id); }
+  return more;
+}
+
+/** Also runs after explicit project deletion; never requires the parent to survive. */
+export const cleanupMetadata = internalMutation({ args: { projectId: v.id("projects") }, handler: async (ctx, { projectId }): Promise<void> => {
+  if (await purgeProjectMetadata(ctx, projectId)) await ctx.scheduler.runAfter(0, internal.accountLifecycle.cleanupMetadata, { projectId });
+}});
+
+export const cleanupMemberships = internalMutation({ args: { clerkId: v.string() }, handler: async (ctx, { clerkId }): Promise<void> => {
+  if (!isUsableClerkId(clerkId)) return;
+  let more = false;
+  for (const table of ["memberships", "invitations"] as const) {
+    const rows = await ctx.db.query(table).withIndex("by_user", q => q.eq(table === "memberships" ? "userId" : "invitedUserId", clerkId)).take(101);
+    more ||= rows.length > 100;
+    for (const row of rows.slice(0, 100)) await ctx.db.delete(row._id);
+  }
+  if (more) await ctx.scheduler.runAfter(0, internal.accountLifecycle.cleanupMemberships, { clerkId });
+}});
+
 // Internal entry point for the Clerk webhook. It only reads project ids
 // here, never file contents, so one user with many projects stays bounded.
 export const startUserCleanup = internalMutation({
   args: { clerkId: v.string() },
   handler: async (ctx, { clerkId }): Promise<{ scheduled: number }> => {
     if (!isUsableClerkId(clerkId)) return { scheduled: 0 };
+    await ctx.scheduler.runAfter(0, internal.accountLifecycle.cleanupMemberships, { clerkId });
     const owned = await ctx.db
       .query("projects")
       .withIndex("by_owner", (q) => q.eq("ownerId", clerkId))
@@ -77,7 +111,8 @@ export const cleanupProject = internalMutation({
       await ctx.db.delete(row._id);
     }
 
-    if (filesRemain || presenceRemain) {
+    const metadataRemain = await purgeProjectMetadata(ctx, projectId);
+    if (filesRemain || presenceRemain || metadataRemain) {
       await ctx.scheduler.runAfter(
         0,
         internal.accountLifecycle.cleanupProject,

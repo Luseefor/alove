@@ -1,4 +1,5 @@
 import type { StoreApi } from "zustand";
+import { prepareSourceReplacement } from "./prepareSourceReplacement";
 import type { WorkbenchState } from "@/stores/workbenchStore";
 import {
   LocalWorkspaceConflictError,
@@ -215,7 +216,7 @@ export function createLocalWorkspaceSession({
     return pending;
   }
 
-  store.setState({ saveStatus: "loading", saveMessage: null, persistence: {} });
+  store.setState({ projectRole: "owner", cloudUserId: null, saveStatus: "loading", saveMessage: null, persistence: {} });
   const ready = (async () => {
     try {
       const loaded = await repository.load(seed.id);
@@ -247,6 +248,7 @@ export function createLocalWorkspaceSession({
         saveStatus: loaded ? "saved" : "unsaved",
         persistence: {
           saveWorkspace: save,
+          prepareSourceReplacement: args => prepareSourceReplacement(args, store),
           ...(repository.listHistory
             ? {
                 listHistory: () => repository.listHistory!(seed.id),

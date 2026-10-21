@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { projectAccess, requireProject } from "./projectAccess";
+import { recordSource } from "./sourceHistory";
 import {
   MAX_FILES,
   MAX_PROJECT_BYTES,
@@ -23,8 +25,7 @@ export const list = query({
   handler: async (ctx, { projectId }) => {
     const id = await ctx.auth.getUserIdentity();
     if (!id) return [];
-    const project = await ctx.db.get(projectId);
-    if (!project || project.ownerId !== id.subject) return [];
+    if (!await projectAccess(ctx, projectId)) return [];
     return await ctx.db
       .query("projectFiles")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
@@ -43,9 +44,7 @@ export const save = mutation({
   handler: async (ctx, args) => {
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
-    const project = await ctx.db.get(args.projectId);
-    if (!project) throw new Error("Not found");
-    if (project.ownerId !== id.subject) throw new Error("Forbidden");
+    await requireProject(ctx, args.projectId, "edit");
 
     const pathCheck = checkProjectPath(args.path);
     if (!pathCheck.ok) throw new Error(pathCheck.error);
@@ -96,6 +95,7 @@ export const save = mutation({
         updatedAt: now,
         updatedBy: id.subject,
       });
+      await recordSource(ctx, { projectId: args.projectId, path, content: args.content, version: 1, incarnation: String(fid), authorId: id.subject, operation: "save" });
       await ctx.db.patch(args.projectId, { updatedAt: now });
       return { id: fid, version: 1, conflict: false as const, incarnation: String(fid) };
     }
@@ -150,6 +150,7 @@ export const save = mutation({
 
     const now = Date.now();
     const next = existing.version + 1;
+    await recordSource(ctx, { projectId: args.projectId, path, content: existing.content, version: existing.version, incarnation: String(existing._id), authorId: existing.updatedBy, operation: "save" });
     await ctx.db.patch(existing._id, {
       content: args.content,
       version: next,
@@ -157,6 +158,7 @@ export const save = mutation({
       updatedBy: id.subject,
     });
     await ctx.db.patch(args.projectId, { updatedAt: now });
+    await recordSource(ctx, { projectId: args.projectId, path, content: args.content, version: next, incarnation: String(existing._id), authorId: id.subject, operation: "save" });
     return { conflict: false as const, version: next, incarnation: String(existing._id) };
   },
 });
@@ -171,9 +173,7 @@ export const deleteFile = mutation({
   handler: async (ctx, args) => {
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
-    const project = await ctx.db.get(args.projectId);
-    if (!project) throw new Error("Not found");
-    if (project.ownerId !== id.subject) throw new Error("Forbidden");
+    const { project } = await requireProject(ctx, args.projectId, "edit");
 
     const pathCheck = checkProjectPath(args.path);
     if (!pathCheck.ok) throw new Error(pathCheck.error);
@@ -221,6 +221,7 @@ export const deleteFile = mutation({
       };
     }
 
+    await recordSource(ctx, { projectId: args.projectId, path: existing.path, content: existing.content, version: existing.version, incarnation: String(existing._id), authorId: id.subject, operation: "delete" });
     await ctx.db.delete(existing._id);
     await ctx.db.patch(args.projectId, {
       updatedAt: Date.now(),
@@ -243,9 +244,7 @@ export const renameFile = mutation({
   handler: async (ctx, args) => {
     const id = await ctx.auth.getUserIdentity();
     if (!id) throw new Error("Unauthorized");
-    const project = await ctx.db.get(args.projectId);
-    if (!project) throw new Error("Not found");
-    if (project.ownerId !== id.subject) throw new Error("Forbidden");
+    const { project } = await requireProject(ctx, args.projectId, "edit");
 
     const oldCheck = checkProjectPath(args.oldPath);
     if (!oldCheck.ok) throw new Error(oldCheck.error);
@@ -315,6 +314,7 @@ export const renameFile = mutation({
     );
     if (collision) throw new Error(collision);
 
+    await recordSource(ctx, { projectId: args.projectId, path: oldPath, content: existing.content, version: existing.version, incarnation: String(existing._id), authorId: existing.updatedBy, operation: "save" });
     await ctx.db.patch(existing._id, {
       path: newPath,
       updatedAt: Date.now(),
@@ -327,6 +327,7 @@ export const renameFile = mutation({
           }
         : {}),
     });
+    await recordSource(ctx, { projectId: args.projectId, path: newPath, previousPath: oldPath, content: existing.content, version: existing.version, incarnation: String(existing._id), authorId: id.subject, operation: "rename" });
     return { renamed: true as const, incarnation: String(existing._id) };
   },
 });

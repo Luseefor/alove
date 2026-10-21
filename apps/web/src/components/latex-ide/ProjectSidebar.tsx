@@ -25,6 +25,7 @@ import type { LucideIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ProjectSearchPanel } from "@/components/latex-ide/ProjectSearchPanel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,21 +88,13 @@ export function ProjectSidebar() {
     outline,
     setActiveRail,
     createFile,
-    projectSearchQuery,
-    projectSearchResults,
-    runProjectSearch,
-    clearProjectSearch,
     jumpToDiagnostic,
     appendToActiveFile,
     wrapSelectionOrInsert,
   } = useWorkbenchStore();
 
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const [projectSearchInput, setProjectSearchInput] =
-    useState(projectSearchQuery);
 
-  const [searchRegex, setSearchRegex] = useState(false);
-  const [searchCaseSensitive, setSearchCaseSensitive] = useState(false);
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFilePath, setNewFilePath] = useState("notes.tex");
   const [newFileError, setNewFileError] = useState<string | null>(null);
@@ -109,9 +102,6 @@ export function ProjectSidebar() {
   const [newFolderPath, setNewFolderPath] = useState("figures");
   const [newFolderError, setNewFolderError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [projectSearchError, setProjectSearchError] = useState<string | null>(
-    null,
-  );
   const [sidebarTab, setSidebarTab] = useState<"snippets" | "outline">(
     "snippets",
   );
@@ -179,27 +169,6 @@ export function ProjectSidebar() {
     setNewFolderError(null);
   };
 
-  const runGlobalFind = () => {
-    setProjectSearchError(null);
-    try {
-      runProjectSearch(projectSearchInput, {
-        texOnly: false,
-        regex: searchRegex,
-        caseSensitive: searchCaseSensitive,
-      });
-    } catch (e) {
-      setProjectSearchError(
-        e instanceof Error ? e.message : "Invalid search pattern.",
-      );
-    }
-  };
-
-  const clearGlobalFind = () => {
-    setProjectSearchInput("");
-    setProjectSearchError(null);
-    clearProjectSearch();
-  };
-
   const fileTree = useMemo(
     () =>
       ProjectService.buildTree(
@@ -250,132 +219,7 @@ export function ProjectSidebar() {
   ].filter((s) => s.label.toLowerCase().includes(snippetSearch.toLowerCase()));
 
   if (activeRail === "search") {
-    return (
-      <aside className="w-full h-full flex flex-col bg-background select-none border-r shrink-0">
-        <div className="h-10 border-b px-3 flex items-center justify-between bg-muted/50">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-            Global Search
-          </span>
-          <button
-            type="button"
-            onClick={clearGlobalFind}
-            className="text-[10px] font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-          >
-            Clear
-          </button>
-        </div>
-        <div className="p-3 space-y-3">
-          <div className="flex gap-2">
-            <div className="relative flex-1 group">
-              <Search
-                aria-hidden="true"
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground group-focus-within:text-primary transition-colors"
-              />
-              <input
-                aria-label="Search text in project"
-                value={projectSearchInput}
-                onChange={(e) => {
-                  setProjectSearchInput(e.target.value);
-                  if (projectSearchError) setProjectSearchError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    runGlobalFind();
-                  }
-                }}
-                placeholder="Search text in project..."
-                className="h-8 w-full rounded-lg border border-border bg-background pl-8 pr-3 text-xs outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={runGlobalFind}
-              className="h-8 px-4 rounded-lg bg-primary text-white text-[11px] font-bold shadow-md shadow-primary/10 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Find
-            </button>
-          </div>
-          <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-1">
-            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-muted-foreground transition-colors">
-              <input
-                type="checkbox"
-                checked={searchRegex}
-                onChange={(e) => setSearchRegex(e.target.checked)}
-                className="w-3 h-3 rounded border-zinc-300 text-primary focus:ring-primary/20"
-              />
-              Regex
-            </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer hover:text-muted-foreground transition-colors">
-              <input
-                type="checkbox"
-                checked={searchCaseSensitive}
-                onChange={(e) => setSearchCaseSensitive(e.target.checked)}
-                className="w-3 h-3 rounded border-zinc-300 text-primary focus:ring-primary/20"
-              />
-              Case Sensitive
-            </label>
-          </div>
-          {projectSearchError ? (
-            <p
-              role="alert"
-              className="text-[11px] text-error bg-error-bg border border-error-border rounded-lg px-3 py-2"
-            >
-              {projectSearchError}
-            </p>
-          ) : null}
-        </div>
-        <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground bg-muted/50 border-y border-border flex justify-between">
-          <span>{projectSearchResults.length} matches</span>
-          {projectSearchQuery && (
-            <span className="truncate max-w-[150px]">
-              for &quot;{projectSearchQuery}&quot;
-            </span>
-          )}
-        </div>
-        <div className="flex-1 overflow-auto p-2 space-y-1 bg-background">
-          {projectSearchResults.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-3">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-zinc-300 border border-border">
-                <Search aria-hidden="true" className="w-6 h-6" />
-              </div>
-              <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
-                No results yet. Enter a query and click Find to search across
-                all files.
-              </p>
-            </div>
-          ) : (
-            projectSearchResults.slice(0, 500).map((r, idx) => (
-              <button
-                key={`${r.path}-${r.line}-${r.column}-${idx}`}
-                onClick={() =>
-                  jumpToDiagnostic({
-                    severity: "info",
-                    message: r.preview,
-                    file: r.path,
-                    line: r.line,
-                    column: r.column,
-                  })
-                }
-                className="w-full text-left rounded-xl border border-border p-3 hover:bg-muted hover:border-primary/20 transition-all group shadow-sm mb-2"
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <div className="text-[11px] font-bold text-foreground group-hover:text-primary transition-colors truncate pr-2">
-                    {r.path}
-                  </div>
-                  <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight shrink-0">
-                    Ln {r.line}
-                  </div>
-                </div>
-                <div className="text-[11px] text-muted-foreground font-medium line-clamp-2 leading-relaxed bg-muted/50 p-2 rounded-lg border border-border/50 italic group-hover:bg-background transition-colors">
-                  {r.preview}
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </aside>
-    );
+    return <ProjectSearchPanel />;
   }
 
   return (

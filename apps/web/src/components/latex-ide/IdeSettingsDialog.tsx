@@ -27,6 +27,11 @@ import {
   type EditorKeybindings,
   type PdfViewerStyle,
 } from "@/stores/ideSettingsStore";
+import {
+  loadEnglishChecker,
+  useSpellcheckStatus,
+} from "@/lib/spellcheckService";
+import { normalizeCustomWord } from "@alove/editor";
 import { ClerkAccountPanels } from "./ClerkAccountPanels";
 
 type Category =
@@ -110,6 +115,112 @@ function SelectNative({
         </option>
       ))}
     </select>
+  );
+}
+
+function SpellcheckDictionaryPanel() {
+  const spellcheckEnabled = useIdeSettingsStore((s) => s.spellcheckEnabled);
+  const customWords = useIdeSettingsStore((s) => s.spellcheckCustomWords);
+  const addSpellcheckWord = useIdeSettingsStore((s) => s.addSpellcheckWord);
+  const removeSpellcheckWord = useIdeSettingsStore(
+    (s) => s.removeSpellcheckWord,
+  );
+  const { status, error } = useSpellcheckStatus();
+  const [draft, setDraft] = useState("");
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const statusText = !spellcheckEnabled
+    ? "Enable spellcheck to load the English dictionary."
+    : status === "loading"
+      ? "English dictionary: Loading…"
+      : status === "ready"
+        ? "English dictionary: Ready (dictionary-en 4.0.0, MIT AND BSD)."
+        : status === "error"
+          ? `English dictionary: Failed to load — ${error ?? "network error"}.`
+          : "English dictionary: Not loaded.";
+
+  function addDraft() {
+    const normalized = normalizeCustomWord(draft);
+    if (!normalized) {
+      setFeedback("Enter a word with at least two letters.");
+      return;
+    }
+    addSpellcheckWord(normalized);
+    setDraft("");
+    setFeedback(null);
+  }
+
+  return (
+    <div className="rounded-md border bg-muted/20 p-3">
+      <div className="text-[11px] font-medium text-muted-foreground">
+        Language
+      </div>
+      <p className="mt-1 text-xs text-foreground">English (en)</p>
+      <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+        {statusText}
+      </p>
+      {spellcheckEnabled && status === "error" ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2"
+          onClick={() => {
+            void loadEnglishChecker().catch(() => {});
+          }}
+        >
+          Retry
+        </Button>
+      ) : null}
+      <div className="mt-3 text-[11px] font-medium text-muted-foreground">
+        Personal dictionary ({customWords.length})
+      </div>
+      {customWords.length > 0 ? (
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {customWords.map((word) => (
+            <li
+              key={word}
+              className="flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-foreground"
+            >
+              <span>{word}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${word} from dictionary`}
+                onClick={() => removeSpellcheckWord(word)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+          No custom words yet. Add words from spelling suggestions in the
+          editor, or type one below.
+        </p>
+      )}
+      <div className="mt-2 flex gap-2">
+        <input
+          aria-label="Add word to personal dictionary"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addDraft();
+            }
+          }}
+          placeholder="Add a word"
+          className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+        />
+        <Button variant="outline" size="sm" onClick={addDraft}>
+          Add
+        </Button>
+      </div>
+      {feedback ? (
+        <p className="mt-1 text-[11px] text-muted-foreground">{feedback}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -317,7 +428,7 @@ export function IdeSettingsDialog({
                 </div>
                 <SettingRow
                   title="Spellcheck"
-                  description="Uses the browser spell checker in the source editor."
+                  description="LaTeX-aware English spellcheck in the source editor."
                   control={
                     <Switch
                       checked={spellcheckEnabled}
@@ -325,6 +436,7 @@ export function IdeSettingsDialog({
                     />
                   }
                 />
+                <SpellcheckDictionaryPanel />
               </div>
             )}
 

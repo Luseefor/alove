@@ -1,4 +1,5 @@
-import { normalizeCompilePath, type Diagnostic } from "@alove/protocol";
+import { normalizeCompilePath, type Diagnostic, type SyncTexMapping } from "@alove/protocol";
+import { findPdfForSource, findSourceForPdf, pdfPointToSyncTop } from "@/lib/synctex";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { preferenceStorage } from "@/lib/preferenceStorage";
@@ -8,6 +9,7 @@ import { normalizeDiagnosticFile } from "@/lib/editorDiagnostics";
 import { BibliographyService } from "@/services/BibliographyService";
 import { ProjectService } from "@/services/ProjectService";
 import { OutlineService, type OutlineNode } from "@/services/OutlineService";
+import { applyReplaceToFiles, searchProjectFiles } from "@/lib/projectSearch";
 
 import { createBuildRecord, type BuildRecord } from "@/lib/buildRecord";
 import { buildRecordRepository } from "@/lib/buildRecordRepository";
@@ -31,7 +33,17 @@ export type ProjectSearchResult = {
   path: string;
   line: number;
   column: number;
+  /** 1-based end line (== line for single-line matches). */
+  endLine: number;
+  /** 1-based exclusive end column in UTF-16 code units. */
+  endColumn: number;
+  /** UTF-16 length of the exact matched substring. */
+  length: number;
   preview: string;
+  /** Full start-line text for exact highlight rendering. */
+  lineText: string;
+  /** Exact matched substring (may span lines for multiline). */
+  matchText: string;
 };
 
 export type RemoteProjectFile = { path: string; content: string; version: number; incarnation?: string };
@@ -59,11 +71,29 @@ export interface WorkbenchState {
   applyRecoveryFile: (args: { projectId: string; mainFile: string; expectedFiles: Record<string, string>; engine: BuildRecord["engine"]; cleanAux: boolean; path: string; content: string | null }) => boolean;
   projectId: string | null;
   cloudUserId: string | null;
+  projectRole: "owner" | "editor" | "viewer" | null;
   projectTitle: string;
   mainFile: string | null;
   documentRevision: number;
   pdfSourceRevision: number | null;
   pdfMainFile: string | null;
+  /** Bounded per-run SyncTeX mapping from the last successful compile.
+   *  Provenance mirrors the PDF: revision + root captured at request time,
+   *  preserved through failed rebuilds, cleared on project switch. */
+  synctexMapping: SyncTexMapping | null;
+  synctexRevision: number | null;
+  synctexMainFile: string | null;
+  /** Coordinate highlight for the interactive PDF viewer, in top-based PDF
+   *  big points. Set by source->PDF navigation; cleared on project switch.
+   *  The viewer hides it whenever the source moved past synctexRevision. */
+  pdfHighlight: {
+    page: number;
+    xBp: number;
+    yTopBp: number;
+    wBp: number;
+    hBp: number;
+    nonce: number;
+  } | null;
   saveStatus: "loading" | "unsaved" | "saving" | "saved" | "error" | "conflict";
   saveMessage: string | null;
   projectTree: ProjectFile[];
@@ -111,6 +141,8 @@ export interface WorkbenchState {
   };
   persistence: {
     saveWorkspace?: () => Promise<void>;
+    checkpointSource?: (expectedRevision: number) => Promise<void>;
+    prepareSourceReplacement?: (args: { query: string; replaceText: string; affectedPaths: string[]; expectedDocumentRevision: number }) => Promise<{ proceed: boolean; message?: string } | boolean | void>;
     listHistory?: () => Promise<import("@/lib/localWorkspace").LocalWorkspace[]>;
     restoreHistory?: (revision: number) => Promise<void>;
     save?: (path: string, content: string, expectedVersion?: number, expectedIncarnation?: string) => Promise<{ version: number; incarnation?: string; conflict?: boolean; deleted?: boolean; recreated?: boolean; tokenRequired?: boolean } | void>;
@@ -153,13 +185,22 @@ export interface WorkbenchState {
   renameFile: (oldPath: string, newPath: string) => void;
   appendToActiveFile: (text: string) => void;
   transformActiveFile: (transformer: (current: string) => string) => void;
-  replaceAcrossFiles: (findText: string, replaceText: string, options?: { texOnly?: boolean }) => number;
+  /**
+   * Replace across files in one atomic source update (single set(), so local
+   * autosave sees exactly one revision for undo/checkpoint recovery).
+   * Stale compare contract: when `expectedDocumentRevision` is provided and
+   * differs from the current documentRevision, or when `target` no longer
+   * matches current content, the call is refused with 0 and no mutation.
+   * Viewers (`projectRole === "viewer"`) are always refused with 0.
+   * Returns the replaced match count (0 = none/stale/denied).
+   */
+  replaceAcrossFiles: (findText: string, replaceText: string, options?: { texOnly?: boolean; caseSensitive?: boolean; wholeWord?: boolean; regex?: boolean; include?: string; exclude?: string; expectedDocumentRevision?: number; target?: { path: string; line: number; column: number } }) => number;
   setActiveSelection: (selection: { start: number; end: number } | null) => void;
   wrapSelectionOrInsert: (before: string, after?: string, fallback?: string) => void;
   requestEditorCommand: (kind: EditorCommandKind) => void;
   requestEditorFindBar: () => void;
   toggleEditorWordWrap: () => void;
-  runProjectSearch: (query: string, options?: { caseSensitive?: boolean; texOnly?: boolean; regex?: boolean }) => number;
+  runProjectSearch: (query: string, options?: { caseSensitive?: boolean; wholeWord?: boolean; regex?: boolean; include?: string; exclude?: string; texOnly?: boolean; maxResults?: number }) => number;
   clearProjectSearch: () => void;
   updateOutlineForActiveFile: () => void;
   setFocusedLine: (line: number | null) => void;
@@ -167,6 +208,22 @@ export interface WorkbenchState {
   setPdfZoom: (zoom: number) => void;
   setPdfPage: (page: number) => void;
   setPdfPageCount: (count: number) => void;
+  /** Source->PDF: jump the preview to the page for the current cursor.
+   *  Sets the coordinate highlight for the interactive viewer.
+   *  Returns the target page, or null when stale/unmapped. */
+  goToPdfForCursor: () => number | null;
+  /** PDF->source: open the mapped source for a PDF page (1-based).
+   *  Returns the target, or null when stale/unmapped. */
+  goToSourceForPdfPage: (page?: number) => { file: string; line: number } | null;
+  /** PDF->source from a canvas point: pdf.js PDF big points plus the
+   *  rendered page height for the top-left SyncTeX orientation.
+   *  Returns the target, or null when stale/unmapped. */
+  goToSourceForPdfPoint: (args: {
+    page: number;
+    xPdf: number;
+    yPdf: number;
+    pageHeightBp: number;
+  }) => { file: string; line: number } | null;
   runCompile: (engine?: "pdflatex" | "xelatex" | "lualatex") => Promise<void>;
   openFile: (id: string) => void;
   closeFile: (id: string) => void;
@@ -201,6 +258,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       buildRecoveryOpen: false,
       setBuildRecoveryOpen: (open) => set({ buildRecoveryOpen: open }),
       applyRecoveryFile: (args) => {
+        if (get().projectRole === "viewer") return false;
         const state = get();
         if (normalizeCompilePath(args.path) !== args.path || state.projectId !== args.projectId || !args.projectId.startsWith("local") || state.mainFile !== args.mainFile ||
             useIdeSettingsStore.getState().defaultCompilerEngine !== args.engine ||
@@ -222,12 +280,17 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         return true;
       },
       cloudUserId: null,
+      projectRole: "owner",
       projectId: null,
       projectTitle: "Deep Learning Survey",
       mainFile: null,
       documentRevision: 0,
       pdfSourceRevision: null,
       pdfMainFile: null,
+      synctexMapping: null,
+      synctexRevision: null,
+      synctexMainFile: null,
+      pdfHighlight: null,
       saveStatus: "unsaved",
       saveMessage: null,
       projectTree: [],
@@ -290,6 +353,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       },
       setProjectTree: (tree) => set({ projectTree: tree }),
       setProjectTitle: async (title) => {
+        if (get().projectRole === "viewer") return false;
         const name=title.trim();
         if(!name || name.length>200)return false;
         const {projectId,persistence}=get();
@@ -304,6 +368,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         }
       },
       setMainFile: (path) => {
+        if (get().projectRole === "viewer") return;
         const {projectId,persistence}=get();
         if (!path.endsWith(".tex") || !Object.hasOwn(get().filesByPath,path))return;
         if(!persistence.setMainFile){set({mainFile:path});return;}
@@ -497,6 +562,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         });
       },
       updateActiveFileContent: (content) => {
+        if (get().projectRole === "viewer") return;
         const { activeFileId } = get();
         if (!activeFileId) return;
         const nextFiles = { ...get().filesByPath, [activeFileId]: content };
@@ -525,6 +591,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         }
       },
       createFile: (path, content = "", options) => {
+        if (get().projectRole === "viewer") return;
         if (!path.trim()) return;
         const shouldOpen = options?.open !== false;
         set((s) => {
@@ -554,6 +621,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         if (get().persistence.save) void saveFileToPersistence(path, 0);
       },
       deleteFile: (path) => {
+        if (get().projectRole === "viewer") return;
         const state = get();
         if (!(path in state.filesByPath)) {
           // Still forward deletes of unknown paths so the server can confirm
@@ -605,6 +673,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         }
       },
       renameFile: (oldPath, newPath) => {
+        if (get().projectRole === "viewer") return;
         const trimmed = newPath.trim().replace(/\\/g, "/");
         if (!trimmed || trimmed === oldPath) return;
         const state = get();
@@ -648,6 +717,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         }
       },
       appendToActiveFile: (text) => {
+        if (get().projectRole === "viewer") return;
         const {activeFileId,filesByPath,dirtyByPath,activeSelection}=get();
         if(!activeFileId)return;
         const current=filesByPath[activeFileId]??"";
@@ -660,6 +730,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         set({filesByPath:{...filesByPath,[activeFileId]:next},dirtyByPath:{...dirtyByPath,[activeFileId]:true},outline:OutlineService.parse(next),nextSelection:selection,activeSelection:selection});
       },
       transformActiveFile: (transformer) => {
+        if (get().projectRole === "viewer") return;
         const { activeFileId, filesByPath, dirtyByPath } = get();
         if (!activeFileId) return;
         const current = filesByPath[activeFileId] ?? "";
@@ -671,28 +742,50 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         });
       },
       replaceAcrossFiles: (findText, replaceText, options) => {
-        if (!findText) return 0;
-        const { filesByPath, dirtyByPath, activeFileId } = get();
-        const nextFiles = { ...filesByPath };
-        const nextDirty = { ...dirtyByPath };
-        let changed = 0;
-        for (const [path, content] of Object.entries(filesByPath)) {
-          if (options?.texOnly && !path.endsWith(".tex")) continue;
-          if (!content.includes(findText)) continue;
-          const next = content.split(findText).join(replaceText);
-          if (next !== content) {
-            nextFiles[path] = next;
-            nextDirty[path] = true;
-            changed += 1;
-          }
+        if (!findText.trim()) return 0;
+        // Viewers may search but never mutate source.
+        if (get().projectRole === "viewer") return 0;
+        // Explicit stale compare: caller passes the documentRevision captured
+        // at search time; any intervening edit refuses the replacement so a
+        // stale preview can never corrupt newer source.
+        if (
+          options?.expectedDocumentRevision !== undefined &&
+          options.expectedDocumentRevision !== get().documentRevision
+        ) {
+          return 0;
         }
+        const { filesByPath, dirtyByPath, activeFileId } = get();
+        let outcome: { files: Record<string, string>; replacedMatches: number };
+        try {
+          outcome = applyReplaceToFiles(filesByPath, findText.trim(), replaceText, {
+            texOnly: options?.texOnly,
+            caseSensitive: options?.caseSensitive,
+            wholeWord: options?.wholeWord,
+            regex: options?.regex,
+            include: options?.include,
+            exclude: options?.exclude,
+            target: options?.target,
+          });
+        } catch {
+          // Over-broad replace (too many matches / unsafe pattern): refuse
+          // rather than applying a partial rewrite.
+          return 0;
+        }
+        if (outcome.replacedMatches === 0) return 0;
+        const nextFiles = outcome.files;
+        const nextDirty = { ...dirtyByPath };
+        for (const path of Object.keys(nextFiles)) {
+          if (nextFiles[path] !== filesByPath[path]) nextDirty[path] = true;
+        }
+        // One atomic source update: single set() preserves the pre-replace
+        // snapshot for local autosave checkpoints and editor undo.
         set({
           filesByPath: nextFiles,
           projectTree: projectTreeFromFiles(nextFiles),
           dirtyByPath: nextDirty,
           outline: OutlineService.parse(activeFileId ? nextFiles[activeFileId] ?? "" : ""),
         });
-        return changed;
+        return outcome.replacedMatches;
       },
       setActiveSelection: (selection) => {
         const { activeFileId, filesByPath } = get();
@@ -708,6 +801,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         set({ activeSelection: selection, cursor: { line, column } });
       },
       wrapSelectionOrInsert: (before, after = "", fallback) => {
+        if (get().projectRole === "viewer") return;
         const { activeFileId, filesByPath, dirtyByPath, activeSelection } = get();
         if (!activeFileId) return;
         const current = filesByPath[activeFileId] ?? "";
@@ -755,44 +849,20 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           return 0;
         }
         const { filesByPath } = get();
-        const results: ProjectSearchResult[] = [];
-        const needle = options?.caseSensitive ? q : q.toLowerCase();
-        const regex = options?.regex
-          ? new RegExp(q, options?.caseSensitive ? "g" : "gi")
-          : null;
-        for (const [path, content] of Object.entries(filesByPath)) {
-          if (options?.texOnly && !path.endsWith(".tex")) continue;
-          const lines = content.split("\n");
-          for (let i = 0; i < lines.length; i += 1) {
-            if (regex) {
-              regex.lastIndex = 0;
-              for (const m of lines[i].matchAll(regex)) {
-                results.push({
-                  path,
-                  line: i + 1,
-                  column: (m.index ?? 0) + 1,
-                  preview: lines[i].trim(),
-                });
-              }
-            } else {
-              const haystack = options?.caseSensitive ? lines[i] : lines[i].toLowerCase();
-              let from = 0;
-              while (from < haystack.length) {
-                const idx = haystack.indexOf(needle, from);
-                if (idx === -1) break;
-                results.push({
-                  path,
-                  line: i + 1,
-                  column: idx + 1,
-                  preview: lines[i].trim(),
-                });
-                from = idx + Math.max(needle.length, 1);
-              }
-            }
-          }
-        }
-        set({ projectSearchQuery: q, projectSearchResults: results, activeRail: "search", sidebarOpen: true });
-        return results.length;
+        // Delegates to the bounded lib scanner: binary exclusion, glob
+        // filtering, whole-word, and static ReDoS rejection live there.
+        // Invalid/unsafe patterns throw and are surfaced by the panel.
+        const outcome = searchProjectFiles(filesByPath, q, {
+          caseSensitive: options?.caseSensitive,
+          wholeWord: options?.wholeWord,
+          regex: options?.regex,
+          include: options?.include,
+          exclude: options?.exclude,
+          texOnly: options?.texOnly,
+          maxResults: options?.maxResults,
+        });
+        set({ projectSearchQuery: q, projectSearchResults: outcome.matches, activeRail: "search", sidebarOpen: true });
+        return outcome.matches.length;
       },
       clearProjectSearch: () => set({ projectSearchQuery: "", projectSearchResults: [] }),
       updateOutlineForActiveFile: () => {
@@ -815,7 +885,52 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setPdfPage: (page) =>
         set((s) => ({ pdfPage: Math.max(1, Math.min(s.pdfPageCount || 1, page)) })),
       setPdfPageCount: (count) => set({ pdfPageCount: Math.max(1, count) }),
+      goToPdfForCursor: () => {
+        const s = get();
+        if (!s.synctexMapping || s.synctexRevision === null) return null;
+        if (s.documentRevision !== s.synctexRevision) return null;
+        const file = s.activeFileId;
+        if (!file) return null;
+        const line = s.cursor?.line ?? 1;
+        const target = findPdfForSource(s.synctexMapping, file, line);
+        if (!target) return null;
+        get().setPdfPage(target.page);
+        set((prev) => ({
+          pdfHighlight: {
+            page: target.page,
+            xBp: target.rect.xBp,
+            yTopBp: target.rect.yTopBp,
+            wBp: target.rect.wBp,
+            hBp: target.rect.hBp,
+            nonce: (prev.pdfHighlight?.nonce ?? 0) + 1,
+          },
+        }));
+        return target.page;
+      },
+      goToSourceForPdfPage: (page) => {
+        const s = get();
+        if (!s.synctexMapping || s.synctexRevision === null) return null;
+        if (s.documentRevision !== s.synctexRevision) return null;
+        const target = findSourceForPdf(s.synctexMapping, page ?? s.pdfPage);
+        if (!target || !Object.hasOwn(s.filesByPath, target.file)) return null;
+        get().openFile(target.file);
+        set({ focusedLine: target.line });
+        return target;
+      },
+      goToSourceForPdfPoint: ({ page, xPdf, yPdf, pageHeightBp }) => {
+        const s = get();
+        if (!s.synctexMapping || s.synctexRevision === null) return null;
+        if (s.documentRevision !== s.synctexRevision) return null;
+        const point = pdfPointToSyncTop(pageHeightBp, xPdf, yPdf);
+        if (!point) return null;
+        const target = findSourceForPdf(s.synctexMapping, page, point.xBp, point.yTopBp);
+        if (!target || !Object.hasOwn(s.filesByPath, target.file)) return null;
+        get().openFile(target.file);
+        set({ focusedLine: target.line });
+        return target;
+      },
       runCompile: async (engineArg) => {
+        if (get().projectRole === "viewer") return;
         const state = get();
         const engine = engineArg ?? useIdeSettingsStore.getState().defaultCompilerEngine;
         const cleanAux = useIdeSettingsStore.getState().compilerCleanAux;
@@ -910,6 +1025,13 @@ export const useWorkbenchStore = create<WorkbenchState>()(
               pdfSourceRevision: state.documentRevision,
               pdfMainFile: mainFile,
               pdfPage: 1,
+              // Per-run SyncTeX provenance follows the PDF: captured at
+              // request time, preserved through failed rebuilds.
+              ...(result.synctex ? {
+                synctexMapping: result.synctex,
+                synctexRevision: state.documentRevision,
+                synctexMainFile: mainFile,
+              } : {}),
             } : {}),
             activeBottomTab: mergedDiagnostics.length > 0 ? "problems" : "log",
           });
@@ -1253,6 +1375,8 @@ useWorkbenchStore.subscribe((state, previous) => {
       documentRevision: previous.documentRevision + 1,
       lastBuildRecord: null, buildHistoryError: null, buildRecoveryOpen: false,
       pdfDataUrl: null, pdfSourceRevision: null, pdfMainFile: null,
+      synctexMapping: null, synctexRevision: null, synctexMainFile: null,
+      pdfHighlight: null,
       activeCompileJobId: null, buildStatus: "idle", buildMessage: null, buildLog: "", diagnostics: [], diagnosticRevision: null,
     });
   } else if (filesChanged || state.mainFile !== previous.mainFile) {
