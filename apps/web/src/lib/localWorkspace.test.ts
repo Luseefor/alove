@@ -396,3 +396,31 @@ it("blocks replacement when its current-source checkpoint exceeds the history by
   );
   expect(await repo.listHistory(current.id)).toEqual([]);
 });
+
+it("offers valid checkpoints while preserving unreadable history rows", async () => {
+  const factory = newFactory();
+  const repo = createLocalWorkspaceRepository(factory);
+  const original = await repo.save(makeInput(), 0);
+  await repo.save({ ...original, title: "new title" }, 1);
+  const db = await openRaw(factory);
+  const future = { ...original, revision: 100, schemaVersion: 99 };
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction("checkpoints", "readwrite");
+    tx.objectStore("checkpoints").put(future);
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+  });
+  expect(await repo.listHistory(original.id)).toEqual([original]);
+  await repo.remove(original.id, 2);
+  expect((await repo.listDeleted())[0].title).toBe("new title");
+  const check = await openRaw(factory);
+  const retained = await new Promise((resolve) => {
+    const tx = check.transaction("checkpoints", "readonly");
+    const req = tx.objectStore("checkpoints").get([original.id, 100]);
+    req.onsuccess = () => resolve(req.result);
+    tx.oncomplete = () => check.close();
+  });
+  expect(retained).toEqual(future);
+});

@@ -56,7 +56,16 @@ function checkpoint(tx: IDBTransaction, workspace: LocalWorkspace) {
   history.put(workspace);
   const request = history.index("id").getAll(workspace.id);
   request.onsuccess = () => {
-    const rows = request.result as LocalWorkspace[];
+    const rows = (request.result as unknown[]).filter(
+      (row): row is LocalWorkspace => {
+        try {
+          checkStored(row, workspace.id);
+          return true;
+        } catch {
+          return false; /* Preserve unreadable history verbatim. */
+        }
+      },
+    );
     rows.sort((a, b) => b.revision - a.revision);
     let bytes = 0;
     for (const [i, row] of rows.entries()) {
