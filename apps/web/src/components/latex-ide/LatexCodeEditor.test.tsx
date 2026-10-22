@@ -1566,4 +1566,84 @@ describe("LatexCodeEditor", () => {
       host().querySelectorAll(".cm-lintRange-warning").length,
     ).toBeGreaterThan(0);
   });
+  it("applies guarded object edits with one shared undo and rejects stale or read-only writes", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    let value =
+      "\\documentclass{article}\n\\begin{document}\n\\(x^2\\)\n\\end{document}";
+    const original = value;
+    const render = (
+      readOnly = false,
+      presentation: "source" | "visual" = "visual",
+    ) =>
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={value}
+          presentation={presentation}
+          readOnly={readOnly}
+          onChange={(next) => {
+            value = next;
+          }}
+        />,
+      );
+    act(() => render());
+    const view = findView(),
+      from = value.indexOf("x^2");
+    act(() => {
+      expect(
+        ref.current!.applySourcePatches("stale", [
+          { from, to: from + 3, insert: "y" },
+        ]),
+      ).toBe(false);
+    });
+    act(() => {
+      expect(
+        ref.current!.applySourcePatches(original, [
+          { from, to: from + 3, insert: "y^3" },
+        ]),
+      ).toBe(true);
+    });
+    expect(value).toBe(original.replace("x^2", "y^3"));
+    act(() => render(false, "source"));
+    expect(findView()).toBe(view);
+    act(() => ref.current!.runCommand("undo"));
+    expect(value).toBe(original);
+    act(() => render(true));
+    act(() => {
+      expect(
+        ref.current!.applySourcePatches(original, [
+          { from, to: from + 3, insert: "z" },
+        ]),
+      ).toBe(false);
+    });
+    expect(value).toBe(original);
+  });
+  it("refreshes project figure assets without rebuilding the view or document history", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const value =
+      "\\documentclass{article}\r\n\\begin{document}\r\n\\includegraphics{a.png}\r\n\\end{document}";
+    const onChange = vi.fn();
+    const render = (data: string) =>
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={value}
+          presentation="visual"
+          objectAssets={{ "a.png": data }}
+          onChange={onChange}
+        />,
+      );
+    act(() => render("data:image/png;base64,YQ=="));
+    const view = findView();
+    expect(host().querySelector(".cm-visual-figure-image")?.getAttribute("src")).toBe(
+      "data:image/png;base64,YQ==",
+    );
+    act(() => render("data:image/png;base64,Yg=="));
+    expect(host().querySelector(".cm-visual-figure-image")?.getAttribute("src")).toBe(
+      "data:image/png;base64,Yg==",
+    );
+    expect(findView()).toBe(view);
+    expect(ref.current!.getValue()).toBe(value);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

@@ -173,3 +173,88 @@ input[type="range"] {
   background-color: var(--background);
   color: var(--foreground);
 }
+
+/* Source-backed manuscript objects. */
+.cm-visual-object {
+  color: var(--foreground);
+}
+.cm-visual-object-table,
+.cm-visual-object-figure {
+  margin: 1rem 0;
+  padding: 1rem;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--background);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+.cm-visual-object-edit {
+  cursor: pointer;
+  border-radius: 0.25rem;
+}
+.cm-visual-object-table > .cm-visual-object-edit,
+.cm-visual-object-figure > .cm-visual-object-edit {
+  display: block;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+.cm-visual-object button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.cm-visual-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.cm-visual-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.cm-visual-table-scroll td {
+  min-width: 4rem;
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+}
+.cm-visual-table-scroll td button {
+  width: 100%;
+  min-height: 1.5rem;
+  text-align: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cm-visual-object-caption {
+  margin-top: 0.65rem;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+  white-space: pre-wrap;
+}
+.cm-visual-figure-image {
+  display: block;
+  max-height: 24rem;
+  max-width: 100%;
+  object-fit: contain;
+  margin: auto;
+}
+.cm-visual-object-math {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.cm-visual-object-math > button {
+  max-width: 100%;
+  padding: 0.15rem 0.25rem;
+  overflow-x: auto;
+}
+.cm-visual-object-citation > button,
+.cm-visual-object-reference > button {
+  color: var(--primary);
+  background: var(--muted);
+  padding: 0.1rem 0.25rem;
+  font-size: 0.9em;
+}
+.cm-visual-object-source {
+  font: 0.8rem monospace;
+  white-space: pre-wrap;
+}

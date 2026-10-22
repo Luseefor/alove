@@ -1,0 +1,759 @@
+"use client";
+import React from "react";
+import { useState, type FormEvent } from "react";
+import Image from "next/image";
+import type { ProjectCiteEntry, ProjectLabelEntry } from "@alove/editor";
+import {
+  TABLE_LIMITS,
+  tableDraft,
+  pasteTableTsv,
+  patchesForVisualTable,
+  type VisualTable,
+} from "@/lib/visualTable";
+import {
+  figureDraft,
+  isFigurePath,
+  patchesForVisualFigure,
+  safeFigureAsset,
+  type VisualFigure,
+} from "@/lib/visualFigure";
+import {
+  CITE_COMMANDS,
+  REF_COMMANDS,
+  patchesForVisualMath,
+  patchesForVisualCitation,
+  type VisualMath,
+  type VisualCitation,
+} from "@/lib/visualInline";
+import type { VisualSourcePatch } from "@/lib/visualObjectTypes";
+import { MathPreview } from "./MathPreview";
+const inputClass =
+  "w-full rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const buttonClass =
+  "min-h-9 rounded border border-border px-3 py-1 text-sm hover:bg-muted disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+type Props = {
+  onSave: (patches: VisualSourcePatch[]) => void;
+  onCancel: () => void;
+  disabled?: boolean;
+};
+function Footer({
+  disabled,
+  onCancel,
+  label,
+}: {
+  disabled?: boolean;
+  onCancel: () => void;
+  label: string;
+}) {
+  return (
+    <div className="flex justify-end gap-2 border-t border-border pt-4">
+      <button type="button" onClick={onCancel} className={buttonClass}>
+        Cancel
+      </button>
+      <button
+        type="submit"
+        disabled={disabled}
+        className="min-h-9 rounded bg-primary px-3 py-1 text-sm text-primary-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {label}
+      </button>
+    </div>
+  );
+}
+function ErrorText({ error }: { error: string }) {
+  return error ? (
+    <p role="alert" className="text-sm text-error">
+      {error}
+    </p>
+  ) : null;
+}
+
+export function VisualTableEditor({
+  model,
+  onSave,
+  onCancel,
+  disabled,
+}: Props & { model: VisualTable }) {
+  const [draft, setDraft] = useState(() => tableDraft(model));
+  const [error, setError] = useState("");
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    try {
+      onSave(patchesForVisualTable(model, draft));
+      setError("");
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "The table could not be updated.",
+      );
+    }
+  }
+  const structureDisabled = disabled || !model.structureEditable;
+  return (
+    <form aria-label="Table editor" onSubmit={submit} className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Edit cells or paste a spreadsheet selection. Maximum 20 rows × 12
+        columns. Custom cell markup stays in Source.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={
+            structureDisabled || draft.cells.length >= TABLE_LIMITS.rows
+          }
+          onClick={() =>
+            setDraft({
+              ...draft,
+              cells: [...draft.cells, draft.alignments.map(() => "")],
+            })
+          }
+        >
+          Add row
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={structureDisabled || draft.cells.length <= 1}
+          onClick={() =>
+            setDraft({ ...draft, cells: draft.cells.slice(0, -1) })
+          }
+        >
+          Remove last row
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={
+            structureDisabled || draft.alignments.length >= TABLE_LIMITS.columns
+          }
+          onClick={() =>
+            setDraft({
+              ...draft,
+              alignments: [...draft.alignments, "l"],
+              cells: draft.cells.map((row) => [...row, ""]),
+            })
+          }
+        >
+          Add column
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={structureDisabled || draft.alignments.length <= 1}
+          onClick={() =>
+            setDraft({
+              ...draft,
+              alignments: draft.alignments.slice(0, -1),
+              cells: draft.cells.map((row) => row.slice(0, -1)),
+            })
+          }
+        >
+          Remove last column
+        </button>
+      </div>
+      <div className="max-h-80 max-w-full overflow-auto rounded border border-border">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {draft.alignments.map((alignment, c) => (
+                <th key={c} className="min-w-32 border-b border-border p-2">
+                  <label className="text-xs font-normal">
+                    Column {c + 1}
+                    <select
+                      aria-label={`Column ${c + 1} alignment`}
+                      value={alignment}
+                      disabled={structureDisabled}
+                      className={inputClass}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          alignments: draft.alignments.map((v, i) =>
+                            i === c ? e.target.value : v,
+                          ),
+                        })
+                      }
+                    >
+                      <option value="l">Left</option>
+                      <option value="c">Centre</option>
+                      <option value="r">Right</option>
+                    </select>
+                  </label>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {draft.cells.map((row, r) => (
+              <tr key={r}>
+                {row.map((text, c) => (
+                  <td key={c} className="border border-border p-1">
+                    <input
+                      data-cell={`${r}-${c}`}
+                      aria-label={`Row ${r + 1} column ${c + 1}`}
+                      value={text}
+                      disabled={disabled || model.cells[r]?.[c]?.text === null}
+                      title={
+                        model.cells[r]?.[c]?.text === null
+                          ? "Custom markup · edit in Source"
+                          : undefined
+                      }
+                      className={inputClass}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          cells: draft.cells.map((line, i) =>
+                            i === r
+                              ? line.map((value, j) =>
+                                  j === c ? event.target.value : value,
+                                )
+                              : line,
+                          ),
+                        })
+                      }
+                      onPaste={(event) => {
+                        const value = event.clipboardData.getData("text/plain");
+                        if (value.length > 10000 || /[\t\r\n]/.test(value)) {
+                          event.preventDefault();
+                          try {
+                            const next = pasteTableTsv(draft, r, c, value);
+                            for (let i = 0; i < model.cells.length; i++)
+                              for (let j = 0; j < model.cells[i]!.length; j++)
+                                if (
+                                  model.cells[i]![j]!.text === null &&
+                                  next.cells[i]?.[j] !== draft.cells[i]?.[j]
+                                )
+                                  throw new Error(
+                                    "Paste crosses a custom cell. Edit it in Source.",
+                                  );
+                            if (
+                              !model.structureEditable &&
+                              (next.cells.length !== draft.cells.length ||
+                                next.alignments.length !==
+                                  draft.alignments.length)
+                            )
+                              throw new Error(
+                                "Resize this custom table in Source.",
+                              );
+                            setDraft(next);
+                            setError("");
+                          } catch (e) {
+                            setError(
+                              e instanceof Error
+                                ? e.message
+                                : "Paste could not be applied.",
+                            );
+                          }
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        const moves: Record<string, [number, number]> = {
+                          ArrowUp: [-1, 0],
+                          ArrowDown: [1, 0],
+                          ArrowLeft: [0, -1],
+                          ArrowRight: [0, 1],
+                        };
+                        const move = moves[event.key];
+                        if (!move) return;
+                        const input = event.currentTarget;
+                        if (
+                          event.key === "ArrowLeft" &&
+                          input.selectionStart !== 0
+                        )
+                          return;
+                        if (
+                          event.key === "ArrowRight" &&
+                          input.selectionEnd !== input.value.length
+                        )
+                          return;
+                        const next = input
+                          .closest("form")
+                          ?.querySelector<HTMLInputElement>(
+                            `[data-cell="${r + move[0]}-${c + move[1]}"]:not(:disabled)`,
+                          );
+                        if (next) {
+                          event.preventDefault();
+                          next.focus();
+                          next.select();
+                        }
+                      }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!model.structureEditable && (
+        <p className="text-xs text-muted-foreground">
+          Custom rules or cell markup are preserved. Structural changes require
+          Source.
+        </p>
+      )}
+      {model.wrapper && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs">
+            Caption
+            <input
+              aria-label="Table caption"
+              value={draft.caption}
+              disabled={disabled || model.caption?.text === null}
+              className={inputClass}
+              onChange={(e) => setDraft({ ...draft, caption: e.target.value })}
+            />
+          </label>
+          <label className="text-xs">
+            Label
+            <input
+              aria-label="Table label"
+              value={draft.label}
+              disabled={disabled}
+              className={inputClass}
+              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+            />
+          </label>
+        </div>
+      )}
+      <ErrorText error={error} />
+      <Footer
+        disabled={disabled}
+        onCancel={onCancel}
+        label="Apply table changes"
+      />
+    </form>
+  );
+}
+
+export function VisualFigureEditor({
+  model,
+  assets,
+  onSave,
+  onCancel,
+  onUpload,
+  disabled,
+}: Props & {
+  model: VisualFigure;
+  assets: Record<string, string>;
+  onUpload: (file: File) => Promise<string>;
+}) {
+  const [draft, setDraft] = useState(() => figureDraft(model)),
+    [error, setError] = useState(""),
+    [uploading, setUploading] = useState(false);
+  const preview = safeFigureAsset(assets[draft.path]);
+  return (
+    <form
+      aria-label="Figure editor"
+      onSubmit={(event) => {
+        event.preventDefault();
+        try {
+          if (!assets[draft.path])
+            throw new Error("Choose an image in this project.");
+          onSave(patchesForVisualFigure(model, draft));
+          setError("");
+        } catch (e) {
+          setError(
+            e instanceof Error ? e.message : "The figure could not be updated.",
+          );
+        }
+      }}
+      className="space-y-4"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex min-h-36 items-center justify-center overflow-hidden rounded border border-border bg-muted/30 p-3">
+          {preview ? (
+            <Image
+              unoptimized
+              src={preview}
+              alt={draft.caption || draft.path}
+              width={600}
+              height={400}
+              className="max-h-56 max-w-full object-contain"
+              style={{ width: `${Math.round(draft.width * 100)}%` }}
+            />
+          ) : (
+            <p className="break-all text-xs text-muted-foreground">
+              {draft.path.endsWith(".pdf")
+                ? "PDF figure · use Proof to view its rendered page"
+                : "Choose or upload a project image."}
+            </p>
+          )}
+        </div>
+        <div className="space-y-3">
+          <label className="block text-xs">
+            Project image
+            <select
+              aria-label="Project image"
+              value={draft.path}
+              disabled={disabled || uploading}
+              className={inputClass}
+              onChange={(e) => setDraft({ ...draft, path: e.target.value })}
+            >
+              {!assets[draft.path] && (
+                <option value={draft.path}>{draft.path} (missing)</option>
+              )}
+              {Object.keys(assets)
+                .filter(isFigurePath)
+                .map((path) => (
+                  <option key={path} value={path}>
+                    {path}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="block text-xs">
+            Upload PNG, JPEG or PDF (up to 500 KB)
+            <input
+              aria-label="Upload figure asset"
+              type="file"
+              accept="image/png,image/jpeg,application/pdf"
+              disabled={disabled || uploading}
+              className={inputClass}
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                  const path = await onUpload(file);
+                  setDraft((d) => ({ ...d, path }));
+                  setError("");
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Upload failed.");
+                } finally {
+                  setUploading(false);
+                  event.target.value = "";
+                }
+              }}
+            />
+          </label>
+          <label className="block text-xs">
+            Width: {Math.round(draft.width * 100)}% of text width
+            <input
+              aria-label="Figure width"
+              type="range"
+              min="10"
+              max="100"
+              value={Math.round(draft.width * 100)}
+              disabled={disabled}
+              className="w-full"
+              onChange={(e) =>
+                setDraft({ ...draft, width: Number(e.target.value) / 100 })
+              }
+            />
+          </label>
+          <input
+            aria-label="Figure width percentage"
+            type="number"
+            min="10"
+            max="100"
+            value={Math.round(draft.width * 100)}
+            disabled={disabled}
+            className={inputClass}
+            onChange={(e) =>
+              setDraft({ ...draft, width: Number(e.target.value) / 100 })
+            }
+          />
+        </div>
+      </div>
+      {model.wrapper && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs">
+            Caption
+            <input
+              aria-label="Figure caption"
+              value={draft.caption}
+              disabled={disabled || model.caption?.text === null}
+              className={inputClass}
+              onChange={(e) => setDraft({ ...draft, caption: e.target.value })}
+            />
+          </label>
+          <label className="text-xs">
+            Label
+            <input
+              aria-label="Figure label"
+              value={draft.label}
+              disabled={disabled}
+              className={inputClass}
+              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+            />
+          </label>
+        </div>
+      )}
+      <ErrorText error={error} />
+      <Footer
+        disabled={disabled || uploading}
+        onCancel={onCancel}
+        label="Apply figure changes"
+      />
+    </form>
+  );
+}
+
+export function VisualMathEditor({
+  model,
+  onSave,
+  onCancel,
+  disabled,
+}: Props & { model: VisualMath }) {
+  const [tex, setTex] = useState(model.tex),
+    [display, setDisplay] = useState(model.display),
+    [error, setError] = useState("");
+  return (
+    <form
+      aria-label="Equation editor"
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        try {
+          onSave(patchesForVisualMath(model, { tex, display }));
+          setError("");
+        } catch (e) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : "The equation could not be updated.",
+          );
+        }
+      }}
+    >
+      <label className="block text-xs">
+        Equation LaTeX
+        <textarea
+          aria-label="Equation LaTeX"
+          value={tex}
+          disabled={disabled}
+          rows={5}
+          className={`${inputClass} font-mono`}
+          onChange={(e) => setTex(e.target.value)}
+        />
+      </label>
+      <div
+        role="group"
+        aria-label="Equation symbols"
+        className="flex flex-wrap gap-2"
+      >
+        {["\\frac{a}{b}", "\\sqrt{x}", "\\alpha", "\\sum_{i=1}^{n}"].map(
+          (symbol) => (
+            <button
+              key={symbol}
+              type="button"
+              className={buttonClass}
+              disabled={disabled}
+              onClick={() => setTex(tex + symbol)}
+            >
+              {symbol}
+            </button>
+          ),
+        )}
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          aria-label="Display equation"
+          checked={display}
+          disabled={disabled || model.numbered || /\\label\b/.test(model.tex)}
+          onChange={(e) => setDisplay(e.target.checked)}
+        />
+        Display on its own line
+      </label>
+      {model.numbered && (
+        <p className="text-xs text-muted-foreground">
+          The numbered equation environment is retained. Change numbering in
+          Source.
+        </p>
+      )}
+      <MathPreview tex={tex} display={display} />
+      <ErrorText error={error} />
+      <Footer
+        disabled={disabled}
+        onCancel={onCancel}
+        label="Apply equation changes"
+      />
+    </form>
+  );
+}
+
+export function VisualCitationEditor({
+  model,
+  citations,
+  labels,
+  onSave,
+  onCancel,
+  disabled,
+}: Props & {
+  model: VisualCitation;
+  citations: ProjectCiteEntry[];
+  labels: ProjectLabelEntry[];
+}) {
+  const [keys, setKeys] = useState(model.keys),
+    [command, setCommand] = useState(model.command),
+    [query, setQuery] = useState(""),
+    [manual, setManual] = useState(""),
+    [error, setError] = useState("");
+  const entries =
+    model.kind === "citation"
+      ? citations.map((entry) => ({
+          key: entry.key,
+          description: [entry.title, entry.author, entry.year]
+            .filter(Boolean)
+            .join(" · "),
+        }))
+      : labels.map((entry) => ({
+          key: entry.label,
+          description: [entry.context, entry.file].filter(Boolean).join(" · "),
+        }));
+  const results = entries
+    .filter((entry) =>
+      `${entry.key} ${entry.description}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+    )
+    .slice(0, 100);
+  return (
+    <form
+      aria-label={
+        model.kind === "citation" ? "Citation editor" : "Reference editor"
+      }
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        try {
+          onSave(patchesForVisualCitation(model, { keys, command }));
+          setError("");
+        } catch (e) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : "The reference could not be updated.",
+          );
+        }
+      }}
+    >
+      <label className="block text-xs">
+        Style
+        <select
+          aria-label="Citation or reference style"
+          value={command}
+          disabled={disabled}
+          className={inputClass}
+          onChange={(e) => setCommand(e.target.value)}
+        >
+          {(model.kind === "citation" ? CITE_COMMANDS : REF_COMMANDS).map(
+            (name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ),
+          )}
+        </select>
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Citation styles beyond cite, and references beyond ref, require the
+        matching LaTeX package in document setup. The picker does not add
+        packages.
+      </p>
+      <div
+        role="group"
+        aria-label="Selected keys"
+        className="flex flex-wrap gap-2"
+      >
+        {keys.map((key, i) => (
+          <button
+            key={`${key}-${i}`}
+            type="button"
+            className={buttonClass}
+            disabled={disabled}
+            aria-label={`Remove ${key}`}
+            onClick={() => setKeys(keys.filter((_, at) => i !== at))}
+          >
+            {key} ×
+          </button>
+        ))}
+      </div>
+      {keys.some((key) => !entries.some((entry) => entry.key === key)) && (
+        <p role="status" className="text-xs text-muted-foreground">
+          Some selected keys are not in the current project index. They are
+          preserved until you change them.
+        </p>
+      )}
+      <label className="block text-xs">
+        Search project keys
+        <input
+          aria-label="Search project citations and references"
+          className={inputClass}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </label>
+      <div
+        className="max-h-52 overflow-auto rounded border border-border"
+        role="group"
+        aria-label="Project matches"
+      >
+        {results.map((entry) => (
+          <button
+            key={entry.key}
+            type="button"
+            disabled={disabled || keys.includes(entry.key) || keys.length >= 20}
+            onClick={() =>
+              setKeys(
+                model.kind === "reference" &&
+                  !["cref", "Cref"].includes(command)
+                  ? [entry.key]
+                  : [...keys, entry.key],
+              )
+            }
+            className="block w-full border-b border-border px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            <span className="block font-medium">{entry.key}</span>
+            <span className="block break-words text-xs text-muted-foreground">
+              {entry.description}
+            </span>
+          </button>
+        ))}
+        {!results.length && (
+          <p className="p-3 text-xs text-muted-foreground">
+            No project matches. Add a bibliography or label, or enter a key
+            below.
+          </p>
+        )}
+      </div>
+      <div className="flex items-end gap-2">
+        <label className="min-w-0 flex-1 text-xs">
+          Key
+          <input
+            aria-label="Manual citation or reference key"
+            value={manual}
+            disabled={disabled}
+            className={inputClass}
+            onChange={(e) => setManual(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={disabled || !manual.trim() || keys.length >= 20}
+          onClick={() => {
+            setKeys(
+              model.kind === "reference" && !["cref", "Cref"].includes(command)
+                ? [manual.trim()]
+                : [...keys, manual.trim()],
+            );
+            setManual("");
+          }}
+        >
+          Add key
+        </button>
+      </div>
+      <ErrorText error={error} />
+      <Footer
+        disabled={disabled}
+        onCancel={onCancel}
+        label={
+          model.kind === "citation"
+            ? "Apply citation changes"
+            : "Apply reference changes"
+        }
+      />
+    </form>
+  );
+}
