@@ -178,6 +178,30 @@ describe("LatexCodeEditor", () => {
     expect(current).toBe(original);
   });
 
+  it("routes navigation to hidden setup into Source without changing the document", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const requestSource = vi.fn();
+    const onChange = vi.fn();
+    const source =
+      "\\documentclass{article}\n\\begin{document}\nBody prose.\n\\end{document}";
+    act(() =>
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={source}
+          presentation="visual"
+          onChange={onChange}
+          onRequestSource={requestSource}
+        />,
+      ),
+    );
+    act(() => ref.current!.setSelection(2, 8));
+    expect(requestSource).toHaveBeenCalledOnce();
+    expect(ref.current!.getSelection()).toEqual({ start: 2, end: 8 });
+    expect(ref.current!.getValue()).toBe(source);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("renders with initial value", () => {
     const ref = createRef<LatexCodeEditorHandle>();
 

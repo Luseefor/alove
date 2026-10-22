@@ -98,3 +98,9 @@ before Apply while preserving other same-file edits. See the
 the narrow workflow distinction, remaining gaps and limits. Deployment/live
 provider checks (#42) remain deferred; a broader superiority claim requires an
 actual matched comparison rather than feature-count parity.
+
+Issue #45 delivers the first [Manuscript visual-writing](manuscript-visual.md)
+increment: per-file prose, headings, bold/italic and simple lists using shared
+Source/Visual/Proof history. Rich visual tables, figures, math/citation controls
+and further manuscript navigation remain under #24; live validation stays
+separate in #42.

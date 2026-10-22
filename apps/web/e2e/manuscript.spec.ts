@@ -169,6 +169,12 @@ test("a visually formatted paper produces a real PDF and keeps recovery availabl
   await find(page, "plain");
   await page.getByRole("button", { name: "Visual", exact: true }).click();
   await page.getByRole("button", { name: "Italicize selected text" }).click();
+  await find(page, "Second paragraph.");
+  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Create bulleted list" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Visual manuscript editor" }),
+  ).toContainText("•");
   await page.getByTestId("compile-button").click();
   await page.getByRole("button", { name: "Proof", exact: true }).click();
   await expect(page.getByTestId("pdf-preview-pane")).toHaveAttribute(
@@ -177,7 +183,12 @@ test("a visually formatted paper produces a real PDF and keeps recovery availabl
     { timeout: 60000 },
   );
   expect((await sourceArchive(page)).files["main.tex"]).toBe(
-    original.replace("A plain sentence", "A \\textit{plain} sentence"),
+    original
+      .replace("A plain sentence", "A \\textit{plain} sentence")
+      .replace(
+        "Second paragraph.",
+        "\\begin{itemize}\r\n\\item Second paragraph.\r\n\\end{itemize}",
+      ),
   );
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await page

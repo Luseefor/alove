@@ -101,3 +101,8 @@ local recovery distinction: separate compiler trials before Apply, preserving
 other edits in the same file. It also records Overleaf's stronger visual and
 collaborative editing and separates local capability evidence from an unrun
 head-to-head performance study. Deployment remains deferred.
+
+The first [Manuscript visual writing](manuscript-visual.md) increment provides
+source-preserving per-file prose, headings, bold/italic and simple lists with
+shared Source/Visual/Proof history. Advanced visual objects remain subsequent
+work under #24; this does not establish full visual-editor parity.
