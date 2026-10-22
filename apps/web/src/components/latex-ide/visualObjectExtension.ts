@@ -14,7 +14,11 @@ export const refreshVisualObjectAssets = StateEffect.define<null>();
 type Options = {
   getAssets: () => Record<string, string>;
   getView: () => EditorView | null;
-  onOpen: (object: VisualObject, source: string) => void;
+  onOpen: (
+    object: VisualObject,
+    source: string,
+    cell?: { row: number; column: number },
+  ) => void;
 };
 class ObjectWidget extends WidgetType {
   readonly asset: string | null;
@@ -54,9 +58,9 @@ class ObjectWidget extends WidgetType {
     root.className = `cm-visual-object cm-visual-object-${object.kind}`;
     root.setAttribute("data-visual-object", object.kind);
     root.contentEditable = "false";
-    const open = () => {
+    const open = (cell?: { row: number; column: number }) => {
       const view = this.options.getView();
-      if (view) this.options.onOpen(object, view.state.doc.toString());
+      if (view) this.options.onOpen(object, view.state.doc.toString(), cell);
     };
     const button = document.createElement("button");
     button.type = "button";
@@ -84,7 +88,7 @@ class ObjectWidget extends WidgetType {
             "aria-label",
             `Edit table row ${r + 1} column ${c + 1}: ${(cell.text ?? cell.raw).slice(0, 80)}`,
           );
-          edit.addEventListener("click", open);
+          edit.addEventListener("click", () => open({ row: r, column: c }));
           td.appendChild(edit);
           tr.appendChild(td);
         });
@@ -143,7 +147,7 @@ class ObjectWidget extends WidgetType {
       );
       root.appendChild(button);
     }
-    button.addEventListener("click", open);
+    button.addEventListener("click", () => open());
     return root;
   }
   ignoreEvent() {

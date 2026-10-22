@@ -1,4 +1,5 @@
 import {
+  maskVisualComments,
   decodeVisualProse,
   encodeVisualProse,
   isVisualTexKey,
@@ -50,26 +51,25 @@ export function parseVisualTable(
   from = 0,
 ): VisualTable | null {
   if (fragment.length > 131072) return null;
-  const start = fragment.indexOf("\\begin{tabular}");
+  const scan = maskVisualComments(fragment);
+  const start = scan.indexOf("\\begin{tabular}");
   if (start < 0) return null;
   const group = readTexGroup(fragment, start + "\\begin{tabular}".length);
   if (!group || !/^[lcr|\s]+$/.test(group.value)) return null;
   const alignments = [...group.value].filter((c) => /[lcr]/.test(c));
   if (!alignments.length || alignments.length > TABLE_LIMITS.columns)
     return null;
-  const end = fragment.indexOf("\\end{tabular}", group.to);
-  if (end < 0 || fragment.indexOf("\\begin{tabular}", start + 1) >= 0)
-    return null;
+  const end = scan.indexOf("\\end{tabular}", group.to);
+  if (end < 0 || scan.indexOf("\\begin{tabular}", start + 1) >= 0) return null;
   const tabularTo = end + "\\end{tabular}".length;
   let outer =
-    fragment.slice(0, start) +
+    scan.slice(0, start) +
     " ".repeat(tabularTo - start) +
-    fragment.slice(tabularTo);
+    scan.slice(tabularTo);
   const wrapper = /^\s*\\begin\{table\*?\}(?:\[[htbp!H]+\])?/.test(outer);
   if (wrapper) {
-    const begin = /^\\begin\{(table\*?)\}/.exec(fragment.trimStart());
-    if (!begin || !fragment.trimEnd().endsWith(`\\end{${begin[1]}}`))
-      return null;
+    const begin = /^\\begin\{(table\*?)\}/.exec(scan.trimStart());
+    if (!begin || !scan.trimEnd().endsWith(`\\end{${begin[1]}}`)) return null;
   }
   if (wrapper)
     outer = outer
@@ -285,7 +285,8 @@ export function patchesForVisualTable(
     draft.alignments.length > 12 ||
     draft.cells.some((row) => row.length !== draft.alignments.length) ||
     draft.alignments.some((a) => !/^[lcr]$/.test(a)) ||
-    draft.cells.flat().some((c) => c.length > 10000)
+    draft.cells.flat().some((c) => c.length > 10000) ||
+    draft.caption.length > 10000
   )
     throw new Error("Invalid table size, alignment or cell length.");
   const structural =
@@ -354,7 +355,7 @@ export function patchesForVisualTable(
   if (model.wrapper && !model.label && draft.label)
     suffix += `\\label{${draft.label}}${model.eol}`;
   if (suffix) {
-    const end = model.source.lastIndexOf("\\end{table");
+    const end = maskVisualComments(model.source).lastIndexOf("\\end{table");
     patches.push({
       from: model.from + end,
       to: model.from + end,

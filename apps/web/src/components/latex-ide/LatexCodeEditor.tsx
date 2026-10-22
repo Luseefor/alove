@@ -57,7 +57,11 @@ import { cn } from "@/lib/utils";
 export type LatexCodeEditorProps = {
   value: string;
   objectAssets?: Record<string, string>;
-  onOpenVisualObject?: (object: VisualObject, source: string) => void;
+  onOpenVisualObject?: (
+    object: VisualObject,
+    source: string,
+    cell?: { row: number; column: number },
+  ) => void;
   presentation?: "source" | "visual";
   onRequestSource?: () => void;
   onVisualBlocked?: (message: string) => void;
@@ -271,7 +275,11 @@ function buildDynamicExtensions(
     onBlocked: (message: string) => void;
     getAssets: () => Record<string, string>;
     getView: () => EditorView | null;
-    onOpen: (object: VisualObject, source: string) => void;
+    onOpen: (
+      object: VisualObject,
+      source: string,
+      cell?: { row: number; column: number },
+    ) => void;
   },
 ): Extension[] {
   return [
@@ -364,8 +372,11 @@ export const LatexCodeEditor = forwardRef<
     requestSource: () => visualCallbacksRef.current.onRequestSource?.(),
     getAssets: () => visualCallbacksRef.current.objectAssets ?? {},
     getView: () => viewRef.current,
-    onOpen: (object: VisualObject, source: string) =>
-      visualCallbacksRef.current.onOpenVisualObject?.(object, source),
+    onOpen: (
+      object: VisualObject,
+      source: string,
+      cell?: { row: number; column: number },
+    ) => visualCallbacksRef.current.onOpenVisualObject?.(object, source, cell),
     onBlocked: (message: string) =>
       visualCallbacksRef.current.onVisualBlocked?.(message),
   }).current;

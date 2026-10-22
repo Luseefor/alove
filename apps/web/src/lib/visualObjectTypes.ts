@@ -74,3 +74,28 @@ export function decodeVisualProse(value: string): string | null {
 export function isVisualTexKey(key: string): boolean {
   return /^[A-Za-z0-9:._/+@-]{1,160}$/.test(key);
 }
+
+/** Preserve offsets while ignoring non-escaped TeX comments during recognition. */
+export function maskVisualComments(source: string): string {
+  const parts: string[] = [];
+  let start = 0;
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] === "\\") {
+      i++;
+      continue;
+    }
+    if (source[i] === "%") {
+      let end = i;
+      while (
+        end < source.length &&
+        source[end] !== "\r" &&
+        source[end] !== "\n"
+      )
+        end++;
+      parts.push(source.slice(start, i), " ".repeat(end - i));
+      start = end;
+      i = end - 1;
+    }
+  }
+  return parts.length ? parts.join("") + source.slice(start) : source;
+}

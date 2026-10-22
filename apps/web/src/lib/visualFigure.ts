@@ -1,5 +1,6 @@
 import { normalizeCompilePath } from "@alove/protocol";
 import {
+  maskVisualComments,
   decodeVisualProse,
   encodeVisualProse,
   isVisualTexKey,
@@ -48,11 +49,12 @@ export function parseVisualFigure(
   from = 0,
 ): VisualFigure | null {
   if (fragment.length > 131072) return null;
+  const scan = maskVisualComments(fragment);
   const include =
     /\\includegraphics(?:\[width=(0?\.\d+|1(?:\.0+)?)\\(textwidth|linewidth)\])?\{/.exec(
-      fragment,
+      scan,
     );
-  if (!include || fragment.indexOf("\\includegraphics", include.index + 1) >= 0)
+  if (!include || scan.indexOf("\\includegraphics", include.index + 1) >= 0)
     return null;
   const group = readTexGroup(fragment, include.index + include[0].length - 1);
   if (!group) return null;
@@ -62,14 +64,13 @@ export function parseVisualFigure(
   const width = include[1] ? Number(include[1]) : 0.8;
   if (!Number.isFinite(width) || width < 0.1 || width > 1) return null;
   let outer =
-    fragment.slice(0, include.index) +
+    scan.slice(0, include.index) +
     " ".repeat(group.to - include.index) +
-    fragment.slice(group.to);
+    scan.slice(group.to);
   const wrapper = /^\s*\\begin\{figure\*?\}(?:\[[htbp!H]+\])?/.test(outer);
   if (wrapper) {
-    const begin = /^\\begin\{(figure\*?)\}/.exec(fragment.trimStart());
-    if (!begin || !fragment.trimEnd().endsWith(`\\end{${begin[1]}}`))
-      return null;
+    const begin = /^\\begin\{(figure\*?)\}/.exec(scan.trimStart());
+    if (!begin || !scan.trimEnd().endsWith(`\\end{${begin[1]}}`)) return null;
   }
   if (wrapper)
     outer = outer
@@ -197,7 +198,7 @@ export function patchesForVisualFigure(
   if (model.wrapper && !model.label && draft.label)
     suffix += `\\label{${draft.label}}${model.eol}`;
   if (suffix) {
-    const end = model.source.lastIndexOf("\\end{figure");
+    const end = maskVisualComments(model.source).lastIndexOf("\\end{figure");
     patches.push({
       from: model.from + end,
       to: model.from + end,

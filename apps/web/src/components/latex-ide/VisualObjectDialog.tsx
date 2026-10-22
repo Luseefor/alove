@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useState, type RefObject } from "react";
+import { useState, useRef, type RefObject } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { canEditVisualRange } from "@alove/editor";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
@@ -41,12 +41,16 @@ export function useVisualObjects(
   onRequestSource: (() => void) | undefined,
   onMessage: (message: string) => void,
 ) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const initialCell = useRef<{ row: number; column: number } | undefined>(
+    undefined,
+  );
   const [target, setTarget] = useState<VisualObjectTarget | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [enableGraphicx, setEnableGraphicx] = useState(false);
   const store = useWorkbenchStore();
-  function open(
+  function begin(
     object: VisualObject,
     source: string,
     insertion: number | null = null,
@@ -71,6 +75,14 @@ export function useVisualObjects(
     });
     setError("");
     setEnableGraphicx(false);
+  }
+  function open(
+    object: VisualObject,
+    source: string,
+    cell?: { row: number; column: number },
+  ) {
+    initialCell.current = cell;
+    begin(object, source);
   }
   function insert(kind: VisualObject["kind"]) {
     const current = useWorkbenchStore.getState(),
@@ -115,7 +127,10 @@ export function useVisualObjects(
       parseVisualFigure(fragment) ??
       parseVisualMath(fragment) ??
       parseVisualCitation(fragment);
-    if (object) open(object, source, selection.start);
+    if (object) {
+      initialCell.current = undefined;
+      begin(object, source, selection.start);
+    }
   }
   function close() {
     if (!busy) setTarget(null);
@@ -287,6 +302,19 @@ export function useVisualObjects(
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-[90] bg-black/60" />
           <Dialog.Content
+            ref={dialogRef}
+            onOpenAutoFocus={(event) => {
+              const cell = initialCell.current;
+              const targetField = dialogRef.current?.querySelector<HTMLElement>(
+                cell
+                  ? `[aria-label="Row ${cell.row + 1} column ${cell.column + 1}"]`
+                  : 'textarea:not([disabled]), input:not([disabled]):not([type="checkbox"]), select:not([disabled])',
+              );
+              if (targetField && !targetField.hasAttribute("disabled")) {
+                event.preventDefault();
+                targetField.focus();
+              }
+            }}
             className="fixed left-1/2 top-1/2 z-[100] max-h-[90dvh] w-[min(850px,94vw)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-border bg-background p-5 text-foreground shadow-2xl"
             onEscapeKeyDown={(event) => {
               if (busy) event.preventDefault();

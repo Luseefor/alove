@@ -351,3 +351,28 @@ it("ignores package-shaped macro arguments and refuses insertion in invalid docu
   );
   expect(graphicxSetup(source).present).toBe(false);
 });
+
+it("ignores commented figure commands and caption/label tokens without rewriting them", () => {
+  const s = String.raw`\begin{figure}
+% \includegraphics{fake.png}
+\includegraphics{real.png}
+% \caption{fake caption}
+\caption{Real caption}
+% \label{fake}
+\label{fig:real}
+\end{figure}`;
+  const m = parseVisualFigure(s)!;
+  expect(m.path).toBe("real.png");
+  expect(m.caption?.text).toBe("Real caption");
+  expect(m.label?.value).toBe("fig:real");
+  const d = figureDraft(m);
+  d.caption = "Changed";
+  expect(apply(s, patchesForVisualFigure(m, d))).toBe(
+    s.replace("{Real caption}", "{Changed}"),
+  );
+  expect(
+    parseVisualFigure(String.raw`\begin{figure}
+% \includegraphics{fake.png}
+\end{figure}`),
+  ).toBeNull();
+});
