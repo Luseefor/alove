@@ -57,7 +57,7 @@ C & D \\
     const m = parseVisualObjects(source)[0]!;
     expect(m.kind).toBe("table");
     if (m.kind !== "table") return;
-    expect(m.structureEditable).toBe(false);
+    expect(m.structureEditable).toBe(true);
     const d = tableDraft(m);
     d.cells[0]![1] = "50% & {value}";
     const p = patchesForVisualTable(m, d);
@@ -104,13 +104,12 @@ C & D \\
   });
   it("refuses complex structural rewrites and unsupported environments", () => {
     const m = parseVisualTable(
-        String.raw`\begin{tabular}{|ll|}\hline A & B \\\end{tabular}`,
+        String.raw`\begin{tabular}{|ll|}\hline \custom{A} & B \\\end{tabular}`,
       )!,
       d = tableDraft(m);
     d.cells.push(["C", "D"]);
-    expect(() => patchesForVisualTable(m, d)).toThrow(/structure/);
+    expect(() => patchesForVisualTable(m, d)).toThrow(/Source|structure/);
     for (const s of [
-      String.raw`\begin{tabular}{p{3cm}}A\\\end{tabular}`,
       String.raw`\begin{tabular}{ll}A & B \\[2pt]\end{tabular}`,
       String.raw`\begin{table*}\begin{tabular}{l}A\\\end{tabular}\end{table}`,
     ])
