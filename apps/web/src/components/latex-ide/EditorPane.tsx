@@ -11,6 +11,7 @@ import { useVisualObjects } from "./VisualObjectDialog";
 import { VisualWritingToolbar } from "./VisualWritingToolbar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { sourceNavigationNeedsSource } from "@/lib/sourceNavigation";
 import { getEditorMode } from "@/lib/editorMode";
 import { buildProjectLanguageIndex } from "@/lib/projectLanguage";
 import { useSpellcheckStatus } from "@/lib/spellcheckService";
@@ -172,13 +173,31 @@ export function EditorPane({
 
   useEffect(() => {
     if (!nextSelection) return;
+    if (
+      visualActive &&
+      sourceNavigationNeedsSource(
+        content,
+        nextSelection.start,
+        nextSelection.end,
+      )
+    ) {
+      onRequestSource?.();
+      return;
+    }
     focusEditor();
     setEditorSelection(nextSelection.start, nextSelection.end);
     useWorkbenchStore.setState({
       nextSelection: null,
       activeSelection: nextSelection,
     });
-  }, [focusEditor, nextSelection, setEditorSelection]);
+  }, [
+    focusEditor,
+    nextSelection,
+    setEditorSelection,
+    content,
+    visualActive,
+    onRequestSource,
+  ]);
 
   useEffect(() => {
     if (focusedLine === null || !activeFileId) return;
@@ -187,6 +206,10 @@ export function EditorPane({
     const start = rows
       .slice(0, line - 1)
       .reduce((n, row) => n + row.length + 1, 0);
+    if (visualActive && sourceNavigationNeedsSource(content, start)) {
+      onRequestSource?.();
+      return;
+    }
     setEditorSelection(start, start);
     if (codeMirrorEnabled) codeEditorRef.current?.scrollToLine(line);
     focusEditor();
@@ -199,6 +222,8 @@ export function EditorPane({
     focusEditor,
     setEditorSelection,
     setFocusedLine,
+    visualActive,
+    onRequestSource,
   ]);
 
   useEffect(() => {
@@ -228,8 +253,9 @@ export function EditorPane({
           ? content.lastIndexOf(findQuery)
           : content.indexOf(findQuery);
     if (wrapped >= 0) {
-      setEditorSelection(wrapped, wrapped + findQuery.length);
-      setActiveSelection({ start: wrapped, end: wrapped + findQuery.length });
+      useWorkbenchStore.setState({
+        nextSelection: { start: wrapped, end: wrapped + findQuery.length },
+      });
     }
   };
 

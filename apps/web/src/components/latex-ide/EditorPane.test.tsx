@@ -132,6 +132,24 @@ describe("EditorPane", () => {
     }
   });
 
+  it("defers hidden source selection until Source is mounted", () => {
+    const source = String.raw`\documentclass{article}
+\begin{document}
+Visible prose.
+\end{document}`;
+    const pending = { start: 0, end: 14 };
+    seedStore({ filesByPath: { "main.tex": source }, nextSelection: pending });
+    const requestSource = vi.fn();
+    act(() => root.render(<EditorPane presentation="visual" onRequestSource={requestSource} />));
+    expect(requestSource).toHaveBeenCalled();
+    expect(codeEditorRuntime.setSelection).not.toHaveBeenCalled();
+    expect(useWorkbenchStore.getState().nextSelection).toEqual(pending);
+    act(() => root.render(<EditorPane presentation="source" onRequestSource={requestSource} />));
+    expect(codeEditorRuntime.setSelection).toHaveBeenCalledWith(0, 14);
+    expect(useWorkbenchStore.getState().nextSelection).toBeNull();
+    expect(useWorkbenchStore.getState().filesByPath["main.tex"]).toBe(source);
+  });
+
   it("renders the empty editor hint when no file is active", () => {
     useWorkbenchStore.setState({
       activeFileId: null,

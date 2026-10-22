@@ -873,11 +873,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setFocusedLine: (line) => set({ focusedLine: line }),
       jumpToDiagnostic: (diagnostic) => {
         const file = normalizeDiagnosticFile(diagnostic.file ?? get().mainFile);
-        if (file && Object.hasOwn(get().filesByPath, file)) {
-          get().openFile(file);
-        }
+        if (!file || !Object.hasOwn(get().filesByPath, file)) return;
+        if (get().diagnostics.includes(diagnostic) && get().diagnosticRevision !== get().documentRevision) return;
+        get().openFile(file);
         set({
-          focusedLine: get().diagnostics.includes(diagnostic) && get().diagnosticRevision !== get().documentRevision ? null : diagnostic.line ?? null,
+          focusedLine: diagnostic.line ?? null,
           activeBottomTab: "problems",
         });
       },

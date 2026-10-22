@@ -58,6 +58,29 @@ export function LatexEditorApp() {
       setPresentation("source");
     }
   }, [activeFileId, visualSupported]);
+  // Pending targets may be consumed by the child before a parent render.
+  useEffect(
+    () =>
+      useWorkbenchStore.subscribe((state, previous) => {
+        if (
+          state.pdfHighlight &&
+          state.pdfHighlight !== previous.pdfHighlight
+        ) {
+          setMode("proof");
+          setView("pdf");
+          setFilesOpen(false);
+        } else if (
+          (state.nextSelection &&
+            state.nextSelection !== previous.nextSelection) ||
+          (state.focusedLine !== null &&
+            state.focusedLine !== previous.focusedLine)
+        ) {
+          setView("source");
+          setFilesOpen(false);
+        }
+      }),
+    [],
+  );
   // While the narrow drawer is open, keep Tab cycling inside it and let
   // Escape close it. Radix dialogs/menus portal directly to the body (no
   // wrapper marker), so detect open overlays by role + open state and stand
