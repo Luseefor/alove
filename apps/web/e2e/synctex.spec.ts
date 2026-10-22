@@ -16,6 +16,16 @@ First page for SyncTeX forward search.
 Second page for SyncTeX reverse search.
 \end{document}
 `;
+  // Hold the real worker asset so forward navigation runs before pdf.js can
+  // report the document page count. This pins the early-navigation race.
+  let releaseWorker!: () => void;
+  const workerGate = new Promise<void>((resolve) => {
+    releaseWorker = resolve;
+  });
+  await page.route(/pdf\.worker.*\.mjs/, async (route) => {
+    await workerGate;
+    await route.continue();
+  });
   await page.goto("/editor?new=true");
   await expect(page).toHaveURL(/project=local-/);
   const editor = page.getByRole("textbox", { name: "LaTeX source editor" });
@@ -46,10 +56,12 @@ Second page for SyncTeX reverse search.
   await expect(canvas).toBeVisible();
 
   // Source -> PDF: the cursor resolves to a real anchor highlight.
-  await page
-    .getByRole("button", { name: "Go to PDF for cursor" })
-    .click();
+  await page.getByRole("button", { name: "Go to PDF for cursor" }).click();
   await expect(syncControls).toContainText(/PDF page \d+ for/);
+  releaseWorker();
+  await expect(canvasViewer.getByLabel("Total PDF pages")).toHaveText("of 2", {
+    timeout: 30000,
+  });
   const highlight = page.getByTestId("pdf-sync-highlight");
   await expect(highlight).toBeVisible();
   const box = await highlight.boundingBox();

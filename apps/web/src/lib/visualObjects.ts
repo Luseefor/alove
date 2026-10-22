@@ -26,7 +26,7 @@ export function parseVisualObjects(source: string): VisualObject[] {
     if (range.from < consumed) continue;
     const prefix = source.slice(range.from, range.from + 30);
     if (
-      !/^(?:\\(?:begin\{(?:table\*?|tabular|figure\*?|equation\*?)\}|includegraphics\b|cite\b|citep\b|citet\b|citeauthor\b|citeyear\b|autocite\b|parencite\b|textcite\b|ref\b|eqref\b|autoref\b|cref\b|Cref\b|[([])|\$)/.test(
+      !/^(?:\\(?:begin\{(?:table\*?|tabularx|tabular|longtable|figure\*?|equation\*?)\}|includegraphics\b|cite\b|citep\b|citet\b|citeauthor\b|citeyear\b|autocite\b|parencite\b|textcite\b|ref\b|eqref\b|autoref\b|cref\b|Cref\b|[([])|\$)/.test(
         prefix,
       )
     )

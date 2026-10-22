@@ -5,7 +5,11 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { canEditVisualRange } from "@alove/editor";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { buildProjectLanguageIndex } from "@/lib/projectLanguage";
-import { createVisualTable, parseVisualTable } from "@/lib/visualTable";
+import {
+  createVisualTable,
+  parseVisualTable,
+  requiredTablePackages,
+} from "@/lib/visualTable";
 import {
   createVisualFigure,
   parseVisualFigure,
@@ -23,14 +27,15 @@ import {
 } from "@/lib/visualObjects";
 import {
   graphicxSetup,
+  visualPackageSetup,
   isVisualObjectCurrent,
   objectSourcePatches,
   type VisualObjectTarget,
 } from "@/lib/visualObjectSession";
 import type { VisualSourcePatch } from "@/lib/visualObjectTypes";
 import type { LatexCodeEditorHandle } from "./LatexCodeEditor";
+import { VisualTableEditor } from "./VisualTableEditor";
 import {
-  VisualTableEditor,
   VisualFigureEditor,
   VisualMathEditor,
   VisualCitationEditor,
@@ -49,6 +54,10 @@ export function useVisualObjects(
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [enableGraphicx, setEnableGraphicx] = useState(false);
+  const [tablePackages, setTablePackages] = useState<string[]>([]);
+  const [enabledTablePackages, setEnabledTablePackages] = useState<string[]>(
+    [],
+  );
   const store = useWorkbenchStore();
   function begin(
     object: VisualObject,
@@ -75,6 +84,18 @@ export function useVisualObjects(
     });
     setError("");
     setEnableGraphicx(false);
+    setTablePackages(
+      object.kind === "table"
+        ? requiredTablePackages(object).filter(
+            (name) =>
+              !visualPackageSetup(
+                current.filesByPath[current.mainFile ?? ""] ?? "",
+                name,
+              ).present,
+          )
+        : [],
+    );
+    setEnabledTablePackages([]);
   }
   function open(
     object: VisualObject,
@@ -170,6 +191,44 @@ export function useVisualObjects(
             from: setup.insertion,
             to: setup.insertion,
             insert: `\\usepackage{graphicx}${eol}`,
+          });
+        }
+      }
+      if (target.object.kind === "table") {
+        const fragment = applyVisualSourcePatches(
+          target.object.source,
+          edits.map((p) => ({
+            ...p,
+            from: p.from - target.object.from,
+            to: p.to - target.object.from,
+          })),
+        );
+        const candidate = parseVisualTable(fragment);
+        if (!candidate)
+          throw new Error(
+            "The edited table could not be recognized safely. Keep this edit in Source.",
+          );
+        const state = useWorkbenchStore.getState(),
+          root = state.filesByPath[state.mainFile ?? ""] ?? "";
+        const missing = requiredTablePackages(candidate).filter(
+          (name) => !visualPackageSetup(root, name).present,
+        );
+        setTablePackages(missing);
+        if (missing.length) {
+          const setup = visualPackageSetup(root, missing[0]!);
+          if (state.mainFile !== target.fileId || setup.insertion === null)
+            throw new Error(
+              `Enable ${missing.join(", ")} in ${state.mainFile} document setup in Source before applying these table options.`,
+            );
+          if (missing.some((name) => !enabledTablePackages.includes(name)))
+            throw new Error(
+              "These table options require packages. Review and enable them below, then Apply again.",
+            );
+          const eol = target.source.includes("\r\n") ? "\r\n" : "\n";
+          patches.push({
+            from: setup.insertion,
+            to: setup.insertion,
+            insert: `\\usepackage{${missing.join(",")}}${eol}`,
           });
         }
       }
@@ -308,14 +367,20 @@ export function useVisualObjects(
               const targetField = dialogRef.current?.querySelector<HTMLElement>(
                 cell
                   ? `[aria-label="Row ${cell.row + 1} column ${cell.column + 1}"]`
-                  : 'textarea:not([disabled]), input:not([disabled]):not([type="checkbox"]), select:not([disabled])',
+                  : target.object.kind === "table"
+                    ? "[data-cell]:not([disabled])"
+                    : 'textarea:not([disabled]), input:not([disabled]):not([type="checkbox"]), select:not([disabled])',
               );
               if (targetField && !targetField.hasAttribute("disabled")) {
                 event.preventDefault();
                 targetField.focus();
               }
             }}
-            className="fixed left-1/2 top-1/2 z-[100] max-h-[90dvh] w-[min(850px,94vw)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-border bg-background p-5 text-foreground shadow-2xl"
+            className={
+              target.object.kind === "table"
+                ? "visual-table-dialog"
+                : "fixed left-1/2 top-1/2 z-[100] max-h-[90dvh] w-[min(850px,94vw)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-border bg-background p-5 text-foreground shadow-2xl"
+            }
             onEscapeKeyDown={(event) => {
               if (busy) event.preventDefault();
             }}
@@ -327,7 +392,13 @@ export function useVisualObjects(
               editor.current?.focus();
             }}
           >
-            <div className="mb-4 flex items-start justify-between gap-3">
+            <div
+              className={
+                target.object.kind === "table"
+                  ? "flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4"
+                  : "mb-4 flex items-start justify-between gap-3"
+              }
+            >
               <div>
                 <Dialog.Title className="text-lg font-semibold">
                   {target.insertion === null ? "Edit" : "Insert"}{" "}
@@ -335,36 +406,62 @@ export function useVisualObjects(
                     ? "equation"
                     : target.object.kind}
                 </Dialog.Title>
-                <Dialog.Description className="mt-1 text-xs text-muted-foreground">
+                <Dialog.Description
+                  className={
+                    target.object.kind === "table"
+                      ? "sr-only"
+                      : "mt-1 text-xs text-muted-foreground"
+                  }
+                >
                   Changes apply to the original LaTeX source as one undoable
                   edit. Cancel discards object edits; uploaded assets remain in
                   the project.
                 </Dialog.Description>
               </div>
-              <button
-                type="button"
-                disabled={busy}
-                className="shrink-0 rounded border border-border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={() => {
-                  onRequestSource?.();
-                  const current = useWorkbenchStore.getState();
-                  if (
-                    current.projectId === target.projectId &&
-                    current.activeFileId === target.fileId &&
-                    editor.current?.getValue() === target.source
-                  )
-                    editor.current?.setSelection(
-                      target.insertion ?? target.object.from,
-                      target.insertion ?? target.object.to,
-                    );
-                  setTarget(null);
-                }}
-              >
-                Edit in Source
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="shrink-0 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => {
+                    onRequestSource?.();
+                    const current = useWorkbenchStore.getState();
+                    if (
+                      current.projectId === target.projectId &&
+                      current.activeFileId === target.fileId &&
+                      editor.current?.getValue() === target.source
+                    )
+                      editor.current?.setSelection(
+                        target.insertion ?? target.object.from,
+                        target.insertion ?? target.object.to,
+                      );
+                    setTarget(null);
+                  }}
+                >
+                  Edit in Source
+                </button>
+                {target.object.kind === "table" && (
+                  <button
+                    type="button"
+                    aria-label="Close table editor"
+                    disabled={busy}
+                    onClick={close}
+                    className="flex h-8 w-8 items-center justify-center rounded text-xl text-muted-foreground hover:bg-muted"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
             {error && (
-              <p role="alert" className="mb-3 text-sm text-error">
+              <p
+                role="alert"
+                className={
+                  target.object.kind === "table"
+                    ? "shrink-0 border-b border-border px-5 py-2 text-sm text-error"
+                    : "mb-3 text-sm text-error"
+                }
+              >
                 {error}
               </p>
             )}
@@ -390,6 +487,43 @@ export function useVisualObjects(
                   <p>
                     Add <code>{"\\usepackage{graphicx}"}</code> to{" "}
                     {store.mainFile} in Source before applying a figure here.
+                  </p>
+                )}
+              </div>
+            )}
+            {target.object.kind === "table" && tablePackages.length > 0 && (
+              <div className="shrink-0 border-b border-border bg-muted/30 px-5 py-3 text-sm">
+                {store.mainFile === target.fileId ? (
+                  <>
+                    <p className="mb-2">Enable required document packages:</p>
+                    {tablePackages.map((name) => (
+                      <label
+                        key={name}
+                        className="flex items-center gap-2 py-1"
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`Enable ${name} in document setup`}
+                          checked={enabledTablePackages.includes(name)}
+                          disabled={disabled}
+                          onChange={(e) =>
+                            setEnabledTablePackages(
+                              e.target.checked
+                                ? [...enabledTablePackages, name]
+                                : enabledTablePackages.filter(
+                                    (n) => n !== name,
+                                  ),
+                            )
+                          }
+                        />
+                        {name}
+                      </label>
+                    ))}
+                  </>
+                ) : (
+                  <p>
+                    Enable {tablePackages.join(", ")} in {store.mainFile}{" "}
+                    document setup in Source first.
                   </p>
                 )}
               </div>

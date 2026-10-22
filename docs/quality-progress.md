@@ -485,3 +485,58 @@ unit regression remain. Focused checks and the final full run use the rebuilt
 application. The dated Overleaf comparison still records its broader table
 editing (merging, widths, borders and styled cells); issue #24 remains open for
 those wider objects/navigation rather than treating this as a visual lead.
+
+## 2026-10-22 — Advanced visual tables (#51)
+
+Table editing now supports horizontal merge/split, merged-cell alignment,
+wrapping p/m/b widths, tabularx X columns/table widths, vertical and horizontal
+borders, partial rules, booktabs presets and supported formatted/math cells.
+Standard longtable cells and metadata are editable. Merge retains every cell's
+content; split keeps it in the first cell. Populated deletion needs confirmation.
+Paste refuses merged/custom overlaps. Column-only and independent cell edits
+retain surrounding bytes; structural operations rebuild only the supported body.
+Required package setup needs explicit consent and shares the checkpointed undo
+transaction. Included files require main-file setup in Source.
+
+The first advanced dialog passed a page-overflow check but buried controls and
+clipped table columns on phones. User review rejected it. The replacement opens
+as a grid with a compact toolbar and separate Columns/Borders/Caption panels.
+Phones use the full screen, and Apply/Cancel sit outside scrolling content.
+Regression assertions now check the last cell and action bounds as well as
+page width. The original layout is retained beside replacement screenshots in
+[advanced-table evidence](benchmarks/2026-10-22-advanced-tables/README.md).
+
+Workspace typecheck, lint/design checks, tests and build pass. Current web unit
+tests: 968 across 80 files. The complete table-workspace production browser run
+passed 97 with two deferred cloud skips, 99 total. The subsequent forced
+SyncTeX loading race is verified separately below. The five advanced-table
+scenarios include exact Cancel/no-op/undo/redo/reload, rich merges, explicit
+package consent, deletion/paste refusal, responsive keyboard behavior and a real
+HTTP/Redis/Docker build of the edited tabular, tabularx and longtable source.
+Docker CI includes this spec. A separate read-only review found no source-loss
+blocker within the supported grammar.
+
+Custom cells/comments and repeated longtable headers protect structural edits.
+Vertical multirow, programmable columns, custom spacing and richer HTML/CSV
+paste remain Source operations. This narrows a documented Overleaf gap without
+establishing a visual lead. Deployment/live provider/two-account work remains
+separate in #42. Corrected test attempts and the UI rejection are recorded in
+the dated evidence.
+
+## 2026-10-22 — Early SyncTeX navigation (#53)
+
+The first Docker CI run for #52 passed all advanced-table scenarios but failed
+an existing SyncTeX highlight check. Its capture reported a jump to page 2 while
+the canvas stayed on page 1 of 2. Forward sync had clamped the mapped page to the
+viewer's initial count of one before the PDF worker reported the real count.
+The return value and highlight still referenced the later page.
+
+A store regression reproduced the mismatch in under a second. The real browser
+scenario now holds the PDF worker asset until after the sync request, making
+the race deterministic. It failed with the same missing-highlight assertion
+before the fix. Page and highlight now update together from the current build's
+mapping. Manual page controls retain their bounds; stale-source checks remain.
+The rebuilt delayed-worker scenario passed three repeated real-compiler runs.
+A deferred-load component test also verifies that the canvas retains a supplied
+page request until its document loads. All 968 web unit tests, typecheck, lint
+and build pass. No highlight assertion was removed or given a longer timeout.

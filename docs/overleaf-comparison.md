@@ -9,7 +9,7 @@ is ahead. This is a capability comparison, not an executed Overleaf user study.
 
 | Area | Overleaf documentation | alove evidence | Assessment |
 | --- | --- | --- | --- |
-| Writing surface | Code and Visual editors, layout controls and source/PDF navigation | CodeMirror, coordinate SyncTeX and a source-preserving Visual surface for prose/lists, bounded table cells/TSV paste, figures, equation previews and project cite/ref pickers; complex objects remain issue #24 | Overleaf has the broader writing surface. [Editor guide](https://docs.overleaf.com/getting-started/how-do-i-use-overleaf/redesigned-overleaf-editor) |
+| Writing surface | Code and Visual editors, layout controls and source/PDF navigation | CodeMirror, coordinate SyncTeX and a source-preserving Visual surface for prose/lists, bounded table merge/split, widths/borders, formatted/math cells and TSV paste, figures, equation previews and project cite/ref pickers; complex objects remain issue #24 | Overleaf has the broader writing surface. [Editor guide](https://docs.overleaf.com/getting-started/how-do-i-use-overleaf/redesigned-overleaf-editor) |
 | Collaboration | Real-time coauthoring, reviewing, comments and automatically tracked edits | Roles, comments and explicit source proposals; no simultaneous character merge or automatic tracking; live two-account checks deferred | Overleaf leads this area. [Collaboration](https://docs.overleaf.com/collaborating/collaborating-in-overleaf), [track changes](https://docs.overleaf.com/collaborating/track-changes) |
 | History and Git | Project/file history restoration and Git/GitHub integration | Bounded local/server checkpoints and GitHub pull/push; live OAuth unverified | No general advantage established. [History](https://www.overleaf.com/learn/latex/Using_the_History_feature), [GitHub](https://docs.overleaf.com/integrations-and-add-ons/git-integration-and-github-synchronization/github-synchronization) |
 | Language and research tools | AI explanations, language tools and citation review alongside conventional editing | Project cite/ref completion, English Hunspell and RE2 project search/replacement | No breadth advantage established. Overleaf's July 2026 announcement includes AI allowances across plans; do not treat Error Assist as absent on its free plan. [Current AI announcement](https://www.overleaf.com/blog/overleaf-ai-now-a-part-of-overleaf-plans), [AI assistant](https://docs.overleaf.com/integrations-and-add-ons/ai-features/ai-assistant) |
@@ -18,9 +18,12 @@ is ahead. This is a capability comparison, not an executed Overleaf user study.
 
 Visual controls were rechecked against the official table documentation on
 2026-10-22. Overleaf documents cell merging, column widths, border controls,
-styled/math cells and richer table paste. alove's current table controls handle
-plain cells and bounded TSV; custom cells remain read-only and complex structure
-uses Source. This increment narrows a gap; it establishes no visual lead.
+styled/math cells and richer table paste. Issue #51 adds horizontal merge/split,
+wrapping widths, borders and supported formatted/math cells to alove, along with
+bounded standard tabularx/longtable editing. Custom cells, repeated longtable
+header restructuring, programmable columns and richer HTML/CSV paste still use
+Source. These controls narrow the documented gap; no matched Overleaf task study
+or general visual lead is established.
 [Table editor](https://docs.overleaf.com/writing-and-editing/generating-and-inserting-tables/edit-or-customize-an-inserted-table),
 [table paste](https://docs.overleaf.com/writing-and-editing/generating-and-inserting-tables/pasting-tables-into-your-project).
 
