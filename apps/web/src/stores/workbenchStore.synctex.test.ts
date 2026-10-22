@@ -43,7 +43,8 @@ describe("workbenchStore synctex provenance and navigation", () => {
     resetStore();
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockImplementation(
-      async () => new Response(JSON.stringify({ jobId: "job-1" }), { status: 200 }),
+      async () =>
+        new Response(JSON.stringify({ jobId: "job-1" }), { status: 200 }),
     );
   });
 
@@ -193,4 +194,30 @@ describe("workbenchStore synctex provenance and navigation", () => {
     expect(state.pdfHighlight).toBeNull();
     expect(state.pdfDataUrl).toBeNull();
   });
+});
+
+it("retains a mapped page request before the viewer reports its page count", () => {
+  const store = useWorkbenchStore;
+  store.setState(store.getInitialState(), true);
+  store.setState({
+    projectId: "early-sync",
+    activeFileId: "main.tex",
+    mainFile: "main.tex",
+    filesByPath: { "main.tex": "source" },
+    cursor: { line: 9, column: 1 },
+  });
+  const revision = store.getState().documentRevision;
+  store.setState({
+    synctexMapping: mapping(),
+    synctexRevision: revision,
+    pdfPageCount: 1,
+    pdfPage: 1,
+  });
+  expect(store.getState().goToPdfForCursor()).toBe(3);
+  expect(store.getState().pdfPage).toBe(3);
+  expect(store.getState().pdfHighlight?.page).toBe(3);
+  store.getState().setPdfPageCount(3);
+  expect(store.getState().pdfPage).toBe(3);
+  store.getState().setPdfPage(10);
+  expect(store.getState().pdfPage).toBe(3);
 });

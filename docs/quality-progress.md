@@ -506,9 +506,10 @@ Regression assertions now check the last cell and action bounds as well as
 page width. The original layout is retained beside replacement screenshots in
 [advanced-table evidence](benchmarks/2026-10-22-advanced-tables/README.md).
 
-Validation on the final production build: workspace typecheck, lint/design
-checks, tests and build pass. Web unit tests: 966 across 79 files. Full production
-browser run: 97 passed, two deferred cloud skips, 99 total. The five advanced-table
+Workspace typecheck, lint/design checks, tests and build pass. Current web unit
+tests: 968 across 80 files. The complete table-workspace production browser run
+passed 97 with two deferred cloud skips, 99 total. The subsequent forced
+SyncTeX loading race is verified separately below. The five advanced-table
 scenarios include exact Cancel/no-op/undo/redo/reload, rich merges, explicit
 package consent, deletion/paste refusal, responsive keyboard behavior and a real
 HTTP/Redis/Docker build of the edited tabular, tabularx and longtable source.
@@ -521,3 +522,21 @@ paste remain Source operations. This narrows a documented Overleaf gap without
 establishing a visual lead. Deployment/live provider/two-account work remains
 separate in #42. Corrected test attempts and the UI rejection are recorded in
 the dated evidence.
+
+## 2026-10-22 — Early SyncTeX navigation (#53)
+
+The first Docker CI run for #52 passed all advanced-table scenarios but failed
+an existing SyncTeX highlight check. Its capture reported a jump to page 2 while
+the canvas stayed on page 1 of 2. Forward sync had clamped the mapped page to the
+viewer's initial count of one before the PDF worker reported the real count.
+The return value and highlight still referenced the later page.
+
+A store regression reproduced the mismatch in under a second. The real browser
+scenario now holds the PDF worker asset until after the sync request, making
+the race deterministic. It failed with the same missing-highlight assertion
+before the fix. Page and highlight now update together from the current build's
+mapping. Manual page controls retain their bounds; stale-source checks remain.
+The rebuilt delayed-worker scenario passed three repeated real-compiler runs.
+A deferred-load component test also verifies that the canvas retains a supplied
+page request until its document loads. All 968 web unit tests, typecheck, lint
+and build pass. No highlight assertion was removed or given a longer timeout.

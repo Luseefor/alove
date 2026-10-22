@@ -22,7 +22,7 @@ The browser scenarios check:
 - Dialog containment at 390/768/1440 px, light/dark themes, arrow-key navigation
   and focus returning to the writing surface after Escape.
 
-Final local checks: 966 web tests across 79 files; workspace typecheck, lint
+Current local checks: 968 web tests across 80 files; workspace typecheck, lint
 and production build pass. Full production browser run: 97 passed, two deferred
 cloud skips.
 
@@ -60,3 +60,11 @@ specifiers and inline markup. Vertical multirow merging, programmable columns,
 custom spacing and repeated-longtable-header restructuring require Source.
 Compilation remains the layout authority. Deployment, real-user OAuth and live
 two-account validation remain deferred in #42.
+
+The first Docker CI run passed the five advanced-table scenarios and failed an
+existing SyncTeX highlight check. Issue #53 records the page-count loading race:
+forward sync returned page 2 while its page update was clamped to the initial
+count of one. A fast store test and a real browser worker gate reproduced it.
+The fix retains the mapped page and highlight together. The forced delayed-load
+browser scenario passed three repeated runs after rebuilding, with the original
+highlight assertion unchanged. See quality-progress.md for the correction.

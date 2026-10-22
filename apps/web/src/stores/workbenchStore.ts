@@ -894,8 +894,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         const line = s.cursor?.line ?? 1;
         const target = findPdfForSource(s.synctexMapping, file, line);
         if (!target) return null;
-        get().setPdfPage(target.page);
         set((prev) => ({
+          // The current build's mapping already identifies this page. The
+          // viewer may still report its initial count of 1 while pdf.js loads.
+          pdfPage: target.page,
           pdfHighlight: {
             page: target.page,
             xBp: target.rect.xBp,
