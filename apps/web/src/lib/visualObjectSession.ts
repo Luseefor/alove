@@ -57,7 +57,10 @@ export function objectSourcePatches(
     },
   ];
 }
-export function graphicxSetup(source: string): {
+export function visualPackageSetup(
+  source: string,
+  packageName: string,
+): {
   present: boolean;
   insertion: number | null;
 } {
@@ -87,7 +90,7 @@ export function graphicxSetup(source: string): {
       if (command) {
         const group = readTexGroup(preamble, i + command[0].length - 1);
         if (!group) break;
-        if (group.value.split(",").some((name) => name.trim() === "graphicx"))
+        if (group.value.split(",").some((name) => name.trim() === packageName))
           present = true;
         i = group.to;
         continue;
@@ -99,4 +102,8 @@ export function graphicxSetup(source: string): {
   }
   const begin = source.lastIndexOf("\\begin{document}", model.body.from);
   return { present, insertion: begin < 0 ? null : begin };
+}
+
+export function graphicxSetup(source: string) {
+  return visualPackageSetup(source, "graphicx");
 }

@@ -122,3 +122,57 @@ it("rejects project switches and viewer transitions, and Cancel leaves source in
   ).toBe(true);
   expect(apply).not.toHaveBeenCalled();
 });
+async function wrapColumn() {
+  const select = document.querySelector<HTMLSelectElement>(
+    '[aria-label="Column 1 type"]',
+  )!;
+  await act(async () => {
+    select.value = "m";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+it("adds required table setup only after consent and in the checkpointed source transaction", async () => {
+  const checkpoint = vi.fn(async () => true);
+  useWorkbenchStore.setState({
+    persistence: { prepareSourceReplacement: checkpoint },
+  });
+  await open();
+  await wrapColumn();
+  await click("Apply table changes");
+  expect(apply).not.toHaveBeenCalled();
+  expect(checkpoint).not.toHaveBeenCalled();
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+    "require packages",
+  );
+  const enable = document.querySelector<HTMLInputElement>(
+    '[aria-label="Enable array in document setup"]',
+  )!;
+  await act(async () => enable.click());
+  await click("Apply table changes");
+  expect(checkpoint).toHaveBeenCalledTimes(1);
+  expect(apply).toHaveBeenCalledWith(
+    source,
+    expect.arrayContaining([
+      expect.objectContaining({ insert: "\\usepackage{array}\n" }),
+      expect.objectContaining({ insert: expect.stringContaining("m{3cm}") }),
+    ]),
+  );
+});
+it("requires setup in the main file rather than silently modifying an included file", async () => {
+  await act(async () =>
+    useWorkbenchStore.setState({
+      activeFileId: "included.tex",
+      filesByPath: { "main.tex": source, "included.tex": source },
+    }),
+  );
+  await open();
+  await wrapColumn();
+  await click("Apply table changes");
+  expect(apply).not.toHaveBeenCalled();
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+    "main.tex document setup in Source",
+  );
+  expect(
+    document.querySelector('[aria-label="Enable array in document setup"]'),
+  ).toBeNull();
+});

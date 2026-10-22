@@ -3,7 +3,7 @@ import {
   type TableDraft,
   type TableRule,
 } from "./visualTable";
-import { serializeTableColumns } from "./visualTableColumns";
+import { parseTableColumns, serializeTableColumns } from "./visualTableColumns";
 export function cloneTableDraft(d: TableDraft): TableDraft {
   const nr = d.cells.length,
     nc = d.alignments.length;
@@ -249,6 +249,56 @@ export function tableBorderPreset(
                 ? [{ kind: "midrule" }]
                 : []
           : [],
+  );
+  syncSpanBorders(next);
+  return next;
+}
+function syncSpanBorders(d: TableDraft) {
+  d.cells.forEach((row, r) =>
+    row.forEach((_, c) => {
+      const span = d.spans![r]![c]!;
+      const spec = d.spanSpecs![r]![c]!;
+      if (span < 1 || !spec) return;
+      const parsed = parseTableColumns(spec);
+      if (!parsed || parsed.columns.length !== 1)
+        throw new Error("Edit custom merged-cell columns in Source.");
+      d.spanSpecs![r]![c] = serializeTableColumns(parsed.columns, [
+        d.verticalBorders![c]!,
+        d.verticalBorders![c + span]!,
+      ]);
+    }),
+  );
+}
+/** An explicit border action also updates the multicolumn overrides at its edges. */
+export function setTableVerticalBorder(
+  d: TableDraft,
+  boundary: number,
+  value: number,
+): TableDraft {
+  if (
+    !Number.isInteger(boundary) ||
+    boundary < 0 ||
+    boundary > d.alignments.length ||
+    ![0, 1, 2].includes(value)
+  )
+    throw new Error("Invalid column border settings.");
+  const next = cloneTableDraft(d);
+  next.verticalBorders![boundary] = value;
+  // Preserve unrelated local overrides; change only cells touching this boundary.
+  next.cells.forEach((row, r) =>
+    row.forEach((_, c) => {
+      const span = next.spans![r]![c]!;
+      const spec = next.spanSpecs![r]![c]!;
+      if (span < 1 || !spec || (c !== boundary && c + span !== boundary))
+        return;
+      const parsed = parseTableColumns(spec);
+      if (!parsed || parsed.columns.length !== 1)
+        throw new Error("Edit custom merged-cell columns in Source.");
+      const bars = [...parsed.borders];
+      if (c === boundary) bars[0] = value;
+      if (c + span === boundary) bars[1] = value;
+      next.spanSpecs![r]![c] = serializeTableColumns(parsed.columns, bars);
+    }),
   );
   return next;
 }

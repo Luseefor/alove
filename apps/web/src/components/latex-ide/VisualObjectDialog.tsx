@@ -5,7 +5,11 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { canEditVisualRange } from "@alove/editor";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import { buildProjectLanguageIndex } from "@/lib/projectLanguage";
-import { createVisualTable, parseVisualTable } from "@/lib/visualTable";
+import {
+  createVisualTable,
+  parseVisualTable,
+  requiredTablePackages,
+} from "@/lib/visualTable";
 import {
   createVisualFigure,
   parseVisualFigure,
@@ -23,14 +27,15 @@ import {
 } from "@/lib/visualObjects";
 import {
   graphicxSetup,
+  visualPackageSetup,
   isVisualObjectCurrent,
   objectSourcePatches,
   type VisualObjectTarget,
 } from "@/lib/visualObjectSession";
 import type { VisualSourcePatch } from "@/lib/visualObjectTypes";
 import type { LatexCodeEditorHandle } from "./LatexCodeEditor";
+import { VisualTableEditor } from "./VisualTableEditor";
 import {
-  VisualTableEditor,
   VisualFigureEditor,
   VisualMathEditor,
   VisualCitationEditor,
@@ -49,6 +54,10 @@ export function useVisualObjects(
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [enableGraphicx, setEnableGraphicx] = useState(false);
+  const [tablePackages, setTablePackages] = useState<string[]>([]);
+  const [enabledTablePackages, setEnabledTablePackages] = useState<string[]>(
+    [],
+  );
   const store = useWorkbenchStore();
   function begin(
     object: VisualObject,
@@ -75,6 +84,18 @@ export function useVisualObjects(
     });
     setError("");
     setEnableGraphicx(false);
+    setTablePackages(
+      object.kind === "table"
+        ? requiredTablePackages(object).filter(
+            (name) =>
+              !visualPackageSetup(
+                current.filesByPath[current.mainFile ?? ""] ?? "",
+                name,
+              ).present,
+          )
+        : [],
+    );
+    setEnabledTablePackages([]);
   }
   function open(
     object: VisualObject,
@@ -170,6 +191,44 @@ export function useVisualObjects(
             from: setup.insertion,
             to: setup.insertion,
             insert: `\\usepackage{graphicx}${eol}`,
+          });
+        }
+      }
+      if (target.object.kind === "table") {
+        const fragment = applyVisualSourcePatches(
+          target.object.source,
+          edits.map((p) => ({
+            ...p,
+            from: p.from - target.object.from,
+            to: p.to - target.object.from,
+          })),
+        );
+        const candidate = parseVisualTable(fragment);
+        if (!candidate)
+          throw new Error(
+            "The edited table could not be recognized safely. Keep this edit in Source.",
+          );
+        const state = useWorkbenchStore.getState(),
+          root = state.filesByPath[state.mainFile ?? ""] ?? "";
+        const missing = requiredTablePackages(candidate).filter(
+          (name) => !visualPackageSetup(root, name).present,
+        );
+        setTablePackages(missing);
+        if (missing.length) {
+          const setup = visualPackageSetup(root, missing[0]!);
+          if (state.mainFile !== target.fileId || setup.insertion === null)
+            throw new Error(
+              `Enable ${missing.join(", ")} in ${state.mainFile} document setup in Source before applying these table options.`,
+            );
+          if (missing.some((name) => !enabledTablePackages.includes(name)))
+            throw new Error(
+              "These table options require packages. Review and enable them below, then Apply again.",
+            );
+          const eol = target.source.includes("\r\n") ? "\r\n" : "\n";
+          patches.push({
+            from: setup.insertion,
+            to: setup.insertion,
+            insert: `\\usepackage{${missing.join(",")}}${eol}`,
           });
         }
       }
@@ -390,6 +449,46 @@ export function useVisualObjects(
                   <p>
                     Add <code>{"\\usepackage{graphicx}"}</code> to{" "}
                     {store.mainFile} in Source before applying a figure here.
+                  </p>
+                )}
+              </div>
+            )}
+            {target.object.kind === "table" && tablePackages.length > 0 && (
+              <div className="mb-4 rounded border border-border p-3 text-sm">
+                {store.mainFile === target.fileId ? (
+                  <>
+                    <p className="mb-2">
+                      These options need LaTeX packages. Enable them explicitly
+                      in document setup:
+                    </p>
+                    {tablePackages.map((name) => (
+                      <label
+                        key={name}
+                        className="flex items-center gap-2 py-1"
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`Enable ${name} in document setup`}
+                          checked={enabledTablePackages.includes(name)}
+                          disabled={disabled}
+                          onChange={(e) =>
+                            setEnabledTablePackages(
+                              e.target.checked
+                                ? [...enabledTablePackages, name]
+                                : enabledTablePackages.filter(
+                                    (n) => n !== name,
+                                  ),
+                            )
+                          }
+                        />
+                        {name}
+                      </label>
+                    ))}
+                  </>
+                ) : (
+                  <p>
+                    Enable {tablePackages.join(", ")} in {store.mainFile}{" "}
+                    document setup in Source first.
                   </p>
                 )}
               </div>

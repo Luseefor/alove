@@ -16,6 +16,7 @@ import {
   splitTableCell,
   resizeTableGrid,
   tableBorderPreset,
+  setTableVerticalBorder,
 } from "./tableGrid";
 import {
   parseTableColumns,
@@ -251,4 +252,23 @@ describe("cell formatting safety", () => {
     expect(() => formatTableCellSelection(s, 4, 15, "italic")).toThrow();
     expect(s).toBe(String.raw`\textbf{alpha} beta`);
   });
+});
+
+it("explicit border presets update merged overrides without changing content or alignment", () => {
+  const s = String.raw`\begin{tabular}{ll}\multicolumn{2}{|c|}{Merged} \\ A & B \\\end{tabular}`;
+  const m = parseVisualTable(s)!,
+    d = tableBorderPreset(tableDraft(m), "booktabs");
+  expect(d.spanSpecs![0]![0]).toBe("c");
+  expect(patch(s, d)).toContain(String.raw`\multicolumn{2}{c}{Merged}`);
+  expect(d.cells[0]![0]).toBe("Merged");
+});
+it("one boundary change updates touching merged overrides and preserves other edges", () => {
+  const s = String.raw`\begin{tabular}{lll}\multicolumn{2}{|r||}{Merged} & tail \\ A & B & C \\\end{tabular}`;
+  const d = tableDraft(parseVisualTable(s)!);
+  const n = setTableVerticalBorder(d, 0, 2);
+  expect(n.spanSpecs![0]![0]).toBe("||r||");
+  expect(n.verticalBorders).toEqual([2, 0, 0, 0]);
+  expect(d.spanSpecs![0]![0]).toBe("|r||");
+  expect(setTableVerticalBorder(d, 1, 1).spanSpecs![0]![0]).toBe("|r||");
+  expect(() => setTableVerticalBorder(d, 4, 1)).toThrow();
 });

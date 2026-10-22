@@ -7,6 +7,9 @@ import {
 } from "@codemirror/view";
 import { parseVisualObjects, type VisualObject } from "@/lib/visualObjects";
 import { safeFigureAsset } from "@/lib/visualFigure";
+import type { VisualTable } from "@/lib/visualTable";
+import { tableDimensionCss, parseTableColumns } from "@/lib/visualTableColumns";
+import { renderTableCellContent } from "./TableCellPreview";
 import { renderMathPreview } from "./MathPreview";
 
 export const refreshVisualObjectAssets = StateEffect.define<null>();
@@ -20,6 +23,141 @@ type Options = {
     cell?: { row: number; column: number },
   ) => void;
 };
+function tableVerticalBorder(width: number | undefined): string {
+  if (width === 2) return "3px double var(--border)";
+  if (width === 1) return "1px solid var(--border)";
+  return "0px solid var(--border)";
+}
+function tableHorizontalBorder(
+  rules: VisualTable["rules"][number] | undefined,
+  column: number,
+  span: number,
+): string {
+  const relevant = (rules ?? []).filter(
+    (rule) =>
+      rule.kind !== "cline" ||
+      (typeof rule.start === "number" &&
+        typeof rule.end === "number" &&
+        rule.start <= column + span &&
+        rule.end >= column + 1),
+  );
+  if (!relevant.length) return "0px solid var(--border)";
+  const hlines = relevant.filter((rule) => rule.kind === "hline").length;
+  if (hlines >= 2) return "3px double var(--border)";
+  if (hlines === 1) return "1px solid var(--border)";
+  if (
+    relevant.some(
+      (rule) => rule.kind === "toprule" || rule.kind === "bottomrule",
+    )
+  )
+    return "2px solid var(--foreground)";
+  if (relevant.some((rule) => rule.kind === "midrule"))
+    return "1px solid var(--foreground)";
+  return "1px solid var(--border)";
+}
+function spanOverride(spec: string): {
+  alignment: string;
+  kind: string;
+  width: string;
+  left: number;
+  right: number;
+} | null {
+  if (!spec) return null;
+  const parsed = parseTableColumns(spec);
+  const column = parsed?.columns[0];
+  if (!parsed || !column || parsed.columns.length !== 1) return null;
+  return {
+    alignment: column.alignment,
+    kind: column.kind,
+    width: column.width,
+    left: parsed.borders[0] ?? 0,
+    right: parsed.borders[1] ?? 0,
+  };
+}
+export function buildVisualTablePreview(
+  object: VisualTable,
+  open: (cell: { row: number; column: number }) => void,
+): HTMLDivElement {
+  const frame = document.createElement("div");
+  frame.className = "cm-visual-table-scroll";
+  const table = document.createElement("table");
+  table.setAttribute("aria-label", "Visual table preview");
+  const tableWidth = object.tableWidth
+    ? tableDimensionCss(object.tableWidth.value)
+    : undefined;
+  if (tableWidth) table.style.width = tableWidth;
+  if (object.columns.length) {
+    const group = document.createElement("colgroup");
+    object.columns.forEach((column) => {
+      const col = document.createElement("col");
+      const width = column.width
+        ? tableDimensionCss(column.width)
+        : undefined;
+      if (width) col.style.width = width;
+      group.appendChild(col);
+    });
+    table.appendChild(group);
+  }
+  object.cells.forEach((row, r) => {
+    const tr = document.createElement("tr");
+    row.forEach((cell, c) => {
+      if (cell.colSpan === 0) return;
+      const span = cell.colSpan > 1 ? cell.colSpan : 1;
+      const td = document.createElement("td");
+      if (span > 1) td.colSpan = span;
+      const override = spanOverride(cell.spanSpec);
+      const alignment =
+        override?.alignment ??
+        object.columns[c]?.alignment ??
+        object.alignments[c] ??
+        "l";
+      td.style.textAlign =
+        alignment === "c"
+          ? "center"
+          : alignment === "r"
+            ? "right"
+            : alignment === "j"
+              ? "justify"
+              : "left";
+      const borders = object.verticalBorders ?? [];
+      td.style.borderLeft = tableVerticalBorder(
+        override ? override.left : borders[c],
+      );
+      td.style.borderRight = tableVerticalBorder(
+        override ? override.right : borders[c + span],
+      );
+      const overrideWidth = override?.width
+        ? tableDimensionCss(override.width)
+        : undefined;
+      if (overrideWidth) td.style.width = overrideWidth;
+      const kind = override?.kind ?? object.columns[c]?.kind;
+      if (kind === "p") td.style.verticalAlign = "top";
+      else if (kind === "m") td.style.verticalAlign = "middle";
+      else if (kind === "b") td.style.verticalAlign = "bottom";
+      td.style.borderTop = tableHorizontalBorder(object.rules?.[r], c, span);
+      td.style.borderBottom = tableHorizontalBorder(
+        object.rules?.[r + 1],
+        c,
+        span,
+      );
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.setAttribute(
+        "aria-label",
+        `Edit table row ${r + 1} column ${c + 1}: ${(cell.text ?? cell.raw).slice(0, 80)}`,
+      );
+      const content = document.createElement("span");
+      renderTableCellContent(content, cell.raw);
+      edit.appendChild(content);
+      edit.addEventListener("click", () => open({ row: r, column: c }));
+      td.appendChild(edit);
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  frame.appendChild(table);
+  return frame;
+}
 class ObjectWidget extends WidgetType {
   readonly asset: string | null;
   constructor(
@@ -69,33 +207,7 @@ class ObjectWidget extends WidgetType {
       button.textContent = "Edit table";
       button.setAttribute("aria-label", "Edit table");
       root.appendChild(button);
-      const frame = document.createElement("div");
-      frame.className = "cm-visual-table-scroll";
-      const table = document.createElement("table");
-      table.setAttribute("aria-label", "Visual table preview");
-      object.cells.forEach((row, r) => {
-        const tr = document.createElement("tr");
-        row.forEach((cell, c) => {
-          const td = document.createElement("td");
-          td.style.textAlign =
-            ({ l: "left", c: "center", r: "right" } as const)[
-              object.alignments[c] as "l" | "c" | "r"
-            ] ?? "left";
-          const edit = document.createElement("button");
-          edit.type = "button";
-          edit.textContent = cell.text ?? cell.raw;
-          edit.setAttribute(
-            "aria-label",
-            `Edit table row ${r + 1} column ${c + 1}: ${(cell.text ?? cell.raw).slice(0, 80)}`,
-          );
-          edit.addEventListener("click", () => open({ row: r, column: c }));
-          td.appendChild(edit);
-          tr.appendChild(td);
-        });
-        table.appendChild(tr);
-      });
-      frame.appendChild(table);
-      root.appendChild(frame);
+      root.appendChild(buildVisualTablePreview(object, open));
       if (object.caption) {
         const caption = document.createElement("div");
         caption.className = "cm-visual-object-caption";
