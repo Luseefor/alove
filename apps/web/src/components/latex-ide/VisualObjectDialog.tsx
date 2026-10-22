@@ -11,9 +11,15 @@ import {
   requiredTablePackages,
 } from "@/lib/visualTable";
 import {
+  createVisualSubfigure,
+  parseVisualSubfigure,
+} from "@/lib/visualSubfigure";
+import { VisualSubfigureEditor } from "./VisualSubfigureEditor";
+import {
   createVisualFigure,
   parseVisualFigure,
   isFigurePath,
+  requiredFigurePackages,
 } from "@/lib/visualFigure";
 import {
   createVisualMath,
@@ -54,6 +60,10 @@ export function useVisualObjects(
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [enableGraphicx, setEnableGraphicx] = useState(false);
+  const [figurePackages, setFigurePackages] = useState<string[]>([]);
+  const [enabledFigurePackages, setEnabledFigurePackages] = useState<string[]>(
+    [],
+  );
   const [tablePackages, setTablePackages] = useState<string[]>([]);
   const [enabledTablePackages, setEnabledTablePackages] = useState<string[]>(
     [],
@@ -84,6 +94,8 @@ export function useVisualObjects(
     });
     setError("");
     setEnableGraphicx(false);
+    setFigurePackages([]);
+    setEnabledFigurePackages([]);
     setTablePackages(
       object.kind === "table"
         ? requiredTablePackages(object).filter(
@@ -132,19 +144,24 @@ export function useVisualObjects(
         ? createVisualTable(2, 2, eol)
         : kind === "figure"
           ? createVisualFigure(path, eol)
-          : kind === "math"
-            ? createVisualMath("x^2", false, eol)
-            : createVisualCitation([key], kind);
-    if (kind === "table" || kind === "figure") {
-      const base = kind === "table" ? "tab:new" : "fig:new";
-      let label = base,
-        n = 1;
-      while (language.labels.some((entry) => entry.label === label))
-        label = `${base}-${n++}`;
-      fragment = fragment.replace(`\\label{${base}}`, `\\label{${label}}`);
+          : kind === "subfigure"
+            ? createVisualSubfigure([path, path], eol)
+            : kind === "math"
+              ? createVisualMath("x^2", false, eol)
+              : createVisualCitation([key], kind);
+    if (kind === "table" || kind === "figure" || kind === "subfigure") {
+      const used = new Set(language.labels.map((entry) => entry.label));
+      fragment = fragment.replace(/\\label\{([^{}]+)\}/g, (_, base: string) => {
+        let label = base,
+          n = 1;
+        while (used.has(label)) label = `${base}-${n++}`;
+        used.add(label);
+        return `\\label{${label}}`;
+      });
     }
     const object =
       parseVisualTable(fragment) ??
+      parseVisualSubfigure(fragment) ??
       parseVisualFigure(fragment) ??
       parseVisualMath(fragment, 0, eol) ??
       parseVisualCitation(fragment);
@@ -172,7 +189,10 @@ export function useVisualObjects(
           "The document or project changed. Reopen this editor; your draft has not been applied.",
         );
       const patches = objectSourcePatches(target, edits);
-      if (target.object.kind === "figure") {
+      if (
+        target.object.kind === "figure" ||
+        target.object.kind === "subfigure"
+      ) {
         const state = useWorkbenchStore.getState();
         const setup = graphicxSetup(
           state.filesByPath[state.mainFile ?? ""] ?? "",
@@ -191,6 +211,51 @@ export function useVisualObjects(
             from: setup.insertion,
             to: setup.insertion,
             insert: `\\usepackage{graphicx}${eol}`,
+          });
+        }
+      }
+      if (
+        target.object.kind === "figure" ||
+        target.object.kind === "subfigure"
+      ) {
+        const fragment = applyVisualSourcePatches(
+          target.object.source,
+          edits.map((patch) => ({
+            ...patch,
+            from: patch.from - target.object.from,
+            to: patch.to - target.object.from,
+          })),
+        );
+        const candidate =
+          parseVisualSubfigure(fragment) ?? parseVisualFigure(fragment);
+        if (!candidate)
+          throw new Error(
+            "The edited figure could not be recognized safely. Keep this edit in Source.",
+          );
+        const required = requiredFigurePackages(candidate).filter(
+          (name) => name !== "graphicx",
+        );
+        const state = useWorkbenchStore.getState();
+        const root = state.filesByPath[state.mainFile ?? ""] ?? "";
+        const missing = required.filter(
+          (name) => !visualPackageSetup(root, name).present,
+        );
+        setFigurePackages(missing);
+        if (missing.length) {
+          const setup = visualPackageSetup(root, missing[0]!);
+          if (state.mainFile !== target.fileId || setup.insertion === null)
+            throw new Error(
+              `Enable ${missing.join(", ")} in ${state.mainFile} document setup in Source first.`,
+            );
+          if (missing.some((name) => !enabledFigurePackages.includes(name)))
+            throw new Error(
+              "These figure options require packages. Review and enable them below, then Apply again.",
+            );
+          const eol = target.source.includes("\r\n") ? "\r\n" : "\n";
+          patches.push({
+            from: setup.insertion,
+            to: setup.insertion,
+            insert: `\\usepackage{${missing.join(",")}}${eol}`,
           });
         }
       }
@@ -345,7 +410,7 @@ export function useVisualObjects(
   }
   const language = target ? buildProjectLanguageIndex(store.filesByPath) : null;
   const setup =
-    target?.object.kind === "figure"
+    target?.object.kind === "figure" || target?.object.kind === "subfigure"
       ? graphicxSetup(store.filesByPath[store.mainFile ?? ""] ?? "")
       : null;
   const disabled = busy || store.projectRole === "viewer";
@@ -431,10 +496,12 @@ export function useVisualObjects(
                       current.activeFileId === target.fileId &&
                       editor.current?.getValue() === target.source
                     )
-                      editor.current?.setSelection(
-                        target.insertion ?? target.object.from,
-                        target.insertion ?? target.object.to,
-                      );
+                      useWorkbenchStore.setState({
+                        nextSelection: {
+                          start: target.insertion ?? target.object.from,
+                          end: target.insertion ?? target.object.to,
+                        },
+                      });
                     setTarget(null);
                   }}
                 >
@@ -491,6 +558,35 @@ export function useVisualObjects(
                 )}
               </div>
             )}
+            {figurePackages.length > 0 && (
+              <div className="mb-3 border-y border-border py-2 text-sm">
+                {store.mainFile === target.fileId ? (
+                  figurePackages.map((name) => (
+                    <label className="flex items-center gap-2 py-1" key={name}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Enable ${name} in document setup`}
+                        disabled={disabled}
+                        checked={enabledFigurePackages.includes(name)}
+                        onChange={(e) =>
+                          setEnabledFigurePackages((names) =>
+                            e.target.checked
+                              ? [...names, name]
+                              : names.filter((n) => n !== name),
+                          )
+                        }
+                      />
+                      {name}
+                    </label>
+                  ))
+                ) : (
+                  <p>
+                    Enable {figurePackages.join(", ")} in {store.mainFile}{" "}
+                    document setup in Source first.
+                  </p>
+                )}
+              </div>
+            )}
             {target.object.kind === "table" && tablePackages.length > 0 && (
               <div className="shrink-0 border-b border-border bg-muted/30 px-5 py-3 text-sm">
                 {store.mainFile === target.fileId ? (
@@ -532,6 +628,13 @@ export function useVisualObjects(
               <VisualTableEditor model={target.object} {...common} />
             ) : target.object.kind === "figure" ? (
               <VisualFigureEditor
+                model={target.object}
+                assets={store.filesByPath}
+                onUpload={upload}
+                {...common}
+              />
+            ) : target.object.kind === "subfigure" ? (
+              <VisualSubfigureEditor
                 model={target.object}
                 assets={store.filesByPath}
                 onUpload={upload}

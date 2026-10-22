@@ -20,6 +20,10 @@ export type VisualFigure = VisualObjectBase & {
   widthFrom: number;
   widthTo: number;
   widthUnit: string;
+  placement: string | null;
+  placementFrom: number;
+  placementTo: number;
+  starred: boolean;
   wrapper: boolean;
   eol: string;
 };
@@ -28,7 +32,32 @@ export type FigureDraft = {
   width: number;
   caption: string;
   label: string;
+  placement?: string | null;
 };
+export const FIGURE_PLACEMENT_OPTIONS = [
+  "",
+  "htbp",
+  "!ht",
+  "!htbp",
+  "h",
+  "t",
+  "b",
+  "p",
+  "H",
+] as const;
+export function isFigurePlacement(value: string | null): boolean {
+  if (value === null || value === "") return true;
+  return /^[htbp!H]{1,8}$/.test(value);
+}
+export function requiredFigurePackages(model: {
+  placement: string | null;
+  panels?: readonly unknown[];
+}): string[] {
+  const packages = ["graphicx"];
+  if (model.panels !== undefined) packages.push("subcaption");
+  if (model.placement?.includes("H")) packages.push("float");
+  return packages;
+}
 export function isFigurePath(path: string): boolean {
   return (
     normalizeCompilePath(path) === path &&
@@ -68,9 +97,42 @@ export function parseVisualFigure(
     " ".repeat(group.to - include.index) +
     scan.slice(group.to);
   const wrapper = /^\s*\\begin\{figure\*?\}(?:\[[htbp!H]+\])?/.test(outer);
+  let placement: string | null = null;
+  let placementFrom = from;
+  let placementTo = from;
+  let starred = false;
   if (wrapper) {
     const begin = /^\\begin\{(figure\*?)\}/.exec(scan.trimStart());
     if (!begin || !scan.trimEnd().endsWith(`\\end{${begin[1]}}`)) return null;
+    starred = begin[1] === "figure*";
+    // Exact source offsets for the float specifier; fail closed on unsafe values.
+    const beginMatch = /\\begin\{(figure\*?)\}/.exec(fragment);
+    if (!beginMatch || beginMatch.index === undefined) return null;
+    if (beginMatch[1] !== begin[1]) return null;
+    const scanPrefix = scan.slice(0, beginMatch.index);
+    if (scanPrefix.trim() !== "") return null;
+    const beginEnd = beginMatch.index + beginMatch[0].length;
+    if (fragment[beginEnd] === "[") {
+      const placementMatch = /^\[([htbp!H]+)\]/.exec(
+        fragment.slice(beginEnd, beginEnd + 16),
+      );
+      if (!placementMatch || !placementMatch[1]) return null;
+      if (
+        scan.slice(beginEnd, beginEnd + placementMatch[0].length) !==
+        placementMatch[0]
+      )
+        return null;
+      placement = placementMatch[1];
+      placementFrom = from + beginEnd + 1;
+      placementTo = from + beginEnd + 1 + placement.length;
+    } else {
+      // No specifier preserves exact bytes; any "[" here is unsafe and already
+      // fails closed via the wrapper/outer checks below.
+      if (fragment[beginEnd] === "[") return null;
+      placement = null;
+      placementFrom = from + beginEnd;
+      placementTo = from + beginEnd;
+    }
   }
   if (wrapper)
     outer = outer
@@ -125,6 +187,10 @@ export function parseVisualFigure(
     widthFrom: from + widthStart,
     widthTo: from + widthStart + (include[1]?.length ?? 0),
     widthUnit: include[2] ?? "textwidth",
+    placement,
+    placementFrom,
+    placementTo,
+    starred,
     wrapper,
     eol: fragment.includes("\r\n") ? "\r\n" : "\n",
   };
@@ -139,18 +205,24 @@ export function figureDraft(model: VisualFigure): FigureDraft {
     width: model.width,
     caption: model.caption?.text ?? model.caption?.value ?? "",
     label: model.label?.value ?? "",
+    placement: model.placement,
   };
 }
 export function patchesForVisualFigure(
   model: VisualFigure,
   draft: FigureDraft,
 ): VisualSourcePatch[] {
+  let placement = model.placement;
+  if (draft.placement !== undefined)
+    placement = draft.placement === "" ? null : draft.placement;
   if (
     !isFigurePath(draft.path) ||
     !Number.isFinite(draft.width) ||
     draft.width < 0.1 ||
     draft.width > 1 ||
     draft.caption.length > 10000 ||
+    !isFigurePlacement(placement) ||
+    (!model.wrapper && placement !== null) ||
     (draft.label !== model.label?.value &&
       draft.label &&
       !isVisualTexKey(draft.label))
@@ -174,6 +246,27 @@ export function patchesForVisualFigure(
           ? `[width=${draft.width}\\textwidth]`
           : String(draft.width),
     });
+  if (model.wrapper && placement !== model.placement) {
+    if (model.placement === null && placement !== null) {
+      patches.push({
+        from: model.placementFrom,
+        to: model.placementTo,
+        insert: `[${placement}]`,
+      });
+    } else if (model.placement !== null && placement === null) {
+      patches.push({
+        from: model.placementFrom - 1,
+        to: model.placementTo + 1,
+        insert: "",
+      });
+    } else if (model.placement !== null && placement !== null) {
+      patches.push({
+        from: model.placementFrom,
+        to: model.placementTo,
+        insert: placement,
+      });
+    }
+  }
   if (
     model.caption &&
     draft.caption !== (model.caption.text ?? model.caption.value)

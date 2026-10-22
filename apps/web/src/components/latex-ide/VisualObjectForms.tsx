@@ -1,9 +1,9 @@
 "use client";
 import React from "react";
 import { useState } from "react";
-import Image from "next/image";
 import type { ProjectCiteEntry, ProjectLabelEntry } from "@alove/editor";
 import {
+  FIGURE_PLACEMENT_OPTIONS,
   figureDraft,
   isFigurePath,
   patchesForVisualFigure,
@@ -20,6 +20,7 @@ import {
 } from "@/lib/visualInline";
 import type { VisualSourcePatch } from "@/lib/visualObjectTypes";
 import { MathPreview } from "./MathPreview";
+import { FigureResizePreview } from "./FigureResizePreview";
 const inputClass =
   "w-full rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const buttonClass =
@@ -77,6 +78,12 @@ export function VisualFigureEditor({
     [error, setError] = useState(""),
     [uploading, setUploading] = useState(false);
   const preview = safeFigureAsset(assets[draft.path]);
+  const placementValue = draft.placement ?? "";
+  const placementOptions =
+    placementValue &&
+    !FIGURE_PLACEMENT_OPTIONS.includes(placementValue as never)
+      ? [placementValue, ...FIGURE_PLACEMENT_OPTIONS]
+      : FIGURE_PLACEMENT_OPTIONS;
   return (
     <form
       aria-label="Figure editor"
@@ -96,25 +103,14 @@ export function VisualFigureEditor({
       className="space-y-4"
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex min-h-36 items-center justify-center overflow-hidden rounded border border-border bg-muted/30 p-3">
-          {preview ? (
-            <Image
-              unoptimized
-              src={preview}
-              alt={draft.caption || draft.path}
-              width={600}
-              height={400}
-              className="max-h-56 max-w-full object-contain"
-              style={{ width: `${Math.round(draft.width * 100)}%` }}
-            />
-          ) : (
-            <p className="break-all text-xs text-muted-foreground">
-              {draft.path.endsWith(".pdf")
-                ? "PDF figure · use Proof to view its rendered page"
-                : "Choose or upload a project image."}
-            </p>
-          )}
-        </div>
+        <FigureResizePreview
+          preview={preview}
+          alt={draft.caption || draft.path}
+          width={draft.width}
+          disabled={disabled}
+          isPdf={draft.path.endsWith(".pdf")}
+          onWidthChange={(width) => setDraft({ ...draft, width })}
+        />
         <div className="space-y-3">
           <label className="block text-xs">
             Project image
@@ -189,6 +185,33 @@ export function VisualFigureEditor({
               setDraft({ ...draft, width: Number(e.target.value) / 100 })
             }
           />
+          {model.wrapper && (
+            <label className="block text-xs">
+              Float placement
+              <select
+                aria-label="Figure placement"
+                value={placementValue}
+                disabled={disabled}
+                className={inputClass}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    placement: e.target.value === "" ? null : e.target.value,
+                  })
+                }
+              >
+                {placementOptions.map((option) => (
+                  <option key={option || "default"} value={option}>
+                    {option === ""
+                      ? "Default (no specifier)"
+                      : option === "H"
+                        ? "H (needs float package)"
+                        : `[${option}]`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       </div>
       {model.wrapper && (
