@@ -9,12 +9,20 @@ is ahead. This is a capability comparison, not an executed Overleaf user study.
 
 | Area | Overleaf documentation | alove evidence | Assessment |
 | --- | --- | --- | --- |
-| Writing surface | Code and Visual editors, layout controls and source/PDF navigation | CodeMirror, coordinate SyncTeX and a basic source-preserving Visual surface for prose, headings and lists; advanced visual objects remain issue #24 | Overleaf has the broader writing surface. [Editor guide](https://docs.overleaf.com/getting-started/how-do-i-use-overleaf/redesigned-overleaf-editor) |
+| Writing surface | Code and Visual editors, layout controls and source/PDF navigation | CodeMirror, coordinate SyncTeX and a source-preserving Visual surface for prose/lists, bounded table cells/TSV paste, figures, equation previews and project cite/ref pickers; complex objects remain issue #24 | Overleaf has the broader writing surface. [Editor guide](https://docs.overleaf.com/getting-started/how-do-i-use-overleaf/redesigned-overleaf-editor) |
 | Collaboration | Real-time coauthoring, reviewing, comments and automatically tracked edits | Roles, comments and explicit source proposals; no simultaneous character merge or automatic tracking; live two-account checks deferred | Overleaf leads this area. [Collaboration](https://docs.overleaf.com/collaborating/collaborating-in-overleaf), [track changes](https://docs.overleaf.com/collaborating/track-changes) |
 | History and Git | Project/file history restoration and Git/GitHub integration | Bounded local/server checkpoints and GitHub pull/push; live OAuth unverified | No general advantage established. [History](https://www.overleaf.com/learn/latex/Using_the_History_feature), [GitHub](https://docs.overleaf.com/integrations-and-add-ons/git-integration-and-github-synchronization/github-synchronization) |
 | Language and research tools | AI explanations, language tools and citation review alongside conventional editing | Project cite/ref completion, English Hunspell and RE2 project search/replacement | No breadth advantage established. Overleaf's July 2026 announcement includes AI allowances across plans; do not treat Error Assist as absent on its free plan. [Current AI announcement](https://www.overleaf.com/blog/overleaf-ai-now-a-part-of-overleaf-plans), [AI assistant](https://docs.overleaf.com/integrations-and-add-ons/ai-features/ai-assistant) |
 | Offline operation | Git supports a local editor workflow; Community Edition and Server Pro support offline installations | Account-free local editing, checkpoints and a local Docker compiler | Useful alove workflow, but offline operation alone is not unique. [Git](https://docs.overleaf.com/integrations-and-add-ons/git-integration-and-github-synchronization/git-integration), [offline deployments](https://docs.overleaf.com/on-premises/installation/air-gapped-offline-deployments) |
 | Compile recovery | Error Assist documents a suggested diff, user review, Apply suggestion, then automatic recompilation. History can restore a file or project. | Deterministic history-derived trials compile separately before Apply is enabled. Focused trials preserve source outside one separated block, including other edits in the same file. | A specific stronger safety order is demonstrated locally against that documented Error Assist interaction. This does not establish that no alternate Overleaf workflow can achieve the same result. [Error Assist](https://docs.overleaf.com/integrations-and-add-ons/ai-features/error-assist) |
+
+Visual controls were rechecked against the official table documentation on
+2026-10-22. Overleaf documents cell merging, column widths, border controls,
+styled/math cells and richer table paste. alove's current table controls handle
+plain cells and bounded TSV; custom cells remain read-only and complex structure
+uses Source. This increment narrows a gap; it establishes no visual lead.
+[Table editor](https://docs.overleaf.com/writing-and-editing/generating-and-inserting-tables/edit-or-customize-an-inserted-table),
+[table paste](https://docs.overleaf.com/writing-and-editing/generating-and-inserting-tables/pasting-tables-into-your-project).
 
 ## The useful distinction to develop
 

@@ -388,7 +388,7 @@ export function useVisualObjects(
                   </label>
                 ) : (
                   <p>
-                    Add <code>\\usepackage&#123;graphicx&#125;</code> to{" "}
+                    Add <code>{"\\usepackage{graphicx}"}</code> to{" "}
                     {store.mainFile} in Source before applying a figure here.
                   </p>
                 )}

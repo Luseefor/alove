@@ -442,3 +442,46 @@ Phone/tablet/desktop light/dark screenshots are retained in the
 Deployment and live Clerk/two-account/GitHub OAuth checks remain deferred in
 #42. The source-preservation checks do not establish broader Overleaf
 superiority or cover every journal template, macro definition or physical IME.
+
+## 2026-10-22 — Visual tables, figures, equations and project keys (#47–#49)
+
+Visual now projects supported tabular tables, figures, inline/display equations
+and citation/reference chips over the existing canonical source. Table dialogs
+edit plain cells, paste bounded TSV, add/remove last rows/columns, set alignment
+and update captions/labels. Cell-only edits patch just those cells; structural
+changes explicitly replace the tabular range. Figure controls select/upload
+PNG/JPEG/PDF project assets, preview images, set width and edit captions/labels.
+Adding graphicx requires explicit consent and stays in the same main-file undo
+transaction. Uploads remain separate project files after Cancel/undo.
+
+KaTeX previews disable trust, bound expansion/size and isolate macro state.
+Equation edits retain delimiters and labels; explicit display conversion follows
+the document's line ending. Cite/ref controls search project metadata and labels,
+preserve notes/star/style syntax on key changes, and retain missing keys until
+changed. Complex cells, custom figure options and unsupported macros remain
+Source operations. This is a bounded authoring increment, not full visual parity.
+
+Apply checkpoints before a single CodeMirror transaction and rechecks exact
+project, file, revision, source and viewer status after the await. A refusal or
+newer edit leaves the dialog draft intact. Source/Visual/Proof retain the same
+view and history. Asset changes refresh figure previews without rebuilding that
+view; clicking a cell focuses its field. Dialog keyboard containment and both
+themes are checked at 390, 768 and 1440 px.
+
+Validation: workspace typecheck, lint/design tokens, tests and production build
+passed; web tests: 852 across 74 files. All five new production-browser flows
+passed, including actual HTTP/Redis/Docker TeX + PNG/BibTeX output. The complete
+rebuilt production-browser result: 92 passed / two deferred cloud skips (94 total). The two cloud scenarios
+remain explicitly skipped; live provider/deployment work is still deferred in
+#42. Docker CI includes the new object spec. Screenshots and corrected attempts
+are in [visual-object evidence](benchmarks/2026-10-22-visual-objects/README.md).
+
+Corrected attempts: the first full browser run passed 91, skipped two and failed
+one new table assertion that assumed separator whitespace. The continued
+insertion test then found a real inline-to-display CRLF bug: the object parser
+needed the surrounding file's line-ending context. That context now reaches both
+existing and new math objects; the byte-exact CRLF assertion and a dedicated
+unit regression remain. Focused checks and the final full run use the rebuilt
+application. The dated Overleaf comparison still records its broader table
+editing (merging, widths, borders and styled cells); issue #24 remains open for
+those wider objects/navigation rather than treating this as a visual lead.

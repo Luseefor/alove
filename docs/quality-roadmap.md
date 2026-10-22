@@ -101,6 +101,9 @@ actual matched comparison rather than feature-count parity.
 
 Issue #45 delivers the first [Manuscript visual-writing](manuscript-visual.md)
 increment: per-file prose, headings, bold/italic and simple lists using shared
-Source/Visual/Proof history. Rich visual tables, figures, math/citation controls
-and further manuscript navigation remain under #24; live validation stays
+Source/Visual/Proof history. Issues #47–#49 add bounded table cell editing and
+TSV paste, figure preview/width/caption controls, rendered equations and project
+citation/reference pickers. Apply checkpoints and rechecks exact source before
+one shared-undo transaction. Complex/merged tables, fixed column widths, custom
+TeX and further manuscript navigation remain under #24; live validation stays
 separate in #42.

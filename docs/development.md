@@ -87,7 +87,7 @@ Env var comments also live in [`apps/web/.env.example`](../apps/web/.env.example
 
 | Area | In repo | Further work / validation |
 | --- | --- | --- |
-| Editing | CM6 LaTeX, project-wide cite/ref completion, English Hunspell spellcheck and personal dictionary, cross-file search with previewed replacement | More languages and semantic authoring tools |
+| Editing | CM6 LaTeX, source-backed Visual prose and object controls, project-wide cite/ref completion, English Hunspell spellcheck and personal dictionary, cross-file search with previewed replacement | More languages and semantic authoring tools |
 | Build | `latexmk`, three engines, bounded SyncTeX maps, source highlighting and PDF point reverse navigation | Measured caching; broader document/engine coverage |
 | Collaboration | Owner/editor/viewer roles, recipient-specific invitations, presence, anchored comments and proposed source changes with accept/reject | Live deployed Clerk/two-account validation; simultaneous character-level merging and automatic tracking of every keystroke |
 | Versioning | Local checkpoints, server file history, complete project checkpoints, GitHub repository/branch pull and push | Live GitHub OAuth validation; other Git hosting/protocol workflows |
@@ -102,7 +102,9 @@ other edits in the same file. It also records Overleaf's stronger visual and
 collaborative editing and separates local capability evidence from an unrun
 head-to-head performance study. Deployment remains deferred.
 
-The first [Manuscript visual writing](manuscript-visual.md) increment provides
-source-preserving per-file prose, headings, bold/italic and simple lists with
-shared Source/Visual/Proof history. Advanced visual objects remain subsequent
-work under #24; this does not establish full visual-editor parity.
+[Manuscript visual writing](manuscript-visual.md) provides source-preserving
+prose, headings, bold/italic and lists with shared Source/Visual/Proof history.
+Issues #47–#49 add bounded table cells/TSV paste, figure previews/width/captions,
+rendered equation controls and project cite/ref pickers with checkpointed Apply.
+Complex tables, arbitrary custom TeX and wider manuscript navigation remain
+under #24; this does not establish full visual-editor parity.
