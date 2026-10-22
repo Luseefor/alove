@@ -142,8 +142,12 @@ test("table cells, TSV, structure, keyboard, cancel and shared undo preserve exa
   await expect(page.getByLabel("Row 3 column 3", { exact: true })).toHaveValue(
     "kg",
   );
+  await page.getByRole("button", { name: "Columns", exact: true }).click();
+  await page.getByLabel("Selected column", { exact: true }).selectOption("1");
   await page.getByLabel("Column 2 alignment").selectOption("r");
+  await page.getByRole("button", { name: "Caption", exact: true }).click();
   await page.getByLabel("Table caption").fill("Pasted results");
+  await page.getByRole("button", { name: "Cells", exact: true }).click();
   await page.getByLabel("Row 1 column 1", { exact: true }).focus();
   await page.keyboard.press("ArrowDown");
   await expect(
@@ -286,9 +290,11 @@ test("new table and display equation insertion share the document and undo", asy
   await page.getByLabel("Row 1 column 1", { exact: true }).fill("Inserted");
   await page.getByRole("button", { name: "Add row", exact: true }).click();
   await page.getByRole("button", { name: "Add column", exact: true }).click();
+  await page.locator('summary[aria-label="Rows and columns"]').click();
   await page
     .getByRole("button", { name: "Remove last row", exact: true })
     .click();
+  await page.locator('summary[aria-label="Rows and columns"]').click();
   await page
     .getByRole("button", { name: "Remove last column", exact: true })
     .click();

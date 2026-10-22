@@ -104,6 +104,7 @@ increment: per-file prose, headings, bold/italic and simple lists using shared
 Source/Visual/Proof history. Issues #47–#49 add bounded table cell editing and
 TSV paste, figure preview/width/caption controls, rendered equations and project
 citation/reference pickers. Apply checkpoints and rechecks exact source before
-one shared-undo transaction. Complex/merged tables, fixed column widths, custom
-TeX and further manuscript navigation remain under #24; live validation stays
-separate in #42.
+one shared-undo transaction. Issue #51 extends tables with horizontal
+merge/split, wrapping widths, borders, rich cells and bounded tabularx/longtable
+support. Vertical multirow/custom table structures, arbitrary TeX and further
+manuscript navigation remain under #24; live validation stays separate in #42.

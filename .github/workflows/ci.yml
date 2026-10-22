@@ -165,7 +165,7 @@ jobs:
         working-directory: apps/web
         env:
           E2E_REAL_COMPILE: "1"
-        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts e2e/closed-journey.spec.ts e2e/synctex.spec.ts e2e/manuscript.spec.ts e2e/visual-objects.spec.ts
+        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts e2e/closed-journey.spec.ts e2e/synctex.spec.ts e2e/manuscript.spec.ts e2e/visual-objects.spec.ts e2e/advanced-tables.spec.ts
       - name: Verify focused recovery preservation and refusal controls
         env:
           NEXT_PUBLIC_LOCAL_STANDALONE: "true"

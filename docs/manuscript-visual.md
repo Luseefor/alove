@@ -63,20 +63,38 @@ a previous successful PDF while source is newer.
 Place the cursor in a body paragraph, then use **Insert** in the Visual toolbar.
 Click an existing object to edit it. Clicking a table cell focuses that cell's
 field; arrow keys move between grid fields and Tab follows native form order.
+The table opens as a grid with a formatting toolbar. Use Columns, Borders or
+Caption for settings, the merge menu for spans, and the more menu for row/column
+operations. On phones the table workspace fills the screen; Apply/Cancel stay
+visible while the grid or settings scroll.
 All dialogs have a Source action, keyboard focus containment and Escape/Cancel.
 Apply saves a checkpoint first, rechecks the exact project/file/revision/source
 and role, then makes one undoable transaction. A newer edit, project switch,
 viewer role or failed checkpoint leaves the draft unapplied.
 
-- **Tables (#47):** edit plain cells, paste a tab-separated spreadsheet selection,
-  add/remove the last row or column, set left/center/right column alignment and
-  edit plain captions/labels. A cell-only change patches only that cell's source
-  bytes. Resizing/alignment explicitly rebuilds the tabular portion. Existing
-  rule commands, comments, custom cells, captions and surrounding float source
-  remain intact during other edits. Custom cells are read-only and disable
-  structural changes. Limits: 20 rows × 12 columns, 64 Ki pasted characters;
-  oversized paste is refused without truncation. Merged cells, fixed column
-  widths, longtable/tabularx, custom spacing and rich HTML/CSV paste use Source.
+- **Tables (#47, #51):** edit plain or supported formatted cells, paste a bounded
+  tab-separated spreadsheet selection, insert/delete rows or columns, merge
+  horizontally across one row, split merged cells and set their alignment.
+  Merge joins all contents with spaces; split keeps that content in the first
+  cell. Deleting populated cells needs explicit confirmation. Natural and
+  wrapping `p`/`m`/`b` columns support bounded dimensions and alignment. Imported
+  standard `tabularx` tables also support flexible `X` columns and table width;
+  standard `longtable` cells, captions and labels are editable. Vertical
+  single/double boundaries, horizontal/partial rules and booktabs presets are
+  available. Rich cells support bold, italic, underline, line breaks and inline
+  math through safe previews; LaTeX mode keeps source visible in the cell field.
+  Plain clipboard text is escaped, and TSV refuses merged/custom overlaps.
+  Cell-only edits patch only their source ranges; column-only edits patch the
+  column definition. Explicit structural changes rebuild only the table body.
+  No-op/Cancel preserve exact bytes, including CRLF, float placement, captions
+  and labels. Required array/booktabs/tabularx/longtable setup is added only with
+  consent, in the same main-file transaction; included files require main setup
+  in Source first. Limits: 20 rows × 12 columns, 64 Ki pasted characters and
+  10,000 characters per cell. Custom cells/comments and repeated longtable
+  headers protect structure while allowing independent supported cell edits.
+  Vertical multirow merging, programmable/repeated columns, custom spacing,
+  environment conversion and rich HTML/CSV paste require Source. The preview
+  illustrates structure; the compiled PDF remains the layout authority.
 - **Figures (#48):** select a project PNG/JPEG/PDF, or upload one up to 500 KB;
   resize from 10–100% of text width and edit plain captions/labels. Standard
   includegraphics width options using textwidth/linewidth are supported; custom
@@ -103,7 +121,7 @@ viewer role or failed checkpoint leaves the draft unapplied.
   or bibliography-style output.
 
 These are bounded source-backed controls, not full visual-editor parity.
-Issue #24 still includes wider manuscript navigation, complex tables and
+Issue #24 still includes wider manuscript navigation, unsupported table structures and
 arbitrary custom TeX support. Deployment/live provider checks stay deferred in
 #42. See the [dated comparison](overleaf-comparison.md) for the remaining gaps.
 
@@ -121,4 +139,7 @@ comment-shaped commands, unsafe image paths, KaTeX trust/expansion limits, stale
 checkpoint races, viewer refusal and live asset refresh without a view reset.
 Production browser tests exercise the object dialogs, spreadsheet paste,
 shared undo, durable reload, responsive themes and a real PNG/TeX/BibTeX build.
+Advanced-table checks also compile edited merges, rich cells, widths, borders,
+tabularx and longtable through the actual worker; deletion/paste refusals,
+explicit package consent and byte-exact shared undo are covered.
 See quality-progress.md for final results and any corrected attempts.

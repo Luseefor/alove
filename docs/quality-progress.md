@@ -485,3 +485,39 @@ unit regression remain. Focused checks and the final full run use the rebuilt
 application. The dated Overleaf comparison still records its broader table
 editing (merging, widths, borders and styled cells); issue #24 remains open for
 those wider objects/navigation rather than treating this as a visual lead.
+
+## 2026-10-22 — Advanced visual tables (#51)
+
+Table editing now supports horizontal merge/split, merged-cell alignment,
+wrapping p/m/b widths, tabularx X columns/table widths, vertical and horizontal
+borders, partial rules, booktabs presets and supported formatted/math cells.
+Standard longtable cells and metadata are editable. Merge retains every cell's
+content; split keeps it in the first cell. Populated deletion needs confirmation.
+Paste refuses merged/custom overlaps. Column-only and independent cell edits
+retain surrounding bytes; structural operations rebuild only the supported body.
+Required package setup needs explicit consent and shares the checkpointed undo
+transaction. Included files require main-file setup in Source.
+
+The first advanced dialog passed a page-overflow check but buried controls and
+clipped table columns on phones. User review rejected it. The replacement opens
+as a grid with a compact toolbar and separate Columns/Borders/Caption panels.
+Phones use the full screen, and Apply/Cancel sit outside scrolling content.
+Regression assertions now check the last cell and action bounds as well as
+page width. The original layout is retained beside replacement screenshots in
+[advanced-table evidence](benchmarks/2026-10-22-advanced-tables/README.md).
+
+Validation on the final production build: workspace typecheck, lint/design
+checks, tests and build pass. Web unit tests: 966 across 79 files. Full production
+browser run: 97 passed, two deferred cloud skips, 99 total. The five advanced-table
+scenarios include exact Cancel/no-op/undo/redo/reload, rich merges, explicit
+package consent, deletion/paste refusal, responsive keyboard behavior and a real
+HTTP/Redis/Docker build of the edited tabular, tabularx and longtable source.
+Docker CI includes this spec. A separate read-only review found no source-loss
+blocker within the supported grammar.
+
+Custom cells/comments and repeated longtable headers protect structural edits.
+Vertical multirow, programmable columns, custom spacing and richer HTML/CSV
+paste remain Source operations. This narrows a documented Overleaf gap without
+establishing a visual lead. Deployment/live provider/two-account work remains
+separate in #42. Corrected test attempts and the UI rejection are recorded in
+the dated evidence.
