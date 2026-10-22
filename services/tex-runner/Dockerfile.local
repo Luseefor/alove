@@ -4,4 +4,4 @@ FROM ghcr.io/xu-cheng/texlive-small@sha256:2f81f71846f6416526c63f3fbbbc59733c2cd
 # A fixed CTAN mirror avoids geo-redirects to repositories mid-synchronization.
 # Keep TeX Live's signature verification enabled; never bypass a bad signature.
 RUN tlmgr --repository https://ctan.math.illinois.edu/systems/texlive/tlnet --verify-repo=all update --self \
- && tlmgr --repository https://ctan.math.illinois.edu/systems/texlive/tlnet --verify-repo=all install physics cleveref
+ && tlmgr --repository https://ctan.math.illinois.edu/systems/texlive/tlnet --verify-repo=all install physics cleveref multirow gensymb siunitx csquotes
