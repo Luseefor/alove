@@ -31,6 +31,12 @@ export function cloneTableDraft(d: TableDraft): TableDraft {
     spanSpecs: Array.from({ length: nr }, (_, r) =>
       Array.from({ length: nc }, (_, c) => d.spanSpecs?.[r]?.[c] ?? ""),
     ),
+    rowSpans: Array.from({ length: nr }, (_, r) =>
+      Array.from({ length: nc }, (_, c) => d.rowSpans?.[r]?.[c] ?? 1),
+    ),
+    rowSpanSpecs: Array.from({ length: nr }, (_, r) =>
+      Array.from({ length: nc }, (_, c) => d.rowSpanSpecs?.[r]?.[c] ?? ""),
+    ),
     sourceCells: Array.from({ length: nr }, (_, r) =>
       Array.from({ length: nc }, (_, c) => d.sourceCells?.[r]?.[c] ?? false),
     ),
@@ -45,6 +51,16 @@ export function tableCellAnchor(
   let c = col;
   while (c > 0 && (d.spans?.[row]?.[c] ?? 1) === 0) c--;
   return c;
+}
+export function tableRowAnchor(
+  d: TableDraft,
+  row: number,
+  col: number,
+): number {
+  if (!d.cells[row] || col < 0 || col >= d.alignments.length) return -1;
+  let r = row;
+  while (r > 0 && (d.rowSpans?.[r]?.[col] ?? 1) === 0) r--;
+  return r;
 }
 export function mergeTableCells(
   d: TableDraft,
@@ -63,6 +79,10 @@ export function mergeTableCells(
     tableCellAnchor(d, row, start) !== start
   )
     throw new Error("Select adjacent cells in one row to merge.");
+  for (let c = start; c <= end; c++) {
+    if ((d.rowSpans?.[row]?.[c] ?? 1) !== 1)
+      throw new Error("Split vertical merges first, then merge horizontally.");
+  }
   const next = cloneTableDraft(d),
     values: string[] = [],
     raw: string[] = [];
@@ -117,6 +137,77 @@ export function splitTableCell(
   }
   return next;
 }
+export function mergeTableCellsVertical(
+  d: TableDraft,
+  startRow: number,
+  endRow: number,
+  column: number,
+): TableDraft {
+  const nc = d.alignments.length,
+    nr = d.cells.length;
+  if (
+    !Number.isInteger(startRow) ||
+    !Number.isInteger(endRow) ||
+    !Number.isInteger(column) ||
+    startRow < 0 ||
+    endRow <= startRow ||
+    endRow >= nr ||
+    column < 0 ||
+    column >= nc ||
+    !d.cells[startRow] ||
+    tableRowAnchor(d, startRow, column) !== startRow
+  )
+    throw new Error("Select adjacent cells in one column to merge.");
+  for (let r = startRow; r <= endRow; r++) {
+    if ((d.spans?.[r]?.[column] ?? 1) !== 1)
+      throw new Error("Split horizontal merges first, then merge vertically.");
+    if (r > startRow && (d.rowSpans?.[r]?.[column] ?? 1) !== 1)
+      throw new Error("Select the whole merged cell, or split it first.");
+  }
+  const anchorSpan = d.rowSpans?.[startRow]?.[column] ?? 1;
+  if (anchorSpan !== 1)
+    throw new Error("Select the whole merged cell, or split it first.");
+  const endSpan = d.rowSpans?.[endRow]?.[column] ?? 1;
+  if (endSpan !== 1)
+    throw new Error("Select the whole merged cell, or split it first.");
+  const next = cloneTableDraft(d),
+    values: string[] = [],
+    raw: string[] = [];
+  let source = false;
+  for (let r = startRow; r <= endRow; r++) {
+    values.push(next.cells[r]![column]!);
+    raw.push(draftCellSource(next, r, column));
+    source ||= next.sourceCells![r]![column]!;
+  }
+  next.cells[startRow]![column] = (source ? raw : values)
+    .filter((x) => x !== "")
+    .join(" ");
+  next.sourceCells![startRow]![column] = source;
+  next.rowSpans![startRow]![column] = endRow - startRow + 1;
+  next.rowSpanSpecs![startRow]![column] = "*";
+  for (let r = startRow + 1; r <= endRow; r++) {
+    next.cells[r]![column] = "";
+    next.sourceCells![r]![column] = false;
+    next.rowSpans![r]![column] = 0;
+    next.rowSpanSpecs![r]![column] = "";
+  }
+  return next;
+}
+export function splitTableCellVertical(
+  d: TableDraft,
+  row: number,
+  column: number,
+): TableDraft {
+  const anchor = tableRowAnchor(d, row, column),
+    span = d.rowSpans?.[anchor]?.[column] ?? 1;
+  if (anchor < 0 || span < 2) throw new Error("Choose a merged cell to split.");
+  const next = cloneTableDraft(d);
+  for (let r = anchor; r < anchor + span; r++) {
+    next.rowSpans![r]![column] = 1;
+    next.rowSpanSpecs![r]![column] = "";
+  }
+  return next;
+}
 function adjustClines(
   rules: TableRule[][],
   column: number,
@@ -168,17 +259,36 @@ export function resizeTableGrid(
     );
   const next = cloneTableDraft(d);
   if (axis === "row") {
+    if (
+      action === "insert" &&
+      index < nr &&
+      (next.rowSpans![index] ?? []).some((s) => s === 0)
+    )
+      throw new Error(
+        "Split merged cells crossing this row before changing rows.",
+      );
+    if (action === "delete") {
+      const rowSpans = next.rowSpans![index]!;
+      if (rowSpans!.some((s) => s !== 1))
+        throw new Error(
+          "Split merged cells crossing this row before changing rows.",
+        );
+    }
     if (action === "insert") {
       next.cells.splice(index, 0, Array(nc).fill(""));
       next.sourceCells!.splice(index, 0, Array(nc).fill(false));
       next.spans!.splice(index, 0, Array(nc).fill(1));
       next.spanSpecs!.splice(index, 0, Array(nc).fill(""));
+      next.rowSpans!.splice(index, 0, Array(nc).fill(1));
+      next.rowSpanSpecs!.splice(index, 0, Array(nc).fill(""));
       next.rules!.splice(index === nr ? nr : index + 1, 0, []);
     } else {
       next.cells.splice(index, 1);
       next.sourceCells!.splice(index, 1);
       next.spans!.splice(index, 1);
       next.spanSpecs!.splice(index, 1);
+      next.rowSpans!.splice(index, 1);
+      next.rowSpanSpecs!.splice(index, 1);
       next.rules!.splice(index === nr - 1 ? index : index + 1, 1);
     }
   } else {
@@ -197,6 +307,8 @@ export function resizeTableGrid(
       next.sourceCells!.forEach((r) => r.splice(index, 0, false));
       next.spans!.forEach((r) => r.splice(index, 0, 1));
       next.spanSpecs!.forEach((r) => r.splice(index, 0, ""));
+      next.rowSpans!.forEach((r) => r.splice(index, 0, 1));
+      next.rowSpanSpecs!.forEach((r) => r.splice(index, 0, ""));
       next.alignments.splice(index, 0, "l");
       next.columns!.splice(index, 0, {
         kind: "natural",
@@ -209,6 +321,8 @@ export function resizeTableGrid(
       next.sourceCells!.forEach((r) => r.splice(index, 1));
       next.spans!.forEach((r) => r.splice(index, 1));
       next.spanSpecs!.forEach((r) => r.splice(index, 1));
+      next.rowSpans!.forEach((r) => r.splice(index, 1));
+      next.rowSpanSpecs!.forEach((r) => r.splice(index, 1));
       next.alignments.splice(index, 1);
       next.columns!.splice(index, 1);
       next.verticalBorders![index] = Math.max(

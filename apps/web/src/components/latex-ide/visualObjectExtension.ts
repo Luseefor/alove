@@ -90,21 +90,42 @@ export function buildVisualTablePreview(
     const group = document.createElement("colgroup");
     object.columns.forEach((column) => {
       const col = document.createElement("col");
-      const width = column.width
-        ? tableDimensionCss(column.width)
-        : undefined;
+      const width = column.width ? tableDimensionCss(column.width) : undefined;
       if (width) col.style.width = width;
       group.appendChild(col);
     });
     table.appendChild(group);
   }
   object.cells.forEach((row, r) => {
+    if (
+      object.longtableMarkers?.some(Boolean) &&
+      (r === 0 || object.longtableMarkers[r])
+    ) {
+      const nextMarker = object.longtableMarkers.slice(r + 1).find(Boolean);
+      const sectionNames: Record<string, string> = {
+        endfirsthead: "First page header",
+        endhead: "Repeated header",
+        endfoot: "Repeated footer",
+        endlastfoot: "Last page footer",
+      };
+      const section = document.createElement("tr");
+      const label = document.createElement("th");
+      label.colSpan = object.columns.length;
+      label.textContent = nextMarker
+        ? (sectionNames[nextMarker] ?? "Body")
+        : "Body";
+      label.scope = "colgroup";
+      section.appendChild(label);
+      table.appendChild(section);
+    }
     const tr = document.createElement("tr");
     row.forEach((cell, c) => {
-      if (cell.colSpan === 0) return;
+      if (cell.colSpan === 0 || cell.rowSpan === 0) return;
       const span = cell.colSpan > 1 ? cell.colSpan : 1;
       const td = document.createElement("td");
       if (span > 1) td.colSpan = span;
+      const rowSpan = cell.rowSpan > 1 ? cell.rowSpan : 1;
+      if (rowSpan > 1) td.rowSpan = rowSpan;
       const override = spanOverride(cell.spanSpec);
       const alignment =
         override?.alignment ??
@@ -136,7 +157,7 @@ export function buildVisualTablePreview(
       else if (kind === "b") td.style.verticalAlign = "bottom";
       td.style.borderTop = tableHorizontalBorder(object.rules?.[r], c, span);
       td.style.borderBottom = tableHorizontalBorder(
-        object.rules?.[r + 1],
+        object.rules?.[r + rowSpan],
         c,
         span,
       );

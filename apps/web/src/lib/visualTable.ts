@@ -31,7 +31,51 @@ export type VisualCell = {
   colSpan: number;
   spanSpec: string;
   coveredBy: number | null;
+  rowSpan: number;
+  rowSpanSpec: string;
+  rowCoveredBy: number | null;
 };
+export type LongtableMarker =
+  | "endfirsthead"
+  | "endhead"
+  | "endfoot"
+  | "endlastfoot";
+export type LongtableSection =
+  | "firsthead"
+  | "head"
+  | "foot"
+  | "lastfoot"
+  | "body";
+const LONGTABLE_ORDER: LongtableMarker[] = [
+  "endfirsthead",
+  "endhead",
+  "endfoot",
+  "endlastfoot",
+];
+function longtableSectionForMarker(m: LongtableMarker): LongtableSection {
+  return m === "endfirsthead"
+    ? "firsthead"
+    : m === "endhead"
+      ? "head"
+      : m === "endfoot"
+        ? "foot"
+        : "lastfoot";
+}
+export function longtableSectionForRow(
+  markers: (LongtableMarker | null)[] | undefined,
+  row: number,
+): LongtableSection {
+  if (!markers || markers.length === 0) return "body";
+  const bounds: { boundary: number; marker: LongtableMarker }[] = [];
+  markers.forEach((m, b) => {
+    if (m) bounds.push({ boundary: b, marker: m });
+  });
+  if (bounds.length === 0) return "body";
+  for (const { boundary, marker } of bounds) {
+    if (row < boundary) return longtableSectionForMarker(marker);
+  }
+  return "body";
+}
 export type VisualTable = VisualObjectBase & {
   kind: "table";
   cells: VisualCell[][];
@@ -39,6 +83,7 @@ export type VisualTable = VisualObjectBase & {
   columns: TableColumn[];
   verticalBorders: number[];
   rules: TableRule[][];
+  longtableMarkers: (LongtableMarker | null)[];
   tabularFrom: number;
   tabularTo: number;
   columnsFrom: number;
@@ -64,6 +109,8 @@ export type TableDraft = {
   rules?: TableRule[][];
   spans?: number[][];
   spanSpecs?: string[][];
+  rowSpans?: number[][];
+  rowSpanSpecs?: string[][];
   sourceCells?: boolean[][];
   tableWidth?: string;
 };
@@ -181,7 +228,8 @@ export function parseVisualTable(
     }
   }
   const rows: VisualCell[][] = [],
-    rules: TableRule[][] = [];
+    rules: TableRule[][] = [],
+    longtableMarkers: (LongtableMarker | null)[] = [];
   let row: VisualCell[] = [],
     cellStart = bodyFrom,
     structureEditable = true,
@@ -192,6 +240,7 @@ export function parseVisualTable(
   };
   function boundary(at: number): number | null {
     const boundaryRules: TableRule[] = [];
+    let marker: LongtableMarker | null = null;
     let i = at;
     while (i < end) {
       if (/\s/.test(fragment[i]!)) {
@@ -224,11 +273,13 @@ export function parseVisualTable(
         i += line[0].length;
         continue;
       }
-      const section = /^\\end(?:firsthead|head|foot|lastfoot)\b/.exec(
+      const section = /^\\end(firsthead|head|foot|lastfoot)\b/.exec(
         scan.slice(i),
       );
       if (section) {
         if (environment !== "longtable") return null;
+        if (marker) return null;
+        marker = `end${section[1]}` as LongtableMarker;
         protect(
           "Repeated longtable headers and footers are preserved; edit structure in Source.",
         );
@@ -238,6 +289,7 @@ export function parseVisualTable(
       break;
     }
     rules.push(boundaryRules);
+    longtableMarkers.push(marker);
     return i;
   }
   const initial = boundary(bodyFrom);
@@ -251,7 +303,9 @@ export function parseVisualTable(
       b = Math.max(a, to - trail),
       raw = fragment.slice(a, b),
       colSpan = 1,
-      spanSpec = "";
+      spanSpec = "",
+      rowSpan = 1,
+      rowSpanSpec = "";
     if (raw.startsWith("\\multicolumn")) {
       const command = /^\\multicolumn\s*/.exec(raw);
       if (!command) return false;
@@ -265,7 +319,37 @@ export function parseVisualTable(
       if (!parsedSpec || parsedSpec.columns.length !== 1) return false;
       const content = readTexGroup(raw, skipSpace(raw, spec.to));
       if (!content || content.to !== raw.length) return false;
+      if (content.value.includes("\\multirow")) return false;
       spanSpec = spec.value;
+      const offset = content.contentFrom,
+        inner = content.value,
+        leading = inner.length - inner.trimStart().length,
+        trailing = inner.length - inner.trimEnd().length;
+      b = a + content.contentTo - trailing;
+      a += offset + leading;
+      raw = fragment.slice(a, b);
+    } else if (raw.startsWith("\\multirow")) {
+      const command = /^\\multirow\s*/.exec(raw);
+      if (!command) return false;
+      if (skipSpace(raw, command[0].length) >= raw.length) return false;
+      if (raw[skipSpace(raw, command[0].length)] === "[") return false;
+      const count = readTexGroup(raw, command[0].length);
+      if (!count || !/^\d+$/.test(count.value)) return false;
+      rowSpan = Number(count.value);
+      if (!Number.isInteger(rowSpan) || rowSpan < 2 || rowSpan > 20)
+        return false;
+      const width = readTexGroup(raw, skipSpace(raw, count.to));
+      if (!width) return false;
+      const widthValue = width.value.trim();
+      if (widthValue !== "*" && !isTableDimension(widthValue)) return false;
+      const content = readTexGroup(raw, skipSpace(raw, width.to));
+      if (!content || content.to !== raw.length) return false;
+      if (
+        content.value.includes("\\multirow") ||
+        content.value.includes("\\multicolumn")
+      )
+        return false;
+      rowSpanSpec = widthValue;
       const offset = content.contentFrom,
         inner = content.value,
         leading = inner.length - inner.trimStart().length,
@@ -291,6 +375,9 @@ export function parseVisualTable(
       colSpan,
       spanSpec,
       coveredBy: null,
+      rowSpan,
+      rowSpanSpec,
+      rowCoveredBy: null,
     });
     for (let n = 1; n < colSpan; n++)
       row.push({
@@ -302,6 +389,9 @@ export function parseVisualTable(
         colSpan: 0,
         spanSpec: "",
         coveredBy: c,
+        rowSpan: 1,
+        rowSpanSpec: "",
+        rowCoveredBy: null,
       });
     return true;
   }
@@ -372,9 +462,73 @@ export function parseVisualTable(
     if (!addCell(end) || row.length !== columns.length) return null;
     rows.push(row);
     rules.push([]);
+    longtableMarkers.push(null);
   }
   if (!rows.length || rows.length > TABLE_LIMITS.rows) return null;
   while (rules.length < rows.length + 1) rules.push([]);
+  while (longtableMarkers.length < rows.length + 1)
+    longtableMarkers.push(null);
+  if (rules.length !== rows.length + 1) return null;
+  if (longtableMarkers.length !== rows.length + 1) return null;
+  if (environment === "longtable") {
+    let lastOrder = -1;
+    for (const m of longtableMarkers) {
+      if (!m) continue;
+      const order = LONGTABLE_ORDER.indexOf(m);
+      if (order < 0 || order <= lastOrder) return null;
+      lastOrder = order;
+    }
+  } else if (longtableMarkers.some(Boolean)) {
+    return null;
+  }
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < columns.length; c++) {
+      const cell = rows[r]![c]!;
+      if (cell.rowSpan < 1 || cell.rowSpan > 20) return null;
+      if (cell.rowSpan > 1 && cell.colSpan !== 1) return null;
+      if (cell.rowSpan > 1) {
+        if (r + cell.rowSpan > rows.length) return null;
+        for (let k = 1; k < cell.rowSpan; k++) {
+          if (longtableMarkers[r + k]) return null;
+        }
+        if (
+          cell.rowSpanSpec !== "*" &&
+          !isTableDimension(cell.rowSpanSpec)
+        )
+          return null;
+        for (let k = 1; k < cell.rowSpan; k++) {
+          const covered = rows[r + k]![c]!;
+          if (
+            !covered ||
+            covered.colSpan !== 1 ||
+            covered.rowSpan !== 1 ||
+            covered.coveredBy !== null ||
+            covered.rowCoveredBy !== null
+          )
+            return null;
+          if (
+            covered.raw !== "" ||
+            covered.text !== "" ||
+            (covered.text === null && covered.raw !== "")
+          )
+            return null;
+          if (covered.nodes === null) return null;
+        }
+      }
+    }
+  }
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < columns.length; c++) {
+      const cell = rows[r]![c]!;
+      if (cell.rowSpan > 1) {
+        for (let k = 1; k < cell.rowSpan; k++) {
+          const covered = rows[r + k]![c]!;
+          covered.rowSpan = 0;
+          covered.rowCoveredBy = r;
+        }
+      }
+    }
+  }
   return {
     kind: "table",
     from,
@@ -385,6 +539,7 @@ export function parseVisualTable(
     columns,
     verticalBorders: columnModel.borders,
     rules,
+    longtableMarkers,
     tabularFrom: from + start.index,
     tabularTo: from + tabularTo,
     columnsFrom: from + group.contentFrom,
@@ -431,6 +586,8 @@ export function tableDraft(model: VisualTable): TableDraft {
     rules: model.rules.map((r) => r.map((x) => ({ ...x }))),
     spans: model.cells.map((r) => r.map((c) => c.colSpan)),
     spanSpecs: model.cells.map((r) => r.map((c) => c.spanSpec)),
+    rowSpans: model.cells.map((r) => r.map((c) => c.rowSpan)),
+    rowSpanSpecs: model.cells.map((r) => r.map((c) => c.rowSpanSpec)),
     sourceCells: model.cells.map((r) => r.map((c) => c.text === null)),
     tableWidth: model.tableWidth?.value,
   };
@@ -515,6 +672,12 @@ export function patchesForVisualTable(
   const spans = draft.cells.map((row, r) =>
     row.map((_, c) => draft.spans?.[r]?.[c] ?? 1),
   );
+  const rowSpans = draft.cells.map((row, r) =>
+    row.map((_, c) => draft.rowSpans?.[r]?.[c] ?? 1),
+  );
+  const rowSpanSpecs = draft.cells.map((row, r) =>
+    row.map((_, c) => draft.rowSpanSpecs?.[r]?.[c] ?? ""),
+  );
   for (let r = 0; r < nr; r++)
     for (let c = 0; c < nc; ) {
       const span = spans[r]![c]!;
@@ -527,6 +690,63 @@ export function patchesForVisualTable(
           );
       c += span;
     }
+  for (let r = 0; r < nr; r++) {
+    for (let c = 0; c < nc; c++) {
+      const rs = rowSpans[r]![c]!;
+      const cs = spans[r]![c]!;
+      const spec = rowSpanSpecs[r]![c]!;
+      if (rs === 0) {
+        if (spec !== "" || draft.cells[r]![c] !== "")
+          throw new Error(
+            "A merged cell would discard content. Split it first.",
+          );
+        if (cs !== 1 && cs !== 0)
+          throw new Error("Invalid merged cell range.");
+        let anchorFound = false;
+        for (let a = r - 1; a >= 0; a--) {
+          const anchor = rowSpans[a]![c]!;
+          if (anchor > 1 && a + anchor > r) {
+            anchorFound = true;
+            break;
+          }
+          if (anchor !== 0) break;
+        }
+        if (!anchorFound) throw new Error("Invalid merged cell range.");
+        continue;
+      }
+      if (!Number.isInteger(rs) || rs < 1 || r + rs > nr)
+        throw new Error("Invalid merged cell range.");
+      if (rs > 1 && cs !== 1)
+        throw new Error(
+          "Combined horizontal and vertical merges are edited in Source.",
+        );
+      if (rs > 1) {
+        if (spec !== "*" && !isTableDimension(spec))
+          throw new Error("Use a supported multirow width (* or dimension).");
+        if (
+          model.longtableMarkers?.some(Boolean) &&
+          model.longtableMarkers
+            .slice(r + 1, r + rs)
+            .some(Boolean)
+        )
+          throw new Error(
+            "A vertical merge cannot cross a repeated header boundary. Split it first.",
+          );
+        for (let k = 1; k < rs; k++) {
+          if (rowSpans[r + k]![c] !== 0 || draft.cells[r + k]![c] !== "")
+            throw new Error(
+              "A merged cell would discard content. Split it first.",
+            );
+          if (spans[r + k]![c] !== 1)
+            throw new Error(
+              "Combined horizontal and vertical merges are edited in Source.",
+            );
+        }
+      } else if (spec !== "") {
+        throw new Error("Invalid merged cell range.");
+      }
+    }
+  }
   const rules =
     draft.rules?.length === nr + 1
       ? draft.rules
@@ -542,6 +762,14 @@ export function patchesForVisualTable(
     !same(
       draft.spanSpecs ?? model.cells.map((r) => r.map((c) => c.spanSpec)),
       model.cells.map((r) => r.map((c) => c.spanSpec)),
+    ) ||
+    !same(
+      rowSpans,
+      model.cells.map((r) => r.map((c) => c.rowSpan)),
+    ) ||
+    !same(
+      rowSpanSpecs ?? model.cells.map((r) => r.map((c) => c.rowSpanSpec)),
+      model.cells.map((r) => r.map((c) => c.rowSpanSpec)),
     ) ||
     !same(rules, model.rules);
   const patches: VisualSourcePatch[] = [];
@@ -562,6 +790,11 @@ export function patchesForVisualTable(
       throw new Error(
         model.structureReason || "Edit this table structure in Source.",
       );
+    if (model.longtableMarkers?.some(Boolean))
+      throw new Error(
+        model.structureReason ||
+          "Repeated longtable headers and footers are preserved; edit structure in Source.",
+      );
     const body = rules
       .map((rule, r) => {
         const border = serializeRules(rule, model.eol);
@@ -569,12 +802,31 @@ export function patchesForVisualTable(
         const cells: string[] = [];
         for (let c = 0; c < nc; ) {
           const span = spans[r]![c]!,
-            source = sourceFor(r, c),
+            rs = rowSpans[r]![c]!;
+          if (rs === 0) {
+            if (span !== 1 && span !== 0)
+              throw new Error("Invalid merged cell range.");
+            cells.push("");
+            c += 1;
+            continue;
+          }
+          const source = sourceFor(r, c),
             old = model.cells[r]?.[c];
           if (old?.nodes === null)
             throw new Error("Edit custom cell markup in Source.");
           const override = draft.spanSpecs?.[r]?.[c] ?? "";
-          if (span > 1 || override) {
+          const rowSpec = rowSpanSpecs[r]![c]!;
+          if (rs > 1) {
+            if (span !== 1 || override)
+              throw new Error(
+                "Combined horizontal and vertical merges are edited in Source.",
+              );
+            if (rowSpec !== "*" && !isTableDimension(rowSpec))
+              throw new Error(
+                "Use a supported multirow width (* or dimension).",
+              );
+            cells.push(`\\multirow{${rs}}{${rowSpec}}{${source}}`);
+          } else if (span > 1 || override) {
             const parsed = parseTableColumns(override || columns[c]!.alignment);
             if (!parsed || parsed.columns.length !== 1)
               throw new Error("Invalid merged-cell alignment.");
@@ -596,7 +848,7 @@ export function patchesForVisualTable(
   } else {
     draft.cells.forEach((row, r) =>
       row.forEach((value, c) => {
-        if (spans[r]![c] === 0) return;
+        if (spans[r]![c] === 0 || rowSpans[r]![c] === 0) return;
         const before = model.cells[r]![c]!;
         const mode = draft.sourceCells?.[r]?.[c] ?? false;
         if (
@@ -681,6 +933,7 @@ export function patchesForVisualTable(
 export function requiredTablePackages(model: VisualTable): string[] {
   const packages = new Set<string>();
   if (model.environment !== "tabular") packages.add(model.environment);
+  if (model.cells.flat().some((c) => c.rowSpan > 1)) packages.add("multirow");
   const specs = [
     ...model.columns,
     ...model.cells
@@ -741,6 +994,8 @@ export function pasteTableTsv(
     line.forEach((text, c) => {
       if ((draft.spans?.[row + r]?.[column + c] ?? 1) !== 1)
         throw new Error("Paste overlaps a merged cell. Split it first.");
+      if ((draft.rowSpans?.[row + r]?.[column + c] ?? 1) !== 1)
+        throw new Error("Paste overlaps a merged cell. Split it first.");
       cells[row + r]![column + c] = text;
       sourceCells[row + r]![column + c] = false;
     }),
@@ -763,6 +1018,12 @@ export function pasteTableTsv(
     ),
     spanSpecs: Array.from({ length: nr }, (_, r) =>
       Array.from({ length: nc }, (_, c) => draft.spanSpecs?.[r]?.[c] ?? ""),
+    ),
+    rowSpans: Array.from({ length: nr }, (_, r) =>
+      Array.from({ length: nc }, (_, c) => draft.rowSpans?.[r]?.[c] ?? 1),
+    ),
+    rowSpanSpecs: Array.from({ length: nr }, (_, r) =>
+      Array.from({ length: nc }, (_, c) => draft.rowSpanSpecs?.[r]?.[c] ?? ""),
     ),
     verticalBorders: Array.from(
       { length: nc + 1 },
