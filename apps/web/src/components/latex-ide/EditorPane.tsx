@@ -7,6 +7,7 @@ import Image from "next/image";
 import React, { useMemo } from "react";
 import type { EditorState } from "@codemirror/state";
 import type { VisualFormat } from "@alove/editor";
+import { useVisualObjects } from "./VisualObjectDialog";
 import { VisualWritingToolbar } from "./VisualWritingToolbar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -109,6 +110,12 @@ export function EditorPane({
     : "";
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const codeEditorRef = useRef<LatexCodeEditorHandle | null>(null);
+
+  const visualObjects = useVisualObjects(
+    codeEditorRef,
+    onRequestSource,
+    setVisualMessage,
+  );
 
   const [findOpen, setFindOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
@@ -394,6 +401,7 @@ export function EditorPane({
           readOnly={isViewer}
           style={paragraphStyle}
           onRequestSource={onRequestSource}
+          onInsertObject={visualObjects.insert}
           onFormat={(kind) => codeEditorRef.current?.format(kind)}
         />
       )}
@@ -407,6 +415,7 @@ export function EditorPane({
             "Visual writing · custom LaTeX stays available in Source."}
         </div>
       )}
+      {visualObjects.dialog}
       {/* Editor Content Area */}
       <div className="flex-1 overflow-hidden relative flex flex-col bg-background">
         {findOpen && (
@@ -497,6 +506,8 @@ export function EditorPane({
               presentation={visualActive ? "visual" : "source"}
               onRequestSource={onRequestSource}
               onVisualBlocked={setVisualMessage}
+              objectAssets={filesByPath}
+              onOpenVisualObject={visualObjects.open}
               filePath={activeFileId ?? undefined}
               mainFile={mainFile}
               diagnostics={

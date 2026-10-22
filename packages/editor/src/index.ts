@@ -251,3 +251,4 @@ export {
   formatVisualSelection, escapeVisualText,
 } from "./visualEditing";
 export type { VisualFormat } from "./visualEditing";
+export { canEditVisualRange, applyGuardedVisualPatches } from "./visualEditing";

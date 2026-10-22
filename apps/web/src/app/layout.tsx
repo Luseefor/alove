@@ -4,6 +4,7 @@ import { ConvexClerkProvider } from "@/components/ConvexClerkProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { isLocalStandalone } from "@/lib/localStandalone";
 import { buildBootInlineScript } from "@/theme";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const geistSans = Geist({

@@ -207,6 +207,7 @@ class SetupWidget extends WidgetType {
 function decorations(
   state: EditorState,
   requestSource: () => void,
+  opaque: readonly { from: number; to: number }[] = [],
 ): DecorationSet {
   const model = state.field(visualDocumentField);
   const covers = (
@@ -224,7 +225,11 @@ function decorations(
     return lo > 0 && ranges[lo - 1]!.to >= to;
   };
   const carriageReturns = [...state.doc.toString().matchAll(/\r(?=\n|$)/g)]
-    .filter((match) => !covers(model.hidden, match.index, match.index + 1))
+    .filter(
+      (match) =>
+        !covers(model.hidden, match.index, match.index + 1) &&
+        !covers(opaque, match.index, match.index + 1),
+    )
     .map((match) => Decoration.replace({}).range(match.index, match.index + 1));
   const ranges = [
     ...carriageReturns,
@@ -272,11 +277,23 @@ function decorations(
 export function createVisualEditing(options: {
   requestSource: () => void;
   onBlocked: (message: string) => void;
+  opaqueRanges?: (source: string) => readonly { from: number; to: number }[];
 }): Extension {
   const rendered = StateField.define<DecorationSet>({
-    create: (state) => decorations(state, options.requestSource),
+    create: (state) =>
+      decorations(
+        state,
+        options.requestSource,
+        options.opaqueRanges?.(state.doc.toString()),
+      ),
     update: (value, tr) =>
-      tr.docChanged ? decorations(tr.state, options.requestSource) : value,
+      tr.docChanged
+        ? decorations(
+            tr.state,
+            options.requestSource,
+            options.opaqueRanges?.(tr.newDoc.toString()),
+          )
+        : value,
     provide: (field) => [
       EditorView.decorations.from(field),
       EditorView.atomicRanges.of((view) => {
@@ -455,4 +472,59 @@ export function createVisualEditing(options: {
       },
     }),
   ];
+}
+
+export function canEditVisualRange(
+  source: string,
+  from: number,
+  to = from,
+): boolean {
+  const model = parseVisualDocument(source);
+  return (
+    model.body.from < model.body.to &&
+    Number.isInteger(from) &&
+    Number.isInteger(to) &&
+    from >= 0 &&
+    to >= from &&
+    to <= source.length &&
+    allowedRange(model, from, to)
+  );
+}
+/** Apply a caller-validated object transaction without replacing the editor/history. */
+export function applyGuardedVisualPatches(
+  view: EditorView,
+  expectedSource: string,
+  patches: readonly { from: number; to: number; insert: string }[],
+): boolean {
+  if (
+    view.state.readOnly ||
+    view.state.doc.toString() !== expectedSource ||
+    patches.length > 500
+  )
+    return false;
+  const sorted = [...patches].sort((a, b) => a.from - b.from || a.to - b.to);
+  let last = 0;
+  for (const patch of sorted) {
+    if (
+      !Number.isInteger(patch.from) ||
+      !Number.isInteger(patch.to) ||
+      patch.from < last ||
+      patch.to < patch.from ||
+      patch.to > expectedSource.length ||
+      typeof patch.insert !== "string"
+    )
+      return false;
+    last = patch.to;
+  }
+  if (!sorted.length) return true;
+  view.dispatch({
+    changes: sorted,
+    annotations: [
+      visualSourceTransaction.of("format"),
+      Transaction.userEvent.of("input.visual-object"),
+      isolateHistory.of("full"),
+    ],
+  });
+  view.focus();
+  return true;
 }

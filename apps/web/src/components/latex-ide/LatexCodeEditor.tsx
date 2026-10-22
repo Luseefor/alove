@@ -1,7 +1,9 @@
 "use client";
+import { parseVisualObjects } from "@/lib/visualObjects";
 
 import {
   createVisualEditing,
+  applyGuardedVisualPatches,
   formatVisualSelection,
   visualDocumentField,
   visualSourceTransaction,
@@ -14,6 +16,12 @@ import {
   createLatexEditorExtensions,
   createLatexEditorView,
 } from "@alove/editor";
+import {
+  createVisualObjectExtension,
+  refreshVisualObjectAssets,
+} from "./visualObjectExtension";
+import type { VisualObject } from "@/lib/visualObjects";
+import type { VisualSourcePatch } from "@/lib/visualObjectTypes";
 import type { EditorKeybindings } from "@/stores/ideSettingsStore";
 import { EditorView } from "@codemirror/view";
 import {
@@ -48,6 +56,12 @@ import { cn } from "@/lib/utils";
 
 export type LatexCodeEditorProps = {
   value: string;
+  objectAssets?: Record<string, string>;
+  onOpenVisualObject?: (
+    object: VisualObject,
+    source: string,
+    cell?: { row: number; column: number },
+  ) => void;
   presentation?: "source" | "visual";
   onRequestSource?: () => void;
   onVisualBlocked?: (message: string) => void;
@@ -87,6 +101,10 @@ export type LatexCodeEditorProps = {
 
 export type LatexCodeEditorHandle = {
   focus: () => void;
+  applySourcePatches: (
+    expected: string,
+    patches: VisualSourcePatch[],
+  ) => boolean;
   format: (kind: VisualFormat) => void;
   getValue: () => string;
   getSelection: () => { start: number; end: number };
@@ -255,11 +273,24 @@ function buildDynamicExtensions(
   visualCallbacks?: {
     requestSource: () => void;
     onBlocked: (message: string) => void;
+    getAssets: () => Record<string, string>;
+    getView: () => EditorView | null;
+    onOpen: (
+      object: VisualObject,
+      source: string,
+      cell?: { row: number; column: number },
+    ) => void;
   },
 ): Extension[] {
   return [
     ...(settings.presentation === "visual" && visualCallbacks
-      ? [createVisualEditing(visualCallbacks)]
+      ? [
+          createVisualEditing({
+            ...visualCallbacks,
+            opaqueRanges: parseVisualObjects,
+          }),
+          createVisualObjectExtension(visualCallbacks),
+        ]
       : []),
     ...createLatexEditorExtensions(theme, {
       vim: settings.presentation !== "visual" && settings.keybindings === "vim",
@@ -292,6 +323,8 @@ export const LatexCodeEditor = forwardRef<
 >(function LatexCodeEditor(
   {
     value,
+    objectAssets,
+    onOpenVisualObject,
     presentation = "source",
     onRequestSource,
     onVisualBlocked,
@@ -323,14 +356,49 @@ export const LatexCodeEditor = forwardRef<
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const visualCallbacksRef = useRef({ onRequestSource, onVisualBlocked });
-  visualCallbacksRef.current = { onRequestSource, onVisualBlocked };
+  const visualCallbacksRef = useRef({
+    onRequestSource,
+    onVisualBlocked,
+    objectAssets,
+    onOpenVisualObject,
+  });
+  visualCallbacksRef.current = {
+    onRequestSource,
+    onVisualBlocked,
+    objectAssets,
+    onOpenVisualObject,
+  };
   const visualCallbacks = useRef({
     requestSource: () => visualCallbacksRef.current.onRequestSource?.(),
+    getAssets: () => visualCallbacksRef.current.objectAssets ?? {},
+    getView: () => viewRef.current,
+    onOpen: (
+      object: VisualObject,
+      source: string,
+      cell?: { row: number; column: number },
+    ) => visualCallbacksRef.current.onOpenVisualObject?.(object, source, cell),
     onBlocked: (message: string) =>
       visualCallbacksRef.current.onVisualBlocked?.(message),
   }).current;
   const viewRef = useRef<EditorView | null>(null);
+  const previousAssets = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const assets = Object.fromEntries(
+      Object.entries(objectAssets ?? {}).filter(([, value]) =>
+        value.startsWith("data:"),
+      ),
+    );
+    const before = previousAssets.current;
+    previousAssets.current = assets;
+    if (
+      Object.keys(before).length !== Object.keys(assets).length ||
+      Object.keys(assets).some((key) => before[key] !== assets[key])
+    ) {
+      viewRef.current?.dispatch({
+        effects: refreshVisualObjectAssets.of(null),
+      });
+    }
+  }, [objectAssets]);
   const onChangeRef = useRef(onChange);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const onFocusRef = useRef(onFocus);
@@ -677,6 +745,10 @@ export const LatexCodeEditor = forwardRef<
   useImperativeHandle(
     ref,
     (): LatexCodeEditorHandle => ({
+      applySourcePatches: (expected, patches) => {
+        const view = viewRef.current;
+        return !!view && applyGuardedVisualPatches(view, expected, patches);
+      },
       format: (kind) => {
         const view = viewRef.current;
         if (view) formatVisualSelection(view, kind, visualCallbacks.onBlocked);

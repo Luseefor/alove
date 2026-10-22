@@ -1,13 +1,23 @@
 "use client";
+import React from "react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { VisualObject } from "@/lib/visualObjects";
 import type { VisualFormat } from "@alove/editor";
 
 export function VisualWritingToolbar({
   onFormat,
+  onInsertObject,
   onRequestSource,
   readOnly,
   style,
 }: {
+  onInsertObject?: (kind: VisualObject["kind"]) => void;
   onFormat: (kind: VisualFormat) => void;
   onRequestSource?: () => void;
   readOnly: boolean;
@@ -73,6 +83,35 @@ export function VisualWritingToolbar({
           {kind === "bulletList" ? "•" : "1."}
         </button>
       ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild disabled={readOnly}>
+          <button
+            type="button"
+            className="h-8 shrink-0 rounded border border-border px-2 text-xs hover:bg-muted disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Insert visual object"
+          >
+            Insert ▾
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {(
+            [
+              ["table", "Table"],
+              ["figure", "Figure"],
+              ["math", "Equation"],
+              ["citation", "Citation"],
+              ["reference", "Reference"],
+            ] as const
+          ).map(([kind, label]) => (
+            <DropdownMenuItem
+              key={kind}
+              onSelect={() => onInsertObject?.(kind)}
+            >
+              {label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <span className="min-w-2 flex-1" />
       <button
         type="button"
