@@ -82,6 +82,10 @@ for (const width of [390, 1440]) {
       /Results/,
     ]);
     await expect(outline).not.toContainText("Not included");
+    if (process.env.E2E_EVIDENCE_DIR)
+      await page.screenshot({
+        path: `${process.env.E2E_EVIDENCE_DIR}/outline-${width}.png`,
+      });
     await outline.getByText("Outline notices").click();
     await expect(outline).toContainText("sections/missing");
     await outline

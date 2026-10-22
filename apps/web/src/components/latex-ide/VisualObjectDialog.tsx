@@ -444,7 +444,9 @@ export function useVisualObjects(
             className={
               target.object.kind === "table"
                 ? "visual-table-dialog"
-                : "fixed left-1/2 top-1/2 z-[100] max-h-[90dvh] w-[min(850px,94vw)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-border bg-background p-5 text-foreground shadow-2xl"
+                : target.object.kind === "subfigure"
+                  ? "fixed left-1/2 top-1/2 z-[100] flex h-[min(760px,94dvh)] max-h-[94dvh] w-[min(850px,94vw)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-background p-5 text-foreground shadow-2xl"
+                  : "fixed left-1/2 top-1/2 z-[100] max-h-[90dvh] w-[min(850px,94vw)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-border bg-background p-5 text-foreground shadow-2xl"
             }
             onEscapeKeyDown={(event) => {
               if (busy) event.preventDefault();
@@ -461,23 +463,17 @@ export function useVisualObjects(
               className={
                 target.object.kind === "table"
                   ? "flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4"
-                  : "mb-4 flex items-start justify-between gap-3"
+                  : "mb-4 flex shrink-0 items-start justify-between gap-3"
               }
             >
-              <div>
+              <div className="min-w-0 flex-1">
                 <Dialog.Title className="text-lg font-semibold">
                   {target.insertion === null ? "Edit" : "Insert"}{" "}
                   {target.object.kind === "math"
                     ? "equation"
                     : target.object.kind}
                 </Dialog.Title>
-                <Dialog.Description
-                  className={
-                    target.object.kind === "table"
-                      ? "sr-only"
-                      : "mt-1 text-xs text-muted-foreground"
-                  }
-                >
+                <Dialog.Description className="sr-only">
                   Changes apply to the original LaTeX source as one undoable
                   edit. Cancel discards object edits; uploaded assets remain in
                   the project.

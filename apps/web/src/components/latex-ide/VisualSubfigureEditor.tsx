@@ -41,7 +41,7 @@ export function VisualSubfigureEditor({
   return (
     <form
       aria-label="Subfigure editor"
-      className="space-y-3"
+      className="flex min-h-0 flex-1 flex-col"
       onSubmit={(e) => {
         e.preventDefault();
         if (locked) return;
@@ -57,191 +57,197 @@ export function VisualSubfigureEditor({
         }
       }}
     >
-      <label className="block text-xs">
-        Selected panel
-        <select
-          aria-label="Selected figure panel"
-          className={field}
-          value={selected}
-          onChange={(e) => setSelected(Number(e.target.value))}
-        >
-          {draft.panels.map((_, i) => (
-            <option key={i} value={i}>
-              Panel {i + 1}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FigureResizePreview
-          preview={safeFigureAsset(assets[panel.path])}
-          alt={panel.caption || panel.path}
-          width={panel.envWidth}
-          minimumPercent={5}
-          disabled={locked}
-          isPdf={panel.path.toLowerCase().endsWith(".pdf")}
-          onWidthChange={(envWidth) => update({ envWidth })}
-        />
-        <div className="space-y-2">
-          <label className="block text-xs">
-            Project image
-            <select
-              aria-label="Panel image"
-              className={field}
-              disabled={locked}
-              value={panel.path}
-              onChange={(e) => update({ path: e.target.value })}
-            >
-              {!assets[panel.path] && (
-                <option value={panel.path}>{panel.path} (missing)</option>
-              )}
-              {Object.keys(assets)
-                .filter(isFigurePath)
-                .map((path) => (
-                  <option key={path}>{path}</option>
-                ))}
-            </select>
-          </label>
-          <label className="block text-xs">
-            Upload panel image
-            <input
-              type="file"
-              accept="image/png,image/jpeg,application/pdf"
-              aria-label="Upload panel image"
-              disabled={locked}
-              className={field}
-              onChange={async (e) => {
-                const input = e.currentTarget,
-                  file = input.files?.[0];
-                if (!file) return;
-                setUploading(true);
-                try {
-                  update({ path: await onUpload(file) });
-                } catch (err) {
-                  setError(
-                    err instanceof Error ? err.message : "Upload failed.",
-                  );
-                } finally {
-                  setUploading(false);
-                  input.value = "";
-                }
-              }}
-            />
-          </label>
-          <label className="block text-xs">
-            Panel width (% of {original.envWidthUnit})
-            <input
-              aria-label="Panel width percentage"
-              type="number"
-              min={5}
-              max={100}
-              className={field}
-              disabled={locked}
-              value={Math.round(panel.envWidth * 100)}
-              onChange={(e) =>
-                update({ envWidth: Number(e.target.value) / 100 })
-              }
-            />
-          </label>
-          <label className="block text-xs">
-            Panel alignment
-            <select
-              aria-label="Panel vertical alignment"
-              className={field}
-              value={panel.envPosition ?? ""}
-              disabled={locked}
-              onChange={(e) => update({ envPosition: e.target.value || null })}
-            >
-              <option value="">Default</option>
-              <option value="t">Top</option>
-              <option value="c">Centre</option>
-              <option value="b">Bottom</option>
-            </select>
-          </label>
-        </div>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-xs">
-          Panel caption
-          <input
-            aria-label="Panel caption"
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        <label className="block text-xs">
+          Selected panel
+          <select
+            aria-label="Selected figure panel"
             className={field}
-            disabled={locked || original.caption?.text === null}
-            value={panel.caption}
-            onChange={(e) => update({ caption: e.target.value })}
-          />
+            value={selected}
+            onChange={(e) => setSelected(Number(e.target.value))}
+          >
+            {draft.panels.map((_, i) => (
+              <option key={i} value={i}>
+                Panel {i + 1}
+              </option>
+            ))}
+          </select>
         </label>
-        <label className="text-xs">
-          Panel label
-          <input
-            aria-label="Panel label"
-            className={field}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FigureResizePreview
+            preview={safeFigureAsset(assets[panel.path])}
+            alt={panel.caption || panel.path}
+            width={panel.envWidth}
+            minimumPercent={5}
             disabled={locked}
-            value={panel.label}
-            onChange={(e) => update({ label: e.target.value })}
+            isPdf={panel.path.toLowerCase().endsWith(".pdf")}
+            onWidthChange={(envWidth) => update({ envWidth })}
           />
-        </label>
-      </div>
-      <details className="border-t border-border pt-2 text-xs">
-        <summary className="cursor-pointer">Whole figure</summary>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          <label>
-            Caption
+          <div className="space-y-2">
+            <label className="block text-xs">
+              Project image
+              <select
+                aria-label="Panel image"
+                className={field}
+                disabled={locked}
+                value={panel.path}
+                onChange={(e) => update({ path: e.target.value })}
+              >
+                {!assets[panel.path] && (
+                  <option value={panel.path}>{panel.path} (missing)</option>
+                )}
+                {Object.keys(assets)
+                  .filter(isFigurePath)
+                  .map((path) => (
+                    <option key={path}>{path}</option>
+                  ))}
+              </select>
+            </label>
+            <label className="block text-xs">
+              Upload panel image
+              <input
+                type="file"
+                accept="image/png,image/jpeg,application/pdf"
+                aria-label="Upload panel image"
+                disabled={locked}
+                className={field}
+                onChange={async (e) => {
+                  const input = e.currentTarget,
+                    file = input.files?.[0];
+                  if (!file) return;
+                  setUploading(true);
+                  try {
+                    update({ path: await onUpload(file) });
+                  } catch (err) {
+                    setError(
+                      err instanceof Error ? err.message : "Upload failed.",
+                    );
+                  } finally {
+                    setUploading(false);
+                    input.value = "";
+                  }
+                }}
+              />
+            </label>
+            <label className="block text-xs">
+              Panel width (% of {original.envWidthUnit})
+              <input
+                aria-label="Panel width percentage"
+                type="number"
+                min={5}
+                max={100}
+                className={field}
+                disabled={locked}
+                value={Math.round(panel.envWidth * 100)}
+                onChange={(e) =>
+                  update({ envWidth: Number(e.target.value) / 100 })
+                }
+              />
+            </label>
+            <label className="block text-xs">
+              Panel alignment
+              <select
+                aria-label="Panel vertical alignment"
+                className={field}
+                value={panel.envPosition ?? ""}
+                disabled={locked}
+                onChange={(e) =>
+                  update({ envPosition: e.target.value || null })
+                }
+              >
+                <option value="">Default</option>
+                <option value="t">Top</option>
+                <option value="c">Centre</option>
+                <option value="b">Bottom</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs">
+            Panel caption
             <input
-              aria-label="Subfigure group caption"
+              aria-label="Panel caption"
               className={field}
-              disabled={locked || model.caption?.text === null}
-              value={draft.caption}
-              onChange={(e) => setDraft({ ...draft, caption: e.target.value })}
+              disabled={locked || original.caption?.text === null}
+              value={panel.caption}
+              onChange={(e) => update({ caption: e.target.value })}
             />
           </label>
-          <label>
-            Label
+          <label className="text-xs">
+            Panel label
             <input
-              aria-label="Subfigure group label"
+              aria-label="Panel label"
               className={field}
               disabled={locked}
-              value={draft.label}
-              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+              value={panel.label}
+              onChange={(e) => update({ label: e.target.value })}
             />
-          </label>
-          <label>
-            Placement
-            <select
-              aria-label="Subfigure placement"
-              className={field}
-              disabled={locked}
-              value={draft.placement ?? ""}
-              onChange={(e) =>
-                setDraft({ ...draft, placement: e.target.value || null })
-              }
-            >
-              {[
-                ...new Set([
-                  draft.placement ?? "",
-                  "",
-                  "htbp",
-                  "!ht",
-                  "t",
-                  "b",
-                  "p",
-                  "H",
-                ]),
-              ].map((value) => (
-                <option key={value} value={value}>
-                  {value || "Default"}
-                </option>
-              ))}
-            </select>
           </label>
         </div>
-      </details>
-      {error && (
-        <p role="alert" className="text-sm text-error">
-          {error}
-        </p>
-      )}
-      <div className="flex justify-end gap-2 border-t border-border pt-3">
+        <details className="border-t border-border pt-2 text-xs">
+          <summary className="cursor-pointer">Whole figure</summary>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <label>
+              Caption
+              <input
+                aria-label="Subfigure group caption"
+                className={field}
+                disabled={locked || model.caption?.text === null}
+                value={draft.caption}
+                onChange={(e) =>
+                  setDraft({ ...draft, caption: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              Label
+              <input
+                aria-label="Subfigure group label"
+                className={field}
+                disabled={locked}
+                value={draft.label}
+                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+              />
+            </label>
+            <label>
+              Placement
+              <select
+                aria-label="Subfigure placement"
+                className={field}
+                disabled={locked}
+                value={draft.placement ?? ""}
+                onChange={(e) =>
+                  setDraft({ ...draft, placement: e.target.value || null })
+                }
+              >
+                {[
+                  ...new Set([
+                    draft.placement ?? "",
+                    "",
+                    "htbp",
+                    "!ht",
+                    "t",
+                    "b",
+                    "p",
+                    "H",
+                  ]),
+                ].map((value) => (
+                  <option key={value} value={value}>
+                    {value || "Default"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </details>
+        {error && (
+          <p role="alert" className="text-sm text-error">
+            {error}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 justify-end gap-2 border-t border-border bg-background pt-3">
         <button
           type="button"
           onClick={onCancel}
