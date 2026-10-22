@@ -157,3 +157,19 @@ input[type="range"] {
   .latex-workbench[data-view="source"] .workbench-pdf-panel,
   .latex-workbench[data-view="pdf"] .workbench-source-panel { display: none; }
 }
+
+/* Source and Visual share a broad writing canvas; Proof reveals the compiled output. */
+@media (min-width: 1024px) {
+  .latex-workbench[data-mode="source"] .workbench-pdf-panel,
+  .latex-workbench[data-mode="visual"] .workbench-pdf-panel,
+  .latex-workbench[data-mode="source"] .workbench-preview-divider,
+  .latex-workbench[data-mode="visual"] .workbench-preview-divider { display: none; }
+  .latex-workbench[data-mode="source"] .workbench-source-panel,
+  .latex-workbench[data-mode="visual"] .workbench-source-panel { flex: 1 1 100% !important; }
+}
+
+[data-presentation="visual"] .cm-editor,
+[data-presentation="visual"] .cm-scroller {
+  background-color: var(--background);
+  color: var(--foreground);
+}

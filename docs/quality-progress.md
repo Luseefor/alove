@@ -400,3 +400,45 @@ self-hosting. Its narrow distinction is compiler evidence before changing the
 working document, compared with the documented Error Assist apply-then-recompile
 interaction. No matched Overleaf speed/success-rate study or general
 superiority is claimed. Deployment and live provider checks remain deferred.
+
+## 2026-10-21: Manuscript visual-writing foundation, issue #45
+
+Source, Visual and Proof now share one mounted CodeMirror document. Visual
+projects standard headings, bold/italic and simple lists onto manuscript
+text while keeping the exact canonical LaTeX. Formatting changes one source
+range; undo/redo and visible selections survive mode changes. Entering Visual
+opens a broad canvas and closes the desktop file browser; Proof reveals the PDF
+beside the last writing surface. The initial Proof/Source layout remains for
+existing workflows. See [scope and limits](manuscript-visual.md).
+
+Unknown/custom syntax, comments and math stay visible as protected source.
+Cross-structure edits and command-boundary insertions that could rename a macro
+are refused. Hidden setup and protected navigation open Source explicitly.
+Viewer roles cannot type or format. Analysis is bounded at 1 Mi UTF-16 units /
+20,000 lines, with bounded nesting; ambiguous syntax falls back to source.
+This is per-file structured writing, not arbitrary-TeX WYSIWYG or visual parity.
+Rich tables, figures and math/citation interfaces remain under #24.
+
+Corrected attempts: initial unit checks exposed CodeMirror's CRLF normalization,
+which could have changed untouched lines on the next edit. Canonical CR bytes
+are now retained and hidden visually; exact export checks cover CRLF and mixed
+endings. The first browser guard check exposed native selection collapse after
+a mode switch; explicit EditorView focus restores the retained selection.
+Native typing and simulated IME composition then passed. Screenshot review also
+removed duplicate Find panels, corrected the dark canvas colours and fitted
+labelled list controls on phones. No assertion or timeout budget was relaxed.
+
+All-package typecheck, lint and tests passed; the web suite passed 819 tests.
+The standalone production build passed. The complete production browser run
+passed 87 with only two cloud-provider skips, including the actual compiler,
+existing recovery/cancellation/SyncTeX/paper journey and all responsive/keyboard
+checks. The Manuscript journey verifies exact archives, formatting, cross-mode
+undo/redo, native escaped typing, simulated IME, protected-source refusal and
+reload. A subsequent focused run also created a list with the Visual control,
+checked its exact source and compiled the resulting paper to a real PDF.
+Phone/tablet/desktop light/dark screenshots are retained in the
+[dated browser evidence](benchmarks/2026-10-21-manuscript/README.md).
+
+Deployment and live Clerk/two-account/GitHub OAuth checks remain deferred in
+#42. The source-preservation checks do not establish broader Overleaf
+superiority or cover every journal template, macro definition or physical IME.

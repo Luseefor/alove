@@ -30,6 +30,7 @@ vi.mock("./LatexCodeEditor", async () => {
     ReactModule.useImperativeHandle(
       ref,
       () => ({
+        format: () => {},
         focus: () => {
           codeEditorRuntime.focus();
         },

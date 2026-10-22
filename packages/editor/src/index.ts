@@ -175,6 +175,8 @@ export function createLatexEditorExtensions(
   const shouldAutocomplete = options.autocomplete !== false;
   const nonBlinkingCursor = options.nonBlinkingCursor === true;
   return [
+    // Retain CR in existing CRLF/mixed endings instead of normalizing untouched source.
+    EditorState.lineSeparator.of("\n"),
     EditorState.allowMultipleSelections.of(true),
     indentOnInput(),
     ...(shouldShowLineNumbers ? [lineNumbers()] : []),
@@ -241,3 +243,11 @@ export function runLatexEditorCommand(
   }
   return selectAll(view);
 }
+
+export { parseVisualDocument } from "./visualDocument";
+export type { VisualDocument } from "./visualDocument";
+export {
+  createVisualEditing, visualDocumentField, visualSourceTransaction,
+  formatVisualSelection, escapeVisualText,
+} from "./visualEditing";
+export type { VisualFormat } from "./visualEditing";

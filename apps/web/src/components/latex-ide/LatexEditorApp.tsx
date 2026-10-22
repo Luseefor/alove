@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Files, X } from "lucide-react";
+import { getEditorMode } from "@/lib/editorMode";
 import { BuildRecoveryDialog } from "./BuildRecoveryDialog";
 import { AppHeader } from "./AppHeader";
 import { ActivityRail } from "./ActivityRail";
@@ -23,6 +24,18 @@ export function LatexEditorApp() {
     buildLog,
     activeFileId,
   } = useWorkbenchStore();
+  const [mode, setMode] = useState<"source" | "visual" | "proof">("proof");
+  const [presentation, setPresentation] = useState<"source" | "visual">(
+    "source",
+  );
+  const visualSupported =
+    getEditorMode() === "codemirror" &&
+    !!activeFileId?.toLowerCase().endsWith(".tex");
+  const requestSource = () => {
+    setMode("source");
+    setPresentation("source");
+    setView("source");
+  };
   const [view, setView] = useState<"source" | "pdf">("source");
   const [filesOpen, setFilesOpen] = useState(false);
   const filesButtonRef = useRef<HTMLButtonElement>(null);
@@ -40,7 +53,11 @@ export function LatexEditorApp() {
   useEffect(() => {
     setFilesOpen(false);
     setView("source");
-  }, [activeFileId]);
+    if (!visualSupported) {
+      setMode((mode) => (mode === "visual" ? "source" : mode));
+      setPresentation("source");
+    }
+  }, [activeFileId, visualSupported]);
   // While the narrow drawer is open, keep Tab cycling inside it and let
   // Escape close it. Radix dialogs/menus portal directly to the body (no
   // wrapper marker), so detect open overlays by role + open state and stand
@@ -114,44 +131,84 @@ export function LatexEditorApp() {
   return (
     <div
       className="latex-workbench flex h-[100dvh] min-w-0 flex-col overflow-hidden bg-background text-foreground font-sans antialiased"
+      data-mode={mode}
       data-view={view}
       data-sidebar-open={sidebarOpen}
       data-files-open={filesOpen}
     >
       <BuildRecoveryDialog />
       <AppHeader />
-      <ActionToolbar />
-      <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3 lg:hidden">
+      {presentation !== "visual" && <ActionToolbar />}
+      <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3">
         <button
           ref={filesButtonRef}
           type="button"
           aria-expanded={filesOpen}
           aria-controls="workbench-sidebar"
           onClick={() => setFilesOpen(!filesOpen)}
-          className="inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
         >
           <Files aria-hidden="true" size={15} /> Files
         </button>
         <div
           className="flex items-center gap-1 rounded-md bg-muted p-0.5"
           role="group"
-          aria-label="Editor view"
+          aria-label="Writing mode"
         >
           <button
             type="button"
-            aria-pressed={view === "source"}
+            aria-pressed={mode === "source" && view === "source"}
             aria-controls="source-panel"
-            onClick={() => setView("source")}
+            onClick={requestSource}
             className="rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Source
           </button>
           <button
             type="button"
+            aria-pressed={mode === "visual" && view === "source"}
+            aria-controls="source-panel"
+            disabled={!visualSupported}
+            title={
+              !visualSupported
+                ? "Visual writing requires a .tex file and CodeMirror"
+                : "Visual writing"
+            }
+            onClick={() => {
+              setMode("visual");
+              setPresentation("visual");
+              setView("source");
+              if (
+                window.matchMedia("(min-width: 1024px)").matches &&
+                sidebarOpen
+              )
+                toggleSidebar();
+            }}
+            className="rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Visual
+          </button>
+          <button
+            type="button"
+            aria-pressed={mode === "proof"}
+            aria-controls="source-panel pdf-panel"
+            onClick={() => {
+              setMode("proof");
+              setView("pdf");
+            }}
+            className="rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Proof
+          </button>
+          <button
+            type="button"
             aria-pressed={view === "pdf"}
             aria-controls="pdf-panel"
-            onClick={() => setView("pdf")}
-            className="rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => {
+              setMode("proof");
+              setView("pdf");
+            }}
+            className="lg:hidden rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             PDF
           </button>
@@ -214,7 +271,10 @@ export function LatexEditorApp() {
                 data-testid="source-panel"
                 id="source-panel"
               >
-                <EditorPane />
+                <EditorPane
+                  presentation={presentation}
+                  onRequestSource={requestSource}
+                />
               </Panel>
               <PanelResizeHandle
                 className="workbench-preview-divider w-1 shrink-0 bg-border transition-colors hover:bg-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50"
