@@ -43,7 +43,13 @@ export function renderTableCellContent(
   append(element, nodes);
   return true;
 }
-export function TableCellPreview({ source }: { source: string }) {
+export function TableCellPreview({
+  source,
+  compact,
+}: {
+  source: string;
+  compact?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) renderTableCellContent(ref.current, source);
@@ -52,7 +58,11 @@ export function TableCellPreview({ source }: { source: string }) {
     <div
       ref={ref}
       aria-label="Cell preview"
-      className="min-h-10 overflow-auto whitespace-pre-wrap break-words rounded border border-border bg-muted/30 p-3 text-sm"
+      className={
+        compact
+          ? "min-w-0 flex-1 overflow-auto whitespace-pre-wrap break-words text-sm"
+          : "min-h-10 overflow-auto whitespace-pre-wrap break-words rounded border border-border bg-muted/30 p-3 text-sm"
+      }
     />
   );
 }

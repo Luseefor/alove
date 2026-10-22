@@ -15,7 +15,7 @@
   --muted-foreground: #64748b;
   --accent: #f5f3ff;
   --accent-foreground: #7c3aed;
-  
+
   /* Additional Premium Tokens */
   --sidebar-bg: #fdfcff;
   --card-bg: #ffffff;
@@ -60,7 +60,7 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  
+
   --color-success: var(--success);
   --color-success-bg: var(--success-bg);
   --color-success-border: var(--success-border);
@@ -76,10 +76,10 @@
 
   --radius-panel: 24px;
   --radius-shell: 32px;
-  
-  --shadow-float: 0 40px 80px -15px rgba(0,0,0,0.12);
-  --shadow-glow: 0 0 8px rgba(124,58,237,0.5);
-  --shadow-success-glow: 0 0 8px rgba(16,185,129,0.5);
+
+  --shadow-float: 0 40px 80px -15px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 8px rgba(124, 58, 237, 0.5);
+  --shadow-success-glow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
 @utility text-overline {
@@ -97,7 +97,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-code, pre {
+code,
+pre {
   font-family: var(--font-geist-mono), monospace;
 }
 
@@ -136,8 +137,13 @@ input[type="range"] {
   flex-direction: column;
   min-width: 0;
 }
-.latex-workbench[data-sidebar-open="false"] .workbench-sidebar { display: none; }
-.latex-workbench ::-webkit-scrollbar { width: 6px; height: 6px; }
+.latex-workbench[data-sidebar-open="false"] .workbench-sidebar {
+  display: none;
+}
+.latex-workbench ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
 .latex-workbench ::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
   border: 0;
@@ -152,10 +158,16 @@ input[type="range"] {
     z-index: 50;
     box-shadow: 8px 0 24px rgb(0 0 0 / 0.12);
   }
-  .latex-workbench[data-files-open="true"] .workbench-sidebar { display: flex; }
-  .workbench-preview-divider { display: none; }
+  .latex-workbench[data-files-open="true"] .workbench-sidebar {
+    display: flex;
+  }
+  .workbench-preview-divider {
+    display: none;
+  }
   .latex-workbench[data-view="source"] .workbench-pdf-panel,
-  .latex-workbench[data-view="pdf"] .workbench-source-panel { display: none; }
+  .latex-workbench[data-view="pdf"] .workbench-source-panel {
+    display: none;
+  }
 }
 
 /* Source and Visual share a broad writing canvas; Proof reveals the compiled output. */
@@ -163,9 +175,13 @@ input[type="range"] {
   .latex-workbench[data-mode="source"] .workbench-pdf-panel,
   .latex-workbench[data-mode="visual"] .workbench-pdf-panel,
   .latex-workbench[data-mode="source"] .workbench-preview-divider,
-  .latex-workbench[data-mode="visual"] .workbench-preview-divider { display: none; }
+  .latex-workbench[data-mode="visual"] .workbench-preview-divider {
+    display: none;
+  }
   .latex-workbench[data-mode="source"] .workbench-source-panel,
-  .latex-workbench[data-mode="visual"] .workbench-source-panel { flex: 1 1 100% !important; }
+  .latex-workbench[data-mode="visual"] .workbench-source-panel {
+    flex: 1 1 100% !important;
+  }
 }
 
 [data-presentation="visual"] .cm-editor,
@@ -257,4 +273,344 @@ input[type="range"] {
 .cm-visual-object-source {
   font: 0.8rem monospace;
   white-space: pre-wrap;
+}
+
+/* Table editing keeps its canvas and actions in a bounded workspace. */
+.visual-table-dialog {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  width: min(1120px, calc(100vw - 40px));
+  height: min(760px, calc(100dvh - 48px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.visual-table-editor {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+.table-editor-tabs {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+.table-editor-tabs > button {
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.table-editor-tabs > button[aria-pressed="true"] {
+  border-color: var(--primary);
+  color: var(--foreground);
+  font-weight: 600;
+}
+.table-editor-tabs > button:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.table-editor-toolbar {
+  display: flex;
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  min-height: 48px;
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.table-cell-address {
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+.table-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 5px;
+  color: var(--foreground);
+  cursor: pointer;
+  list-style: none;
+}
+.table-tool::-webkit-details-marker {
+  display: none;
+}
+.table-tool:hover,
+.table-tool[aria-pressed="true"],
+.table-tool-menu[open] > summary {
+  background: var(--muted);
+}
+.table-tool:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.table-tool-divider {
+  height: 22px;
+  width: 1px;
+  margin: 0 5px;
+  background: var(--border);
+}
+.table-tool-menu {
+  position: relative;
+}
+.table-tool-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  width: 260px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+.table-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+}
+.table-row-actions > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 13px;
+}
+.table-row-actions > button:hover {
+  background: var(--muted);
+}
+.table-row-actions > button:disabled {
+  opacity: 0.35;
+}
+.table-editor-body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.table-editor-canvas {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--muted) 35%, var(--background));
+}
+.table-editor-grid-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 20px 0;
+}
+.table-editor-grid {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 13px;
+}
+.table-editor-grid th {
+  height: 32px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+}
+.table-editor-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--border);
+}
+.table-editor-grid thead button {
+  display: block;
+  width: 100%;
+  height: 32px;
+}
+.table-editor-grid thead button:hover {
+  color: var(--foreground);
+}
+.table-editor-grid tbody th {
+  border-right: 1px solid var(--border);
+}
+.table-editor-grid td {
+  position: relative;
+  padding: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.table-editor-grid td:last-child {
+  border-right: 0;
+}
+.table-editor-grid tr:last-child td {
+  border-bottom: 0;
+}
+.table-editor-grid td[data-active="true"] {
+  box-shadow: inset 0 0 0 2px var(--primary);
+  background: color-mix(in srgb, var(--primary) 4%, var(--background));
+}
+.table-editor-grid input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 8px 10px;
+  padding-right: 16px;
+  background: transparent;
+  color: var(--foreground);
+  outline: none;
+  border: 0;
+  border-radius: 0;
+  font-size: 13px;
+}
+.table-editor-grid input:disabled {
+  color: var(--muted-foreground);
+}
+.table-cell-span {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+.table-canvas-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px 16px;
+}
+.table-canvas-actions > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.table-canvas-actions > button:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.table-canvas-actions > button:disabled {
+  opacity: 0.35;
+}
+.table-properties-scroll {
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+}
+.table-cell-preview-strip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  max-height: 72px;
+  overflow: hidden;
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+}
+.table-editor-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 64px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--background);
+}
+.table-editor-notice {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.visual-table-dialog button:focus-visible,
+.visual-table-dialog summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+@media (max-width: 640px) {
+  .visual-table-dialog {
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    transform: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .table-editor-tabs {
+    padding: 0 12px;
+  }
+  .table-editor-tabs > button {
+    flex: 1;
+    padding: 0 8px;
+  }
+  .table-editor-toolbar {
+    padding: 4px 12px;
+  }
+  .table-editor-grid-scroll {
+    padding: 12px 12px 0;
+  }
+  .table-canvas-actions {
+    padding: 8px 12px;
+  }
+  .table-editor-footer {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+  }
+  .table-editor-footer > span {
+    display: none;
+  }
+  .table-editor-footer > button:first-of-type {
+    margin-right: auto;
+  }
+  .table-properties-scroll {
+    padding: 16px;
+  }
+  .table-cell-preview-strip {
+    padding: 8px 12px;
+  }
 }

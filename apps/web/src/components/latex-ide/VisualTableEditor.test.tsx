@@ -57,6 +57,36 @@ function getButton(text: string): HTMLButtonElement {
   return el as HTMLButtonElement;
 }
 
+function getAriaButton(label: string): HTMLButtonElement {
+  const el = container.querySelector(
+    `button[aria-label="${label}"]`,
+  ) as HTMLButtonElement | null;
+  if (!el) throw new Error(`Missing button: ${label}`);
+  return el;
+}
+
+function openMenu(label: string) {
+  const summary = container.querySelector(
+    `summary[aria-label="${label}"]`,
+  ) as HTMLElement | null;
+  if (!summary) throw new Error(`Missing menu: ${label}`);
+  const details = summary.closest("details");
+  if (!details) throw new Error(`Missing details: ${label}`);
+  if (!details.open) {
+    act(() => {
+      details.setAttribute("open", "");
+      summary.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      if (!details.open) details.setAttribute("open", "");
+    });
+  }
+}
+
+function showPanel(label: string) {
+  act(() => {
+    getButton(label).click();
+  });
+}
+
 function getInput(label: string): HTMLInputElement {
   const el = container.querySelector(
     `input[aria-label="${label}"]`,
@@ -105,6 +135,7 @@ describe("VisualTableEditor", () => {
     renderEditor(twoByTwo, { onSave });
     expect(confirmGroup()).toBeNull();
 
+    openMenu("Rows and columns");
     act(() => {
       getButton("Delete selected row").click();
     });
@@ -120,6 +151,7 @@ describe("VisualTableEditor", () => {
     expect(cellInputs()).toHaveLength(4);
     expect(getButton("Apply table changes").disabled).toBe(false);
 
+    openMenu("Rows and columns");
     act(() => {
       getButton("Delete selected row").click();
     });
@@ -144,6 +176,7 @@ describe("VisualTableEditor", () => {
     const onSave = vi.fn();
     renderEditor(twoByTwo, { onSave });
 
+    openMenu("Rows and columns");
     act(() => {
       getButton("Delete selected column").click();
     });
@@ -169,6 +202,7 @@ describe("VisualTableEditor", () => {
     act(() => {
       getInput("Row 2 column 1").focus();
     });
+    openMenu("Rows and columns");
     act(() => {
       getButton("Delete selected row").click();
     });
@@ -182,6 +216,7 @@ describe("VisualTableEditor", () => {
     const onSave = vi.fn();
     renderEditor(source, { onSave });
 
+    openMenu("Merge options");
     act(() => {
       getButton("Merge cells").click();
     });
@@ -189,7 +224,9 @@ describe("VisualTableEditor", () => {
     expect(
       container.querySelector('input[aria-label="Row 1 column 2"]'),
     ).toBeNull();
-    expect(container.textContent).toContain("Spans 2 columns");
+    expect(
+      container.querySelector('[aria-label="Spans 2 columns"]'),
+    ).not.toBeNull();
 
     act(() => {
       getButton("Apply table changes").click();
@@ -199,12 +236,15 @@ describe("VisualTableEditor", () => {
     expect(JSON.stringify(patches)).toContain("Alpha Beta");
     expect(JSON.stringify(patches)).toContain("multicolumn");
 
+    openMenu("Merge options");
     act(() => {
       getButton("Split cell").click();
     });
     expect(getInput("Row 1 column 1").value).toBe("Alpha Beta");
     expect(getInput("Row 1 column 2").value).toBe("");
-    expect(container.textContent).not.toContain("Spans 2 columns");
+    expect(
+      container.querySelector('[aria-label="Spans 2 columns"]'),
+    ).toBeNull();
   });
 
   it("blocks disabled viewer controls from mutating or saving", () => {
@@ -213,13 +253,19 @@ describe("VisualTableEditor", () => {
     const before = getInput("Row 1 column 1").value;
 
     expect(getInput("Row 1 column 1").disabled).toBe(true);
-    expect(getButton("Add row").disabled).toBe(true);
+    expect(getAriaButton("Add row").disabled).toBe(true);
+    openMenu("Rows and columns");
     expect(getButton("Delete selected row").disabled).toBe(true);
     expect(getButton("Delete selected column").disabled).toBe(true);
+    showPanel("Cells");
+    openMenu("Merge options");
     expect(getButton("Merge cells").disabled).toBe(true);
+    showPanel("Columns");
     expect(getSelect("Column 1 alignment").disabled).toBe(true);
     expect(getButton("Apply table changes").disabled).toBe(true);
 
+    showPanel("Cells");
+    openMenu("Rows and columns");
     act(() => {
       getButton("Delete selected row").click();
     });
@@ -227,7 +273,7 @@ describe("VisualTableEditor", () => {
     expect(cellInputs()).toHaveLength(4);
 
     act(() => {
-      getButton("Bold").click();
+      getAriaButton("Bold").click();
     });
     expect(getInput("Row 1 column 1").value).toBe(before);
     expect(container.querySelector('[role="alert"]')).toBeNull();
@@ -254,12 +300,12 @@ describe("VisualTableEditor", () => {
     expect(protectedInput.value).toBe(String.raw`\custom{A}`);
     expect(getInput("Row 1 column 2").disabled).toBe(false);
 
-    const fieldsets = container.querySelectorAll("fieldset");
-    expect((fieldsets[0] as HTMLFieldSetElement).disabled).toBe(true);
+    expect(getAriaButton("Bold").disabled).toBe(true);
+    expect(getAriaButton("Supported LaTeX cell").disabled).toBe(true);
 
     const before = protectedInput.value;
     act(() => {
-      getButton("Bold").click();
+      getAriaButton("Bold").click();
     });
     expect(getInput("Row 1 column 1").value).toBe(before);
     expect(container.querySelector('[role="alert"]')).toBeNull();
@@ -276,6 +322,10 @@ describe("VisualTableEditor", () => {
     const onSave = vi.fn();
     renderEditor(twoByTwo, { onSave });
 
+    showPanel("Columns");
+    const selected = getSelect("Selected column");
+    expect(selected.value).toBe("0");
+    setSelectValue(selected, "0");
     const alignment = getSelect("Column 1 alignment");
     expect(alignment.value).toBe("l");
     setSelectValue(alignment, "c");
@@ -319,17 +369,17 @@ describe("VisualTableEditor", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     await act(async () => {
-      getButton("Bold").click();
+      getAriaButton("Bold").click();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     expect(getInput("Row 1 column 1").value).toBe(
       String.raw`100\% \textbf{beta}`,
     );
-    const checkbox = container.querySelector(
-      'input[type="checkbox"]',
-    ) as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
+    const latexToggle = container.querySelector(
+      'button[aria-label="Supported LaTeX cell"]',
+    ) as HTMLButtonElement;
+    expect(latexToggle.getAttribute("aria-pressed")).toBe("true");
     const preview = container.querySelector('[aria-label="Cell preview"]')!;
     expect(preview.querySelector("strong")?.textContent).toBe("beta");
     expect(preview.textContent).toContain("100%");
@@ -349,9 +399,11 @@ describe("VisualTableEditor", () => {
     const onSave = vi.fn();
     renderEditor(source, { onSave });
 
+    openMenu("Merge options");
     act(() => {
       getButton("Merge cells").click();
     });
+    openMenu("Merge options");
     const mergedAlignment = getSelect("Merged cell alignment");
     expect(mergedAlignment.value).toBe("l");
     setSelectValue(mergedAlignment, "c");
@@ -368,6 +420,7 @@ describe("VisualTableEditor", () => {
     const onSave = vi.fn();
     renderEditor(twoByTwo, { onSave });
 
+    showPanel("Borders");
     const boundary = getSelect("Vertical boundary 1");
     expect(boundary.value).toBe("0");
     setSelectValue(boundary, "1");

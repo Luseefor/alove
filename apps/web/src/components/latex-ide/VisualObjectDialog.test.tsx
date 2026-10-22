@@ -122,7 +122,14 @@ it("rejects project switches and viewer transitions, and Cancel leaves source in
   ).toBe(true);
   expect(apply).not.toHaveBeenCalled();
 });
+async function showPanel(text: string) {
+  const btn = [...document.querySelectorAll("button")].find(
+    (b) => b.textContent === text,
+  )! as HTMLButtonElement;
+  await act(async () => btn.click());
+}
 async function wrapColumn() {
+  await showPanel("Columns");
   const select = document.querySelector<HTMLSelectElement>(
     '[aria-label="Column 1 type"]',
   )!;
