@@ -70,6 +70,114 @@ describe("LatexCodeEditor", () => {
     );
   }
 
+  it("switches source/visual without changing bytes or recreating the view, with shared formatting undo", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    const onChange = vi.fn();
+    let current =
+      "\\documentclass{article}\n\\begin{document}\n\\section{Intro}\nPlain prose.\n% keep me\n\\end{document}";
+    const original = current;
+    function render(presentation: "source" | "visual") {
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={current}
+          presentation={presentation}
+          onChange={(next) => {
+            current = next;
+            onChange(next);
+          }}
+        />,
+      );
+    }
+    act(() => render("source"));
+    const view = EditorView.findFromDOM(host().querySelector(".cm-editor")!)!;
+    const from = current.indexOf("Plain prose");
+    act(() => ref.current!.setSelection(from, from + 5));
+    act(() => render("visual"));
+    expect(EditorView.findFromDOM(host().querySelector(".cm-editor")!)).toBe(
+      view,
+    );
+    expect(ref.current!.getSelection()).toEqual({ start: from, end: from + 5 });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(ref.current!.getValue()).toBe(original);
+    act(() => ref.current!.format("bold"));
+    expect(current).toBe(original.replace("Plain", "\\textbf{Plain}"));
+    act(() => render("source"));
+    act(() => ref.current!.runCommand("undo"));
+    expect(current).toBe(original);
+    act(() => render("visual"));
+    act(() => ref.current!.runCommand("redo"));
+    expect(current).toBe(original.replace("Plain", "\\textbf{Plain}"));
+  });
+
+  it("changes a heading without changing adjacent source and refuses formatting setup", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    let current =
+      "\\documentclass{article}\n\\begin{document}\nA heading\nBody text.\n\\end{document}";
+    const original = current;
+    const blocked = vi.fn();
+    act(() =>
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={current}
+          presentation="visual"
+          onChange={(next) => {
+            current = next;
+          }}
+          onVisualBlocked={blocked}
+        />,
+      ),
+    );
+    const at = current.indexOf("A heading");
+    act(() => ref.current!.setSelection(at, at));
+    act(() => ref.current!.format("section"));
+    expect(current).toBe(original.replace("A heading", "\\section{A heading}"));
+    act(() => ref.current!.format("subsection"));
+    expect(current).toBe(
+      original.replace("A heading", "\\subsection{A heading}"),
+    );
+    act(() => ref.current!.format("paragraph"));
+    expect(current).toBe(original);
+    act(() => ref.current!.setSelection(2, 4));
+    act(() => ref.current!.format("bold"));
+    expect(current).toBe(original);
+    expect(blocked).toHaveBeenCalled();
+  });
+
+  it("creates visual lists as one exact source edit and undoes across modes", () => {
+    const ref = createRef<LatexCodeEditorHandle>();
+    let current = "Before.\r\nFirst item.\r\nSecond item.\r\nAfter.";
+    const original = current;
+    const render = (presentation: "source" | "visual") =>
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value={current}
+          presentation={presentation}
+          onChange={(next) => {
+            current = next;
+          }}
+        />,
+      );
+    act(() => render("visual"));
+    act(() =>
+      ref.current!.setSelection(
+        current.indexOf("First"),
+        current.indexOf("After") - 2,
+      ),
+    );
+    act(() => ref.current!.format("numberedList"));
+    expect(current).toBe(
+      "Before.\r\n\\begin{enumerate}\r\n\\item First item.\r\n\\item Second item.\r\n\\end{enumerate}\r\nAfter.",
+    );
+    expect(content()?.textContent).toContain("1.");
+    expect(content()?.textContent).toContain("2.");
+    act(() => render("source"));
+    act(() => ref.current!.runCommand("undo"));
+    expect(current).toBe(original);
+  });
+
   it("renders with initial value", () => {
     const ref = createRef<LatexCodeEditorHandle>();
 
@@ -303,7 +411,21 @@ describe("LatexCodeEditor", () => {
     expect(ref.current?.getValue()).toBe("abcd");
     expect(onChange.mock.calls.length).toBe(callsAfterEdit);
     expect(content()?.getAttribute("aria-label")).toBe("aria changed");
-
+    act(() => {
+      ref.current?.runCommand("undo");
+    });
+    expect(ref.current?.getValue()).toBe("abcd");
+    act(() =>
+      root.render(
+        <LatexCodeEditor
+          ref={ref}
+          value="abcd"
+          onChange={onChange}
+          readOnly={false}
+          aria-label="aria changed"
+        />,
+      ),
+    );
     act(() => {
       ref.current?.runCommand("undo");
     });
@@ -1175,9 +1297,7 @@ describe("LatexCodeEditor", () => {
   it("marks prose misspellings only when spellCheck is on", async () => {
     const ref = createRef<LatexCodeEditorHandle>();
     const doc = "The teh quick brown fox.";
-    const { createWordListChecker } = await import(
-      "@/lib/spellcheckService"
-    );
+    const { createWordListChecker } = await import("@/lib/spellcheckService");
     const { getBaseDictionary } = await import("@alove/editor");
     const checker = createWordListChecker(getBaseDictionary());
 
@@ -1197,9 +1317,7 @@ describe("LatexCodeEditor", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 900));
     });
-    expect(
-      host().querySelectorAll(".cm-lintRange-warning").length,
-    ).toBe(0);
+    expect(host().querySelectorAll(".cm-lintRange-warning").length).toBe(0);
 
     act(() => {
       root.render(
@@ -1224,9 +1342,7 @@ describe("LatexCodeEditor", () => {
   it("ignores custom dictionary words in spellcheck markers", async () => {
     const ref = createRef<LatexCodeEditorHandle>();
     const doc = "The TehCustomWord appears here.";
-    const { createWordListChecker } = await import(
-      "@/lib/spellcheckService"
-    );
+    const { createWordListChecker } = await import("@/lib/spellcheckService");
     const { getBaseDictionary } = await import("@alove/editor");
 
     act(() => {
@@ -1245,9 +1361,7 @@ describe("LatexCodeEditor", () => {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 900));
     });
-    expect(
-      host().querySelectorAll(".cm-lintRange-warning").length,
-    ).toBe(0);
+    expect(host().querySelectorAll(".cm-lintRange-warning").length).toBe(0);
   });
 
   it("reconfigures project completion without resetting view or history", () => {
@@ -1350,9 +1464,7 @@ describe("LatexCodeEditor", () => {
 
   it("does not dispatch on plain rerenders (stable array defaults)", async () => {
     const ref = createRef<LatexCodeEditorHandle>();
-    const { createWordListChecker } = await import(
-      "@/lib/spellcheckService"
-    );
+    const { createWordListChecker } = await import("@/lib/spellcheckService");
     const { getBaseDictionary } = await import("@alove/editor");
     const checker = createWordListChecker(getBaseDictionary());
     const renderEditor = (extra?: {
@@ -1400,9 +1512,7 @@ describe("LatexCodeEditor", () => {
 
   it("skips redundant identical refreshes so hovered tooltips survive the debounce timer", async () => {
     const ref = createRef<LatexCodeEditorHandle>();
-    const { createWordListChecker } = await import(
-      "@/lib/spellcheckService"
-    );
+    const { createWordListChecker } = await import("@/lib/spellcheckService");
     const { getBaseDictionary } = await import("@alove/editor");
     const doc = "The teh quick brown fox.";
 
@@ -1428,6 +1538,8 @@ describe("LatexCodeEditor", () => {
     });
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
-    expect(host().querySelectorAll(".cm-lintRange-warning").length).toBeGreaterThan(0);
+    expect(
+      host().querySelectorAll(".cm-lintRange-warning").length,
+    ).toBeGreaterThan(0);
   });
 });

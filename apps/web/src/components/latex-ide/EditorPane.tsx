@@ -6,6 +6,8 @@ import { X, Plus, Search } from "lucide-react";
 import Image from "next/image";
 import React, { useMemo } from "react";
 import type { EditorState } from "@codemirror/state";
+import type { VisualFormat } from "@alove/editor";
+import { VisualWritingToolbar } from "./VisualWritingToolbar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getEditorMode } from "@/lib/editorMode";
@@ -13,7 +15,14 @@ import { buildProjectLanguageIndex } from "@/lib/projectLanguage";
 import { useSpellcheckStatus } from "@/lib/spellcheckService";
 import { LatexCodeEditor, type LatexCodeEditorHandle } from "./LatexCodeEditor";
 
-export function EditorPane() {
+export function EditorPane({
+  presentation = "source",
+  onRequestSource,
+}: {
+  presentation?: "source" | "visual";
+  onRequestSource?: () => void;
+} = {}) {
+  const [visualMessage, setVisualMessage] = useState("");
   const {
     activeFileId,
     projectId,
@@ -129,6 +138,19 @@ export function EditorPane() {
 
   const isBinaryPreview =
     /^data:(?:image\/[a-zA-Z0-9.+-]+|application\/pdf);base64,/.test(content);
+  const visualActive =
+    presentation === "visual" &&
+    codeMirrorEnabled &&
+    !!activeFileId?.toLowerCase().endsWith(".tex") &&
+    !isBinaryPreview;
+  const lineAtCursor = content.split("\n")[Math.max(0, cursor.line - 1)] ?? "";
+  const headingStyle = /^\\(section|subsection|subsubsection)\*?\{/.exec(
+    lineAtCursor,
+  )?.[1];
+  const paragraphStyle = (headingStyle ?? "paragraph") as VisualFormat;
+  useEffect(() => {
+    setVisualMessage("");
+  }, [presentation, content]);
   const createNewFile = useCallback(() => {
     const base = "untitled";
     const ext = ".tex";
@@ -292,6 +314,16 @@ export function EditorPane() {
     <div
       className="h-full flex flex-col bg-background overflow-hidden shadow-[inset_1px_1px_3px_rgba(0,0,0,0.02)]"
       data-testid="latex-editor"
+      onKeyDownCapture={(event) => {
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.key.toLowerCase() === "f"
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          setFindOpen(true);
+        }
+      }}
     >
       {/* Tabs Bar */}
       <div className="h-10 border-b flex items-center bg-muted/30 shrink-0 overflow-x-auto scrollbar-hide pr-12 relative group/tabs">
@@ -357,6 +389,24 @@ export function EditorPane() {
         </button>
       </div>
 
+      {visualActive && (
+        <VisualWritingToolbar
+          readOnly={isViewer}
+          style={paragraphStyle}
+          onRequestSource={onRequestSource}
+          onFormat={(kind) => codeEditorRef.current?.format(kind)}
+        />
+      )}
+      {visualActive && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="shrink-0 border-b border-border bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground"
+        >
+          {visualMessage ||
+            "Visual writing · custom LaTeX stays available in Source."}
+        </div>
+      )}
       {/* Editor Content Area */}
       <div className="flex-1 overflow-hidden relative flex flex-col bg-background">
         {findOpen && (
@@ -444,6 +494,9 @@ export function EditorPane() {
                 Boolean(dirtyByPath[activeFileId]) || Boolean(nextSelection)
               }
               value={content}
+              presentation={visualActive ? "visual" : "source"}
+              onRequestSource={onRequestSource}
+              onVisualBlocked={setVisualMessage}
               filePath={activeFileId ?? undefined}
               mainFile={mainFile}
               diagnostics={
@@ -470,7 +523,11 @@ export function EditorPane() {
                 );
                 if (focusedLine) setFocusedLine(null);
               }}
-              aria-label="LaTeX source editor"
+              aria-label={
+                visualActive
+                  ? "Visual manuscript editor"
+                  : "LaTeX source editor"
+              }
               className={cn(
                 "h-full w-full bg-background leading-[22px] text-foreground",
                 editorNonBlinkingCursor && "ide-caret-noblink",

@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  createVisualEditing,
+  formatVisualSelection,
+  visualDocumentField,
+  visualSourceTransaction,
+  type VisualFormat,
   historyField,
   runLatexEditorCommand,
   type EditorTheme,
@@ -43,6 +48,9 @@ import { cn } from "@/lib/utils";
 
 export type LatexCodeEditorProps = {
   value: string;
+  presentation?: "source" | "visual";
+  onRequestSource?: () => void;
+  onVisualBlocked?: (message: string) => void;
   diagnostics?: Diagnostic[];
   filePath?: string;
   mainFile?: string | null;
@@ -79,6 +87,7 @@ export type LatexCodeEditorProps = {
 
 export type LatexCodeEditorHandle = {
   focus: () => void;
+  format: (kind: VisualFormat) => void;
   getValue: () => string;
   getSelection: () => { start: number; end: number };
   setSelection: (start: number, end: number) => void;
@@ -92,6 +101,7 @@ function detectTheme(): EditorTheme {
 }
 
 type LatexSettings = {
+  presentation: "source" | "visual";
   readOnly: boolean;
   spellCheck: boolean;
   wordWrap: boolean;
@@ -242,20 +252,31 @@ function buildDynamicExtensions(
   theme: EditorTheme,
   settings: LatexSettings,
   getCompletion?: () => CompletionIndex,
+  visualCallbacks?: {
+    requestSource: () => void;
+    onBlocked: (message: string) => void;
+  },
 ): Extension[] {
   return [
+    ...(settings.presentation === "visual" && visualCallbacks
+      ? [createVisualEditing(visualCallbacks)]
+      : []),
     ...createLatexEditorExtensions(theme, {
-      vim: settings.keybindings === "vim",
-      emacs: settings.keybindings === "emacs",
+      vim: settings.presentation !== "visual" && settings.keybindings === "vim",
+      emacs:
+        settings.presentation !== "visual" && settings.keybindings === "emacs",
       lineNumbers: false,
-      closeBrackets: settings.autoCloseBrackets,
+      closeBrackets:
+        settings.presentation !== "visual" && settings.autoCloseBrackets,
       wordWrap: settings.wordWrap,
-      autocomplete: settings.autocompleteEnabled,
+      autocomplete:
+        settings.presentation !== "visual" && settings.autocompleteEnabled,
       nonBlinkingCursor: settings.nonBlinkingCursor,
       // Stable getter: the project-aware source reads the live index at
       // invocation time, so language updates never rebuild this compartment.
       completionIndex: getCompletion,
     }),
+    EditorState.readOnly.of(settings.readOnly),
     EditorView.editable.of(!settings.readOnly),
     EditorView.contentAttributes.of({
       "aria-label": settings.ariaLabel,
@@ -271,6 +292,9 @@ export const LatexCodeEditor = forwardRef<
 >(function LatexCodeEditor(
   {
     value,
+    presentation = "source",
+    onRequestSource,
+    onVisualBlocked,
     diagnostics,
     filePath,
     mainFile,
@@ -299,6 +323,13 @@ export const LatexCodeEditor = forwardRef<
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const visualCallbacksRef = useRef({ onRequestSource, onVisualBlocked });
+  visualCallbacksRef.current = { onRequestSource, onVisualBlocked };
+  const visualCallbacks = useRef({
+    requestSource: () => visualCallbacksRef.current.onRequestSource?.(),
+    onBlocked: (message: string) =>
+      visualCallbacksRef.current.onVisualBlocked?.(message),
+  }).current;
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onSelectionChangeRef = useRef(onSelectionChange);
@@ -407,6 +438,7 @@ export const LatexCodeEditor = forwardRef<
     compartmentRef.current = new Compartment();
   }
   const settingsRef = useRef<LatexSettings>({
+    presentation,
     readOnly,
     spellCheck,
     wordWrap,
@@ -417,6 +449,7 @@ export const LatexCodeEditor = forwardRef<
     ariaLabel,
   });
   settingsRef.current = {
+    presentation,
     readOnly,
     spellCheck,
     wordWrap,
@@ -427,6 +460,7 @@ export const LatexCodeEditor = forwardRef<
     ariaLabel,
   };
   const themeRef = useRef<EditorTheme | null>(null);
+  const previousPresentation = useRef(presentation);
 
   useEffect(() => {
     const { historyCache, historyKey } = initialHistoryRef.current;
@@ -487,7 +521,12 @@ export const LatexCodeEditor = forwardRef<
           },
         }),
         compartment.of(
-          buildDynamicExtensions(initialTheme, settings, getCompletionIndex),
+          buildDynamicExtensions(
+            initialTheme,
+            settings,
+            getCompletionIndex,
+            visualCallbacks,
+          ),
         ),
         ...restoredHistory,
       ],
@@ -502,7 +541,7 @@ export const LatexCodeEditor = forwardRef<
       viewRef.current = null;
       lastRefreshRef.current = null;
     };
-  }, [getCompletionIndex]);
+  }, [getCompletionIndex, visualCallbacks]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -515,6 +554,7 @@ export const LatexCodeEditor = forwardRef<
         buildDynamicExtensions(
           theme,
           {
+            presentation,
             readOnly,
             spellCheck,
             wordWrap,
@@ -525,11 +565,33 @@ export const LatexCodeEditor = forwardRef<
             ariaLabel,
           },
           getCompletionIndex,
+          visualCallbacks,
         ),
       ),
     });
+    if (presentation === "visual") {
+      const model = view.state.field(visualDocumentField, false);
+      const selection = view.state.selection.main;
+      if (
+        model &&
+        (selection.from < model.body.from || selection.to > model.body.to)
+      ) {
+        view.dispatch({
+          selection: { anchor: model.body.from },
+          scrollIntoView: true,
+        });
+      }
+    }
+    if (previousPresentation.current !== presentation) {
+      previousPresentation.current = presentation;
+      // EditorView.focus restores its canonical selection; a bare DOM focus can
+      // otherwise adopt the browser's collapsed selection after a toolbar click.
+      view.focus();
+    }
     refreshDiagnostics(view);
   }, [
+    presentation,
+    visualCallbacks,
     ariaLabel,
     autoCloseBrackets,
     autocompleteEnabled,
@@ -556,6 +618,7 @@ export const LatexCodeEditor = forwardRef<
             next,
             settingsRef.current,
             getCompletionIndex,
+            visualCallbacks,
           ),
         ),
       });
@@ -568,7 +631,7 @@ export const LatexCodeEditor = forwardRef<
     return () => {
       observer.disconnect();
     };
-  }, [getCompletionIndex]);
+  }, [getCompletionIndex, visualCallbacks]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -581,6 +644,7 @@ export const LatexCodeEditor = forwardRef<
       changes: change,
       annotations: [
         externalValueSyncAnnotation.of(true),
+        visualSourceTransaction.of("external"),
         Transaction.addToHistory.of(recordExternalChanges),
       ],
     });
@@ -613,6 +677,10 @@ export const LatexCodeEditor = forwardRef<
   useImperativeHandle(
     ref,
     (): LatexCodeEditorHandle => ({
+      format: (kind) => {
+        const view = viewRef.current;
+        if (view) formatVisualSelection(view, kind, visualCallbacks.onBlocked);
+      },
       focus: () => {
         viewRef.current?.focus();
       },
@@ -625,6 +693,17 @@ export const LatexCodeEditor = forwardRef<
       setSelection: (start: number, end: number) => {
         const view = viewRef.current;
         if (!view) return;
+        const model = view.state.field(visualDocumentField, false);
+        if (
+          model &&
+          (start < model.body.from ||
+            end > model.body.to ||
+            model.protected.some(
+              (range) => start < range.to && end > range.from,
+            ))
+        ) {
+          visualCallbacks.requestSource();
+        }
         view.dispatch({
           selection: { anchor: start, head: end },
           scrollIntoView: true,
@@ -632,7 +711,7 @@ export const LatexCodeEditor = forwardRef<
       },
       replaceRange: (start: number, end: number, insert: string) => {
         const view = viewRef.current;
-        if (!view) return;
+        if (!view || view.state.readOnly) return;
         const docLength = view.state.doc.length;
         const from = Math.max(0, Math.min(start, docLength));
         const to = Math.max(from, Math.min(end, docLength));
@@ -658,13 +737,14 @@ export const LatexCodeEditor = forwardRef<
         });
       },
     }),
-    [],
+    [visualCallbacks],
   );
 
   return (
     <div
       ref={hostRef}
       data-testid="latex-editor-codemirror"
+      data-presentation={presentation}
       className={cn("h-full w-full overflow-hidden", className)}
     />
   );
