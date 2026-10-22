@@ -49,7 +49,11 @@ function validMath(tex: string): boolean {
   }
   return true;
 }
-export function parseVisualMath(fragment: string, from = 0): VisualMath | null {
+export function parseVisualMath(
+  fragment: string,
+  from = 0,
+  contextEol = "\n",
+): VisualMath | null {
   if (fragment.length > 10000) return null;
   let a = 0,
     b = fragment.length,
@@ -100,7 +104,7 @@ export function parseVisualMath(fragment: string, from = 0): VisualMath | null {
     numbered,
     contentFrom: from + a + lead,
     contentTo: from + b - trail,
-    eol: fragment.includes("\r\n") ? "\r\n" : "\n",
+    eol: fragment.includes("\r\n") ? "\r\n" : contextEol,
   };
 }
 export function createVisualMath(
@@ -112,7 +116,8 @@ export function createVisualMath(
     throw new Error(
       "Use up to 8 Ki characters of math without outer delimiters.",
     );
-  return display ? `\\[${eol}${tex}${eol}\\]` : `\\(${tex}\\)`;
+  const body = tex.replace(/\r?\n/g, eol);
+  return display ? `\\[${eol}${body}${eol}\\]` : `\\(${body}\\)`;
 }
 export function patchesForVisualMath(
   model: VisualMath,
@@ -137,7 +142,13 @@ export function patchesForVisualMath(
   }
   return draft.tex === model.tex
     ? []
-    : [{ from: model.contentFrom, to: model.contentTo, insert: draft.tex }];
+    : [
+        {
+          from: model.contentFrom,
+          to: model.contentTo,
+          insert: draft.tex.replace(/\r?\n/g, model.eol),
+        },
+      ];
 }
 export function parseVisualCitation(
   fragment: string,

@@ -43,7 +43,11 @@ export function parseVisualObjects(source: string): VisualObject[] {
       const object =
         parseVisualTable(fragment, range.from) ??
         parseVisualFigure(fragment, range.from) ??
-        parseVisualMath(fragment, range.from) ??
+        parseVisualMath(
+          fragment,
+          range.from,
+          source.includes("\r\n") ? "\r\n" : "\n",
+        ) ??
         parseVisualCitation(fragment, range.from);
       if (object) {
         objects.push(object);

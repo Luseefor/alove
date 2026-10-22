@@ -125,7 +125,7 @@ export function useVisualObjects(
     const object =
       parseVisualTable(fragment) ??
       parseVisualFigure(fragment) ??
-      parseVisualMath(fragment) ??
+      parseVisualMath(fragment, 0, eol) ??
       parseVisualCitation(fragment);
     if (object) {
       initialCell.current = undefined;

@@ -376,3 +376,20 @@ it("ignores commented figure commands and caption/label tokens without rewriting
 \end{figure}`),
   ).toBeNull();
 });
+
+it("uses document CRLF for inline-to-display conversion and new math bodies", () => {
+  const source = doc(String.raw`Text \(x^2\).`, "\r\n");
+  const model = parseVisualObjects(source)[0]!;
+  expect(model.kind).toBe("math");
+  if (model.kind !== "math") return;
+  expect(
+    apply(source, patchesForVisualMath(model, { tex: "x^3", display: true })),
+  ).toBe(source.replace(String.raw`\(x^2\)`, "\\[\r\nx^3\r\n\\]"));
+  const fresh = parseVisualMath(createVisualMath(), 0, "\r\n")!;
+  expect(
+    apply(
+      fresh.source,
+      patchesForVisualMath(fresh, { tex: "a+\nb=c", display: true }),
+    ),
+  ).toBe("\\[\r\na+\r\nb=c\r\n\\]");
+});
