@@ -2,56 +2,105 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Defaults match `SITE_PALETTES[violet]` for the premium redesign. */
+/* App chrome, panel headers and editor surfaces have distinct visual roles. */
 :root {
-  --background: #fdfcff;
-  --foreground: #09090b;
-  --border: #e8e6f2;
-  --primary: #7c3aed; /* Premium Violet */
+  color-scheme: light;
+  --workspace-bg: #edf0f4;
+  --chrome-bg: #f7f8fa;
+  --panel-header-bg: #f1f4f8;
+  --background: #ffffff;
+  --foreground: #253247;
+  --border: #dce2eb;
+  --primary: #3c63c8;
   --primary-foreground: #ffffff;
-  --secondary: #f5f3ff;
-  --secondary-foreground: #4c1d95;
-  --muted: #f8fafc;
-  --muted-foreground: #64748b;
-  --accent: #f5f3ff;
-  --accent-foreground: #7c3aed;
-
-  /* Additional Premium Tokens */
-  --sidebar-bg: #fdfcff;
+  --ring: #3c63c8;
+  --secondary: #f1f4f8;
+  --secondary-foreground: #435269;
+  --muted: #f1f4f8;
+  --muted-foreground: #5e6c81;
+  --accent: #e7edf6;
+  --accent-foreground: #253247;
+  --sidebar-bg: #f7f8fa;
   --card-bg: #ffffff;
-  --card-border: #e8e6f2;
-  --success: #10b981;
-  --success-bg: #ecfdf5;
-  --success-border: #d1fae5;
-  --warning: #f59e0b;
-  --warning-bg: #fffbeb;
-  --warning-border: #fef3c7;
-  --error: #ef4444;
-  --error-bg: #fef2f2;
-  --error-border: #fee2e2;
-  --info: #3b82f6;
-  --info-bg: #eff6ff;
-  --info-border: #dbeafe;
+  --card-border: #dce2eb;
+  --editor-line: #f5f7fb;
+  --editor-selection: #dce6fb;
+  --editor-gutter: #8490a3;
+  --syntax-command: #705581;
+  --syntax-string: #426e57;
+  --syntax-number: #856230;
+  --syntax-comment: #73777d;
+  --syntax-punctuation: #5e6c81;
+  --success: #41765b;
+  --success-bg: #edf3ee;
+  --success-border: #d5e3d9;
+  --warning: #866128;
+  --warning-bg: #f7f1e5;
+  --warning-border: #e8dbbf;
+  --error: #ab4e50;
+  --error-bg: #f8eeee;
+  --error-border: #ebd4d4;
+  --info: #466c83;
+  --info-bg: #edf2f5;
+  --info-border: #d5e1e8;
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --border: #1e293b;
-  --primary: #8b5cf6;
-  --primary-foreground: #ffffff;
-  --secondary: #1e1b4b;
-  --secondary-foreground: #ddd6fe;
-  --muted: #0f172a;
-  --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #ffffff;
+  color-scheme: dark;
+  --workspace-bg: #101419;
+  --chrome-bg: #1a2028;
+  --panel-header-bg: #1e252e;
+  --background: #171c23;
+  --foreground: #dce4ee;
+  --border: #2c3643;
+  --primary: #9bb6ff;
+  --primary-foreground: #171c23;
+  --ring: #9bb6ff;
+  --secondary: #1e252e;
+  --secondary-foreground: #c7d2e2;
+  --muted: #1e252e;
+  --muted-foreground: #9aa8bc;
+  --accent: #29364a;
+  --accent-foreground: #dce4ee;
+  --sidebar-bg: #1a2028;
+  --card-bg: #1e252e;
+  --card-border: #2c3643;
+  --editor-line: #1e2632;
+  --editor-selection: #304360;
+  --editor-gutter: #718096;
+  --syntax-command: #baa6ca;
+  --syntax-string: #a8c4ad;
+  --syntax-number: #c8b18c;
+  --syntax-comment: #939aa4;
+  --syntax-punctuation: #a5abb4;
+  --success: #a2c1ac;
+  --success-bg: #25332b;
+  --success-border: #3b4c40;
+  --warning: #d0b17d;
+  --warning-bg: #352e23;
+  --warning-border: #50432f;
+  --error: #d9a0a1;
+  --error-bg: #38292c;
+  --error-border: #56383e;
+  --info: #a6bdcb;
+  --info-bg: #25313a;
+  --info-border: #3c4c58;
 }
 
 @theme inline {
+  --color-workspace: var(--workspace-bg);
+  --color-chrome: var(--chrome-bg);
+  --color-panel-header: var(--panel-header-bg);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--ring);
+  --color-surface-base: var(--background);
+  --color-surface-soft: var(--muted);
+  --color-surface-border: var(--border);
+  --color-text-base: var(--foreground);
+  --color-text-muted: var(--muted-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -111,12 +160,12 @@ pre {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
   border: 2px solid var(--background);
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
 }
 
 input[type="range"] {
