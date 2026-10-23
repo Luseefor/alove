@@ -112,8 +112,11 @@ viewer role or failed checkpoint leaves the draft unapplied.
   is no crop, remote-URL fetch or arbitrary TeX package inference.
   Standard subcaption groups support up to four panels with one contextual
   editor for the selected panel: project image, width, alignment, caption and
-  label. Group caption/label/placement are separate. Panel order and count stay
-  source controlled; separators and untouched panels retain exact bytes.
+  label. Group caption/label/placement are separate. Move earlier/later changes
+  panel order as a draft, retaining selection and edits on the same original
+  panel. Apply moves exact panel blocks between existing separator slots;
+  comments, custom captions and line endings travel with their panel. Panel count
+  remains source controlled; separators retain exact bytes.
   Insertion adds a two-panel group with unique labels. Subcaption setup also
   requires consent in the same checkpointed transaction. Custom layouts stay
   in Source.

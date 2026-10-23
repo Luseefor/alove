@@ -540,3 +540,18 @@ The rebuilt delayed-worker scenario passed three repeated real-compiler runs.
 A deferred-load component test also verifies that the canvas retains a supplied
 page request until its document loads. All 968 web unit tests, typecheck, lint
 and build pass. No highlight assertion was removed or given a longer timeout.
+
+## 2026-10-23: subfigure ordering (#59)
+
+Supported subcaption groups now have Move earlier/later controls. Selection and
+unsaved edits follow the original panel. Apply patches edited panel blocks into
+their new slots, retaining separator bytes, custom captions/comments and line
+endings. Invalid permutations are refused; reversing a draft reorder produces
+no source change. The existing checkpoint, stale-source, viewer and shared undo
+guards remain in use. Panel count changes remain Source operations.
+
+Local validation passed 1,063 web unit tests, workspace tests/typecheck/lint,
+production build and all four object browser journeys. The new journey checks
+exact exported source, Cancel, keyboard movement, phone bounds, undo/redo and
+reload. Local Docker is unavailable; the real PDF check runs in Docker CI.
+See [evidence](benchmarks/2026-10-23-subfigure-order/README.md).

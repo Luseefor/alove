@@ -230,4 +230,157 @@ describe("visual subfigures", () => {
       "float",
     ]);
   });
+
+  it("swaps panels preserving exact bytes and separator slots", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    const draft = subfigureDraft(model);
+    draft.order = [1, 0];
+    const patches = patchesForVisualSubfigure(model, draft);
+    expect(patches.length).toBeGreaterThan(0);
+    const result = apply(TWO_PANEL, patches);
+    const blockA = TWO_PANEL.slice(
+      model.panels[0]!.panelFrom - model.from,
+      model.panels[0]!.panelTo - model.from,
+    );
+    const blockB = TWO_PANEL.slice(
+      model.panels[1]!.panelFrom - model.from,
+      model.panels[1]!.panelTo - model.from,
+    );
+    const separator = TWO_PANEL.slice(
+      model.panels[0]!.panelTo - model.from,
+      model.panels[1]!.panelFrom - model.from,
+    );
+    expect(separator).toContain("\\hfill");
+    expect(result).toContain(`${blockB}${separator}${blockA}`);
+    expect(result.indexOf("figures/b.png")).toBeLessThan(
+      result.indexOf("figures/a.png"),
+    );
+    expect(result).toContain("\\caption{Main}");
+    expect(result).toContain("\\label{fig:main}");
+    expect(result).toContain("[htbp]");
+    // Separators stay in their slots exactly once.
+    expect(result.split("\\hfill").length - 1).toBe(1);
+  });
+
+  it("treats missing or identity order as a no-op with minimal patches", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    const identity = subfigureDraft(model);
+    identity.order = [0, 1];
+    expect(patchesForVisualSubfigure(model, identity)).toEqual([]);
+    const missing = subfigureDraft(model);
+    delete (missing as { order?: number[] }).order;
+    expect(patchesForVisualSubfigure(model, missing)).toEqual([]);
+    const reversed = subfigureDraft(model);
+    reversed.order = [1, 0];
+    expect(patchesForVisualSubfigure(model, reversed).length).toBeGreaterThan(
+      0,
+    );
+    const back = subfigureDraft(model);
+    back.order = [0, 1];
+    expect(patchesForVisualSubfigure(model, back)).toEqual([]);
+  });
+
+  it("applies concurrent edits to the original panel before moving it", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    const draft = subfigureDraft(model);
+    draft.panels[0]!.caption = "Alpha";
+    draft.panels[0]!.envWidth = 0.4;
+    draft.order = [1, 0];
+    const result = apply(TWO_PANEL, patchesForVisualSubfigure(model, draft));
+    // Edited original panel 0 moves to the second slot.
+    const secondHalf = result.slice(result.indexOf("figures/a.png") - 200);
+    expect(secondHalf).toContain("\\caption{Alpha}");
+    expect(secondHalf).toContain("{0.4\\textwidth}");
+    // Unedited original panel 1 moves to the first slot unchanged.
+    const firstHalf = result.slice(0, result.indexOf("figures/a.png"));
+    expect(firstHalf).toContain("figures/b.png");
+    expect(firstHalf).toContain("\\caption{Second}");
+    expect(result).toContain("\\hfill");
+  });
+
+  it("rejects duplicate, out-of-range and misshapen permutations", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    for (const order of [[0, 0], [1, 1], [0, 2], [-1, 1], [0], [0, 1, 2]]) {
+      const draft = subfigureDraft(model);
+      draft.order = order;
+      expect(() => patchesForVisualSubfigure(model, draft)).toThrow(
+        /order/i,
+      );
+    }
+  });
+
+  it("preserves CRLF and nonzero offsets when reordering", () => {
+    const source = TWO_PANEL.replace(/\n/g, "\r\n");
+    const model = parseVisualSubfigure(source)!;
+    expect(model.eol).toBe("\r\n");
+    const draft = subfigureDraft(model);
+    draft.order = [1, 0];
+    const result = apply(source, patchesForVisualSubfigure(model, draft));
+    expect(result).toContain("\r\n\\begin{subfigure}");
+    expect(result.replace(/\r\n/g, "")).not.toContain("\n");
+    expect(result.indexOf("figures/b.png")).toBeLessThan(
+      result.indexOf("figures/a.png"),
+    );
+    expect(result).toContain("\r\n\\hfill\r\n");
+
+    const prefix = "Hello\r\n\r\n";
+    const full = `${prefix}${source}\r\nWorld`;
+    const shifted = parseVisualSubfigure(source, prefix.length)!;
+    const shiftedDraft = subfigureDraft(shifted);
+    shiftedDraft.order = [1, 0];
+    const shiftedPatches = patchesForVisualSubfigure(shifted, shiftedDraft);
+    const expectedInner = apply(
+      source,
+      patchesForVisualSubfigure(parseVisualSubfigure(source)!, {
+        ...subfigureDraft(parseVisualSubfigure(source)!),
+        order: [1, 0],
+      }),
+    );
+    expect(apply(full, shiftedPatches)).toBe(
+      `${prefix}${expectedInner}\r\nWorld`,
+    );
+    // Offsets stay absolute.
+    for (const patch of shiftedPatches) {
+      expect(patch.from).toBeGreaterThanOrEqual(prefix.length);
+    }
+  });
+
+  it("retains custom panel markup, comments and separators on reorder", () => {
+    const custom = TWO_PANEL.replace(
+      "\\centering\n\\includegraphics[width=\\linewidth]{\\detokenize{figures/a.png}}",
+      "\\centering\n% panel comment\n\\includegraphics[width=\\linewidth]{\\detokenize{figures/a.png}}",
+    ).replace("\\caption{First}", "\\caption{\\textbf{First}}");
+    const model = parseVisualSubfigure(custom)!;
+    expect(model.panels[0]!.caption?.text).toBeNull();
+    const draft = subfigureDraft(model);
+    draft.order = [1, 0];
+    const result = apply(custom, patchesForVisualSubfigure(model, draft));
+    expect(result).toContain("% panel comment");
+    expect(result).toContain("\\caption{\\textbf{First}}");
+    expect(result).toContain("\\hfill");
+    expect(result.indexOf("figures/b.png")).toBeLessThan(
+      result.indexOf("figures/a.png"),
+    );
+  });
+
+  it("keeps group metadata untouched unless edited alongside reorder", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    const untouched = subfigureDraft(model);
+    untouched.order = [1, 0];
+    const plain = apply(TWO_PANEL, patchesForVisualSubfigure(model, untouched));
+    expect(plain).toContain("\\caption{Main}");
+    expect(plain).toContain("\\label{fig:main}");
+    expect(plain).toContain("[htbp]");
+
+    const edited = subfigureDraft(model);
+    edited.order = [1, 0];
+    edited.caption = "Grouped";
+    edited.placement = "!ht";
+    const result = apply(TWO_PANEL, patchesForVisualSubfigure(model, edited));
+    expect(result).toContain("\\caption{Grouped}");
+    expect(result).toContain("[!ht]");
+    expect(result.indexOf("figures/b.png")).toBeLessThan(
+      result.indexOf("figures/a.png"),
+    );
+  });
 });

@@ -234,3 +234,107 @@ it("renders a malicious caption as safe text without script execution", async ()
     ),
   ).toBe(true);
 });
+
+it("moves panels with bounded earlier/later controls and preserves selection", async () => {
+  const model = parseVisualSubfigure(TWO_PANEL)!;
+  const onSave = vi.fn();
+  renderEditor({ model, onSave });
+
+  const earlier = query("Move panel earlier") as HTMLButtonElement;
+  const later = query("Move panel later") as HTMLButtonElement;
+  expect(earlier.disabled).toBe(true);
+  expect(later.disabled).toBe(false);
+  expect((query("Panel caption") as HTMLInputElement).value).toBe("First");
+
+  await act(async () => later.click());
+  expect((query("Selected figure panel") as HTMLSelectElement).value).toBe(
+    "1",
+  );
+  // Selection follows the moved original panel.
+  expect((query("Panel caption") as HTMLInputElement).value).toBe("First");
+  expect((query("Move panel earlier") as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+  expect((query("Move panel later") as HTMLButtonElement).disabled).toBe(true);
+
+  await act(async () => applyButton().click());
+  expect(onSave).toHaveBeenCalledTimes(1);
+  const patches = onSave.mock.calls[0]![0] as VisualSourcePatch[];
+  const result = apply(TWO_PANEL, patches);
+  expect(result.indexOf("figures/b.png")).toBeLessThan(
+    result.indexOf("figures/a.png"),
+  );
+  expect(result).toContain("\\hfill");
+
+  // Moving back restores the original order with no patches.
+  await act(async () =>
+    (query("Move panel earlier") as HTMLButtonElement).click(),
+  );
+  expect((query("Selected figure panel") as HTMLSelectElement).value).toBe(
+    "0",
+  );
+  expect((query("Panel caption") as HTMLInputElement).value).toBe("First");
+  onSave.mockClear();
+  await act(async () => applyButton().click());
+  expect(onSave.mock.calls[0]![0]).toEqual([]);
+  expect(
+    apply(TWO_PANEL, onSave.mock.calls[0]![0] as VisualSourcePatch[]),
+  ).toBe(TWO_PANEL);
+});
+
+it("keeps field edits with their original panel across moves", async () => {
+  const model = parseVisualSubfigure(TWO_PANEL)!;
+  const onSave = vi.fn();
+  renderEditor({ model, onSave });
+
+  setInputValue(query("Panel caption") as HTMLInputElement, "First edited");
+  await act(async () => (query("Move panel later") as HTMLButtonElement).click());
+  // Edited origin moves with the panel.
+  expect((query("Panel caption") as HTMLInputElement).value).toBe(
+    "First edited",
+  );
+  expect((query("Selected figure panel") as HTMLSelectElement).value).toBe(
+    "1",
+  );
+
+  setInputValue(query("Selected figure panel") as HTMLSelectElement, "0");
+  expect((query("Panel caption") as HTMLInputElement).value).toBe("Second");
+  setInputValue(query("Selected figure panel") as HTMLSelectElement, "1");
+  expect((query("Panel caption") as HTMLInputElement).value).toBe(
+    "First edited",
+  );
+
+  await act(async () => applyButton().click());
+  const patches = onSave.mock.calls[0]![0] as VisualSourcePatch[];
+  const result = apply(TWO_PANEL, patches);
+  expect(result.indexOf("figures/b.png")).toBeLessThan(
+    result.indexOf("figures/a.png"),
+  );
+  expect(result).toContain("\\caption{First edited}");
+  expect(result).toContain("\\caption{Second}");
+});
+
+it("disables move controls at boundaries and when locked", async () => {
+  const model = parseVisualSubfigure(TWO_PANEL)!;
+  const onSave = vi.fn();
+  renderEditor({ model, onSave });
+  expect((query("Move panel earlier") as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  expect((query("Move panel later") as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+  await act(async () => (query("Move panel later") as HTMLButtonElement).click());
+  expect((query("Move panel earlier") as HTMLButtonElement).disabled).toBe(
+    false,
+  );
+  expect((query("Move panel later") as HTMLButtonElement).disabled).toBe(true);
+
+  const lockedSave = vi.fn();
+  const lockedModel = parseVisualSubfigure(TWO_PANEL)!;
+  renderEditor({ model: lockedModel, onSave: lockedSave, disabled: true });
+  expect((query("Move panel earlier") as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  expect((query("Move panel later") as HTMLButtonElement).disabled).toBe(true);
+});
