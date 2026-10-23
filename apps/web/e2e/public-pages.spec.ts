@@ -6,7 +6,7 @@ for (const path of ["/help", "/privacy", "/status"]) {
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(path);
     await expect(page.locator("h1")).toBeVisible();
-    await expect(page).not.toHaveTitle(/^alove$/i);
+    await expect(page).toHaveTitle(/\| Weftly$/);
     await expect(page.locator('a[href="/"]').first()).toBeVisible();
     expect(errors).toEqual([]);
   });

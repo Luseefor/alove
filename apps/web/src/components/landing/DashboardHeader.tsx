@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandMark } from "@/components/brand/BrandMark";
+
 import { FileText } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { PaletteSwitcher } from "@/components/theme/PaletteSwitcher";
@@ -21,11 +23,11 @@ export function DashboardHeader() {
           href="/"
           className="flex items-center gap-2.5 pr-3 sm:pr-8 border-r border-border group transition-all"
         >
-          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-white shadow-xl shadow-primary/25 group-hover:scale-105 transition-transform">
-            <span className="font-black text-xl tracking-tighter">a</span>
+          <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground">
+            <BrandMark className="h-7 w-7" />
           </div>
           <span className="text-2xl font-black tracking-tighter text-foreground">
-            alove
+            weftly
           </span>
         </Link>
 

@@ -53,11 +53,12 @@ test("source export imports as a separate recoverable project", async ({
   const downloadPromise = page.waitForEvent("download");
   await page
     .getByRole("menuitem", {
-      name: "Download Source (.alove.json)",
+      name: "Download Source (.weftly.json)",
       exact: true,
     })
     .click();
   const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.weftly\.json$/);
   const path = await download.path();
   expect(path).toBeTruthy();
   await page.getByLabel("Import project source").setInputFiles(path!);

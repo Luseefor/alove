@@ -53,7 +53,7 @@ async function pickPort(): Promise<number> {
 const port = await pickPort();
 
 console.error(
-  `\n\x1b[36m[alove]\x1b[0m Local standalone → \x1b[1mhttp://127.0.0.1:${port}/editor\x1b[0m\n`,
+  `\n\x1b[36m[weftly]\x1b[0m Local standalone → \x1b[1mhttp://127.0.0.1:${port}/editor\x1b[0m\n`,
 );
 
 const proc = Bun.spawn({

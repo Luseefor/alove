@@ -101,5 +101,5 @@ test("library archive import creates a durable independent project", async ({
   );
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download shareable source" }).click();
-  expect((await download).suggestedFilename()).toMatch(/\.alove\.json$/);
+  expect((await download).suggestedFilename()).toMatch(/\.weftly\.json$/);
 });

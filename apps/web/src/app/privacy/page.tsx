@@ -3,7 +3,7 @@ export const metadata = { title: "Data and privacy" };
 
 export default function PrivacyPage() {
   return <main className="mx-auto max-w-2xl space-y-5 p-6 text-foreground">
-    <Link href="/" className="text-primary underline">Back to alove</Link>
+    <Link href="/" className="text-primary underline">Back to Weftly</Link>
     <h1 className="text-2xl font-bold">Your projects and data</h1>
     <p>Local mode stores projects, build history and settings in this browser. Other people using the same browser profile can access browser storage. Export source to keep an independent backup; browser storage can be cleared or evicted.</p>
     <p>In cloud mode, Clerk handles your account and sessions. Convex stores projects and files under your account. Signing out does not delete cloud projects. When the deployment has its signed Clerk webhook configured, deleting your Clerk account schedules deletion of its cloud projects and files. Use Delete in Projects to remove a project and its files from the application database.</p>

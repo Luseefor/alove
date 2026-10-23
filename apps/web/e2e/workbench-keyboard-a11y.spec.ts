@@ -77,7 +77,7 @@ test("export menu downloads the source archive from the keyboard", async ({
   await item.focus();
   await item.press("Enter");
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.alove\.json$/);
+  expect(download.suggestedFilename()).toMatch(/\.weftly\.json$/);
 });
 
 test("file rows and folders toggle from the keyboard", async ({ page }) => {

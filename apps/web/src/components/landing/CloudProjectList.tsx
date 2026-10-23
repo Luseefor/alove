@@ -336,7 +336,7 @@ export function CloudProjectList() {
             id="cloud-project-import"
             ref={importInputRef}
             type="file"
-            accept=".json,.alove.json,application/json"
+            accept=".json,.weftly.json,.alove.json,application/json"
             disabled={importBusy}
             onChange={(event) => {
               void handleImportFile(event.target.files?.[0]);

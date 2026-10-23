@@ -89,7 +89,7 @@ export function ProjectLauncher() {
         type="file"
         aria-label="Import project archive"
         className="hidden"
-        accept=".json,.alove.json,application/json"
+        accept=".json,.weftly.json,.alove.json,application/json"
         onChange={(event) => {
           void importSource(event.target.files?.[0]);
           event.target.value = "";

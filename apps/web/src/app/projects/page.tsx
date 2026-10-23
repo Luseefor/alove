@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandMark } from "@/components/brand/BrandMark";
+
 import Link from "next/link";
 import { CloudProjectList } from "@/components/landing/CloudProjectList";
 import { LocalProjectList } from "@/components/landing/LocalProjectList";
@@ -13,7 +15,7 @@ export default function ProjectsPage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="flex items-center justify-between">
           <Link href="/" className="font-bold text-primary">
-            alove
+            <span className="inline-flex items-center gap-2"><BrandMark className="h-6 w-6" />weftly</span>
           </Link>
           <ThemeToggle />
         </header>

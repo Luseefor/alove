@@ -39,7 +39,7 @@ export default function StatusPage() {
   return (
     <main className="mx-auto w-full max-w-2xl space-y-8 px-6 py-12">
       <Link href="/" className="text-primary underline">
-        Back to alove
+        Back to Weftly
       </Link>
       <div className="space-y-2">
         <p className="text-overline text-muted-foreground">Service status</p>

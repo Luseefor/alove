@@ -17,7 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "alove — LaTeX workspace", template: "%s | alove" },
+  title: { default: "Weftly — LaTeX workspace", template: "%s | Weftly" },
+  applicationName: "Weftly",
+  manifest: "/manifest.webmanifest",
   description: "Write LaTeX, compile PDFs and test file restorations after a failed build.",
 };
 
