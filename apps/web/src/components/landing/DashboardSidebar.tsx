@@ -115,7 +115,7 @@ export function DashboardSidebar() {
         <div className="flex flex-wrap gap-3 px-4 text-xs text-muted-foreground"><Link href="/help" className="underline">Help</Link><Link href="/privacy" className="underline">Privacy</Link><Link href="/status" className="underline">Status</Link></div>
         <div className="px-4">
           <p className="text-[11px] font-bold text-muted-foreground text-center tracking-tight italic opacity-60">
-            alove workspace v0.1.0
+            Weftly workspace v0.1.0
           </p>
         </div>
       </div>

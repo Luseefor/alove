@@ -6,12 +6,12 @@ export default function HelpPage() {
   return (
     <main className="mx-auto max-w-2xl space-y-5 p-6 text-foreground">
       <Link href="/" className="text-primary underline">
-        Back to alove
+        Back to Weftly
       </Link>
-      <h1 className="text-2xl font-bold">Writing with alove</h1>
+      <h1 className="text-2xl font-bold">Writing with Weftly</h1>
       <p>
         Create a blank document or choose a template from Projects. Import an
-        .alove.json source archive to make a separate project.
+        .weftly.json source archive to make a separate project. Existing .alove.json archives still import.
       </p>
       <p>
         Use the file browser to create, upload, rename and delete files. The

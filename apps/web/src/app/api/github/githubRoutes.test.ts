@@ -403,7 +403,7 @@ describe("github empty-branch initialization", () => {
     const treeArg = githubServer.createRootTree.mock.calls[0][3] as { path: string; sha: string | null }[];
     expect(treeArg).toEqual([{ path: "main.tex", mode: "100644", type: "blob", sha: "blob-sha" }]);
     // Root commit has no parents.
-    expect(githubServer.createCommit.mock.calls[0]?.slice(3, 6)).toEqual(["Initialize from alove", "root-tree", []]);
+    expect(githubServer.createCommit.mock.calls[0]?.slice(3, 6)).toEqual(["Initialize from Weftly", "root-tree", []]);
     // Ref creation targets the connected branch.
     expect(githubServer.createRef.mock.calls[0]?.slice(1, 5)).toEqual(["octo", "docs", "main", HEAD_B]);
     // Baseline recorded without a previous sha.

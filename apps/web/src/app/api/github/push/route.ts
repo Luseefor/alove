@@ -255,7 +255,7 @@ async function pushIncremental(
     token,
     connection.owner,
     connection.repo,
-    "Sync from alove",
+    "Sync from Weftly",
     newTree,
     [liveHead],
   );
@@ -335,7 +335,7 @@ async function pushInitial(
     token,
     connection.owner,
     connection.repo,
-    "Initialize from alove",
+    "Initialize from Weftly",
     newTree,
     [],
   );

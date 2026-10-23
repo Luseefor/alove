@@ -21,7 +21,7 @@ function tabId() {
 function download(draft: CloudDraft) {
   const url = URL.createObjectURL(new Blob([serializeWorkspaceSource({ title: draft.title, files: draft.files, mainFile: draft.mainFile })], { type: "application/json" }));
   const link = document.createElement("a");
-  link.href = url; link.download = "recovered-draft.alove.json"; link.click();
+  link.href = url; link.download = "recovered-draft.weftly.json"; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 

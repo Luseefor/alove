@@ -221,7 +221,7 @@ function EditorWorkbenchConvex() {
           const state = useWorkbenchStore.getState();
           if (state.projectId !== projectId) return;
           const url = URL.createObjectURL(new Blob([serializeWorkspaceSource({ title: state.projectTitle, files: state.filesByPath, mainFile: state.mainFile })], { type: "application/json" }));
-          const link = document.createElement("a"); link.href = url; link.download = "recovered-source.alove.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+          const link = document.createElement("a"); link.href = url; link.download = "recovered-source.weftly.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
         }}>Export open source</button>{" "}
         <a href="/projects" className="underline">
           Back to projects

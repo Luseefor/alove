@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandMark } from "@/components/brand/BrandMark";
+
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { Button, ToggleChip } from "@/components/ui/primitives";
@@ -82,7 +84,7 @@ export function EditorHeader({
           href="/"
           className="shrink-0 font-semibold tracking-tight text-zinc-900 hover:text-alove-fg-muted dark:text-zinc-50 dark:hover:text-alove-fg-muted"
         >
-          alove
+          <span className="inline-flex items-center gap-2"><BrandMark className="h-6 w-6" />weftly</span>
         </Link>
         <span className="hidden h-4 w-px bg-zinc-200 dark:bg-zinc-700 sm:block" aria-hidden />
         <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">

@@ -16,7 +16,7 @@ function sameFiles(a: Record<string, string>, b: Record<string, string>) {
 function downloadEvidence(good: BuildRecord, failed: BuildRecord, report: RecoveryReport | null) {
   const url = URL.createObjectURL(new Blob([JSON.stringify({ format: "alove-build-recovery", version: 1, good, failed, report }, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
-  link.href = url; link.download = "build-recovery.alove.json";
+  link.href = url; link.download = "build-recovery.weftly.json";
   document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

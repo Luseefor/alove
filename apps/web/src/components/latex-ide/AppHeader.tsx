@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandMark } from "@/components/brand/BrandMark";
+
 import { useWorkbenchStore } from "@/stores/workbenchStore";
 import {
   ChevronDown,
@@ -122,7 +124,7 @@ export function AppHeader() {
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${state.projectTitle.replace(/[^a-z0-9_-]+/gi, "-") || "project"}.alove.json`;
+    link.download = `${state.projectTitle.replace(/[^a-z0-9_-]+/gi, "-") || "project"}.weftly.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -198,10 +200,10 @@ export function AppHeader() {
               className="flex shrink-0 items-center gap-2"
             >
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground md:h-8 md:w-8">
-                <span className="font-bold text-base tracking-tight md:text-lg">a</span>
+                <BrandMark className="h-6 w-6" />
               </div>
               <span className="hidden whitespace-nowrap text-lg font-bold tracking-tight text-foreground sm:inline">
-                alove
+                weftly
               </span>
             </Link>
             <div className="flex min-w-0 flex-col leading-tight">
@@ -373,7 +375,7 @@ export function AppHeader() {
                   className="rounded-md font-semibold text-xs gap-3 p-2.5 cursor-pointer"
                 >
                   <FileText className="w-4 h-4 text-muted-foreground" />
-                  Download Source (.alove.json)
+                  Download Source (.weftly.json)
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => setBuildRecoveryOpen(true)}
@@ -447,7 +449,7 @@ export function AppHeader() {
         ref={importInput}
         className="hidden"
         type="file"
-        accept=".json,.alove.json,application/json"
+        accept=".json,.weftly.json,.alove.json,application/json"
         aria-label="Import project source"
         onChange={(event) => {
           void importSource(event.target.files?.[0]);

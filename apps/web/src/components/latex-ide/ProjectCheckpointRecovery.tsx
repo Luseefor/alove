@@ -72,7 +72,7 @@ export function ProjectCheckpointRecovery({
               );
               const link = document.createElement("a");
               link.href = url;
-              link.download = "checkpoint.alove.json";
+              link.download = "checkpoint.weftly.json";
               link.click();
               setTimeout(() => URL.revokeObjectURL(url), 1000);
             }}

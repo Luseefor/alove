@@ -1,0 +1,21 @@
+{
+  "name": "Weftly",
+  "short_name": "Weftly",
+  "icons": [
+    {
+      "src": "/brand/weftly/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/weftly/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#1746EB",
+  "background_color": "#F4F6FA",
+  "display": "standalone",
+  "start_url": "/projects",
+  "scope": "/"
+}
