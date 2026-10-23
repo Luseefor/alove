@@ -555,3 +555,24 @@ production build and all four object browser journeys. The new journey checks
 exact exported source, Cancel, keyboard movement, phone bounds, undo/redo and
 reload. Local Docker is unavailable; the real PDF check runs in Docker CI.
 See [evidence](benchmarks/2026-10-23-subfigure-order/README.md).
+
+## 2026-10-23: subfigure panel count (#61)
+
+Supported groups can add a project-image panel after selection or remove a panel
+with explicit confirmation, retaining one to four active panels. New labels are
+unique across project labels and drafts. Existing widths remain unchanged.
+Selection changes cancel pending removal; uploads remain tied to their original
+panel. Repeated add/remove compacts new drafts, and removed invalid drafts cannot
+block Apply. Existing duplicate labels remain accepted when unchanged.
+
+Structural edits retain surviving exact panel blocks and outer source. Only
+plain whitespace/hfill/hfil separators can be rebuilt; comments, forced linebreaks
+or metadata between panels require Source for count changes. Existing order-only
+moves still preserve arbitrary supported separator slots. Apply retains the
+checkpoint, stale-source, viewer and shared undo guards.
+
+Local validation: 1,076 web unit tests, workspace tests/lint/typecheck, production
+build and five object browser journeys passed. Exact no-op/Cancel, combined
+operations, limits, confirmation, phone bounds, undo/redo and reload are checked.
+Local Docker is unavailable; the real PDF journey runs in Docker CI.
+See [evidence](benchmarks/2026-10-23-subfigure-count/README.md).
