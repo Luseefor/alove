@@ -634,6 +634,7 @@ export function useVisualObjects(
                 model={target.object}
                 assets={store.filesByPath}
                 onUpload={upload}
+                usedLabels={language.labels.map((entry) => entry.label)}
                 {...common}
               />
             ) : target.object.kind === "math" ? (

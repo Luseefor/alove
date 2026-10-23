@@ -115,8 +115,12 @@ viewer role or failed checkpoint leaves the draft unapplied.
   label. Group caption/label/placement are separate. Move earlier/later changes
   panel order as a draft, retaining selection and edits on the same original
   panel. Apply moves exact panel blocks between existing separator slots;
-  comments, custom captions and line endings travel with their panel. Panel count
-  remains source controlled; separators retain exact bytes.
+  comments, custom captions and line endings travel with their panel. Add panel
+  uses a project image and a unique label without resizing existing panels.
+  Remove panel requires confirmation; groups retain one to four panels.
+  Count changes preserve surviving panel blocks and reuse supported separator
+  slots. Comments, forced linebreaks or metadata between panels require Source
+  for count changes; order-only moves still retain those separator bytes.
   Insertion adds a two-panel group with unique labels. Subcaption setup also
   requires consent in the same checkpointed transaction. Custom layouts stay
   in Source.

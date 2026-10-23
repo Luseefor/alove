@@ -307,3 +307,106 @@ test("subfigure ordering follows panel edits through Cancel, undo, redo and relo
   await page.getByRole("button", { name: "Proof", exact: true }).click();
   await build(page);
 });
+
+test("subfigure count changes are confirmed drafts with limits and exact undo", async ({
+  page,
+}) => {
+  const initial = source.replace(
+    String.raw`\usepackage{graphicx}`,
+    String.raw`\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{longtable}`,
+  );
+  const blocks = [
+    ...initial.matchAll(/\\begin\{subfigure\}[\s\S]*?\\end\{subfigure\}/g),
+  ].map((m) => m[0]);
+  await paper(page, initial);
+  const open = () =>
+    page.getByRole("button", { name: "Edit subfigures", exact: true }).click();
+  const add = () =>
+    page.getByRole("button", { name: "Add panel", exact: true }).click();
+  const remove = () =>
+    page.getByRole("button", { name: "Remove panel", exact: true }).click();
+  const confirm = () =>
+    page
+      .getByRole("button", { name: "Confirm remove panel", exact: true })
+      .click();
+  const options = page.getByLabel("Selected figure panel").locator("option");
+  await open();
+  await add();
+  await expect(options).toHaveCount(3);
+  await remove();
+  await page
+    .getByRole("button", { name: "Cancel removal", exact: true })
+    .click();
+  await expect(options).toHaveCount(3);
+  await remove();
+  await confirm();
+  await expect(options).toHaveCount(2);
+  await page.getByRole("button", { name: "Apply subfigure changes" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await exported(page)).toBe(initial);
+  await open();
+  await add();
+  await add();
+  await expect(options).toHaveCount(4);
+  await expect(
+    page.getByRole("button", { name: "Add panel", exact: true }),
+  ).toBeDisabled();
+  for (let i = 0; i < 3; i++) {
+    await remove();
+    await confirm();
+  }
+  await expect(options).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Remove panel", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(await exported(page)).toBe(initial);
+  await open();
+  await add();
+  await page
+    .getByLabel("Panel caption", { exact: true })
+    .fill("New panel & retained");
+  await page
+    .getByRole("button", { name: "Move panel earlier", exact: true })
+    .click();
+  await page.getByLabel("Selected figure panel").selectOption("1");
+  await expect(page.getByLabel("Panel caption", { exact: true })).toHaveValue(
+    "First panel",
+  );
+  await remove();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByRole("button", { name: "Confirm remove panel", exact: true }),
+  ).toBeInViewport();
+  if (process.env.E2E_EVIDENCE_DIR)
+    await page.screenshot({
+      path: `${process.env.E2E_EVIDENCE_DIR}/subfigure-remove-phone.png`,
+    });
+  await confirm();
+  await expect(options).toHaveCount(2);
+  await page.getByRole("button", { name: "Apply subfigure changes" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const edited = await exported(page);
+  expect([...edited.matchAll(/\\begin\{subfigure\}/g)]).toHaveLength(2);
+  expect(edited).toContain(blocks[1]!);
+  expect(edited).not.toContain(blocks[0]!);
+  expect(edited).toContain(String.raw`\caption{New panel \& retained}`);
+  const labels = [...edited.matchAll(/\\label\{([^}]+)\}/g)].map((m) => m[1]);
+  expect(new Set(labels).size).toBe(labels.length);
+  const before = initial.slice(0, initial.indexOf(blocks[0]!));
+  const after = initial.slice(initial.indexOf(blocks[1]!) + blocks[1]!.length);
+  expect(edited.startsWith(before)).toBe(true);
+  expect(edited.endsWith(after)).toBe(true);
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "LaTeX source editor" });
+  await editor.press("ControlOrMeta+z");
+  expect(await exported(page)).toBe(initial);
+  await editor.press("ControlOrMeta+Shift+z");
+  expect(await exported(page)).toBe(edited);
+  await page.reload();
+  expect(await exported(page)).toBe(edited);
+  await page.getByRole("button", { name: "Proof", exact: true }).click();
+  await build(page);
+});
