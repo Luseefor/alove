@@ -5,7 +5,7 @@ function sourceEditor(page: Page) {
 }
 
 async function saved(page: Page) {
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
 }
 
 test("local source, added empty file, and active tab survive refresh", async ({

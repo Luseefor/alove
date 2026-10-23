@@ -152,7 +152,7 @@ test("visual writing preserves exact source, shared undo, custom syntax and dura
       });
     }
   }
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   expect((await sourceArchive(page)).files["main.tex"]).toBe(heading);
 });

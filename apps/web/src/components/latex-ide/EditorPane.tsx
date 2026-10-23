@@ -330,7 +330,7 @@ export function EditorPane({
         className="h-full bg-background flex flex-col items-center justify-center text-center p-8 space-y-4"
         data-testid="latex-editor"
       >
-        <div className="w-16 h-16 rounded-[24px] bg-muted flex items-center justify-center text-zinc-300 border border-border shadow-sm">
+        <div className="w-16 h-16 rounded-[24px] bg-muted flex items-center justify-center text-zinc-300 border border-border">
           <FileTextIcon className="w-8 h-8" />
         </div>
         <div className="space-y-1">
@@ -345,7 +345,7 @@ export function EditorPane({
 
   return (
     <div
-      className="h-full flex flex-col bg-background overflow-hidden shadow-[inset_1px_1px_3px_rgba(0,0,0,0.02)]"
+      className="h-full flex flex-col bg-background overflow-hidden"
       data-testid="latex-editor"
       onKeyDownCapture={(event) => {
         if (
@@ -358,8 +358,8 @@ export function EditorPane({
         }
       }}
     >
-      {/* Tabs Bar */}
-      <div className="h-10 border-b flex items-center bg-muted/30 shrink-0 overflow-x-auto scrollbar-hide pr-12 relative group/tabs">
+      {/* Tabs Bar: integrated panel header, active tab attached to editor */}
+      <div className="flex h-10 shrink-0 items-stretch gap-0.5 overflow-x-auto border-b border-border bg-panel-header px-2 scrollbar-hide">
         {openFiles.map((path) => {
           const isActive = path === activeFileId;
           const name = path.split("/").pop() ?? path;
@@ -369,25 +369,29 @@ export function EditorPane({
               key={path}
               onClick={() => openFile(path)}
               className={cn(
-                "group h-10 px-4 flex items-center gap-2 border-r border-border cursor-pointer transition-all relative min-w-[120px] max-w-[200px]",
+                "group relative flex min-w-[110px] max-w-[200px] cursor-pointer items-center gap-1.5 px-3 transition-colors",
                 isActive
-                  ? "bg-background text-foreground font-bold shadow-[0_1px_2px_rgba(0,0,0,0.05)] z-10"
-                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                  ? "bg-background text-foreground font-medium"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
               )}
             >
-              <span
-                className={cn(
-                  "w-1.5 h-1.5 rounded-full transition-all shrink-0",
-                  isActive
-                    ? "bg-primary shadow-[0_0_5px_rgba(124,58,237,0.5)]"
-                    : "bg-transparent group-hover:bg-zinc-300",
-                )}
-              />
+              {isActive && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-0 h-0.5 bg-primary"
+                />
+              )}
+              {isActive && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 -bottom-px h-px bg-background"
+                />
+              )}
               <span className="text-[12px] truncate flex-1 tracking-tight">
                 {name}
               </span>
               {isDirty && (
-                <span className="text-[10px] font-black text-primary opacity-60">
+                <span className="text-[11px] font-bold text-warning">
                   *
                 </span>
               )}
@@ -398,7 +402,7 @@ export function EditorPane({
                   closeFile(path);
                 }}
                 className={cn(
-                  "p-0.5 rounded-md hover:bg-muted transition-all ml-1",
+                  "p-0.5 rounded-md hover:bg-muted transition-colors ml-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "opacity-100"
                     : "opacity-0 group-hover:opacity-100",
@@ -406,19 +410,17 @@ export function EditorPane({
               >
                 <X size={10} strokeWidth={3} />
               </button>
-              {isActive && (
-                <div className="absolute top-0 inset-x-0 h-[2px] bg-primary rounded-full shadow-[0_1px_5px_rgba(124,58,237,0.3)]" />
-              )}
             </div>
           );
         })}
         <button
           type="button"
           title="New file"
+          aria-label="New file"
           onClick={createNewFile}
-          className="h-10 w-10 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-all border-r border-border"
+          className="flex w-9 shrink-0 items-center justify-center self-stretch text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          <Plus size={16} />
+          <Plus size={15} />
         </button>
       </div>
 
@@ -435,7 +437,7 @@ export function EditorPane({
         <div
           role="status"
           aria-live="polite"
-          className="shrink-0 border-b border-border bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground"
+          className="shrink-0 bg-panel-header px-4 py-1.5 text-xs text-muted-foreground"
         >
           {visualMessage ||
             "Visual writing · custom LaTeX stays available in Source."}
@@ -446,7 +448,7 @@ export function EditorPane({
       <div className="flex-1 overflow-hidden relative flex flex-col bg-background">
         {findOpen && (
           <div className="absolute top-0 right-4 z-50 p-2">
-            <div className="bg-background border border-border shadow-2xl rounded-xl p-1.5 flex items-center gap-2 ring-4 ring-zinc-50/50">
+            <div className="bg-background border border-border rounded-lg p-1.5 flex items-center gap-2 shadow-lg">
               <div className="flex items-center bg-muted rounded-lg px-2.5 py-1 gap-2 border border-transparent focus-within:border-primary/20 focus-within:bg-background transition-all w-48">
                 <Search className="w-3.5 h-3.5 text-muted-foreground" />
                 <input
@@ -591,7 +593,7 @@ export function EditorPane({
       </div>
 
       {/* Editor Status Bar */}
-      <div className="h-7 overflow-hidden border-t border-border bg-muted/50 flex items-center justify-between gap-2 px-3 shrink-0 select-none whitespace-nowrap">
+      <div className="h-7 overflow-hidden border-t border-border bg-panel-header flex items-center justify-between gap-2 px-3 shrink-0 select-none whitespace-nowrap">
         <div className="flex min-w-0 items-center gap-3 text-[10px] text-muted-foreground">
           <span className="text-muted-foreground">
             Ln {cursor.line}, Col {cursor.column}
@@ -599,7 +601,7 @@ export function EditorPane({
           <span className="hidden sm:inline">Spaces: 2</span>
           <span className="hidden sm:inline">UTF-8</span>
           <span className="hidden xl:inline">LF</span>
-          <span className="hidden xl:inline text-primary">LaTeX</span>
+          <span className="hidden xl:inline text-muted-foreground">LaTeX</span>
         </div>
         <div className="flex shrink-0 items-center text-[10px] text-muted-foreground">
           <SpellcheckToggle

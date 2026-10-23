@@ -66,7 +66,7 @@ test("file creation and rename surface errors and retain the selected main docum
   await page
     .getByRole("menuitem", { name: "Set as Main Document", exact: true })
     .click();
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByTestId("pdf-preview-pane")).toContainText(
     "chapter.pdf",
@@ -202,7 +202,7 @@ test("settings control the editor and persist after reload", async ({
   await source.press("End");
   await page.keyboard.insertText("{");
   await expect(source).toHaveText("Xabc{");
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   await page
     .getByRole("button", { name: "Settings", exact: true })
@@ -273,7 +273,7 @@ test("folder and binary upload controls preserve assets, reject collisions, and 
   await expect(
     page.getByRole("textbox", { name: "LaTeX source editor" }),
   ).toHaveCount(0);
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("img", { name: "pixel.png", exact: true }),

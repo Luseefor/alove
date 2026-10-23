@@ -153,7 +153,7 @@ export function LatexEditorApp() {
 
   return (
     <div
-      className="latex-workbench flex h-[100dvh] min-w-0 flex-col overflow-hidden bg-background text-foreground font-sans antialiased"
+      className="latex-workbench flex h-[100dvh] min-w-0 flex-col overflow-hidden bg-workspace text-foreground font-sans antialiased"
       data-mode={mode}
       data-view={view}
       data-sidebar-open={sidebarOpen}
@@ -161,85 +161,87 @@ export function LatexEditorApp() {
     >
       <BuildRecoveryDialog />
       <AppHeader />
-      {presentation !== "visual" && <ActionToolbar />}
-      <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-3">
-        <button
-          ref={filesButtonRef}
-          type="button"
-          aria-expanded={filesOpen}
-          aria-controls="workbench-sidebar"
-          onClick={() => setFilesOpen(!filesOpen)}
-          className="inline-flex h-8 items-center gap-2 rounded px-2 text-xs font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-        >
-          <Files aria-hidden="true" size={15} /> Files
-        </button>
-        <div
-          className="flex items-center gap-1 rounded-md bg-muted p-0.5"
-          role="group"
-          aria-label="Writing mode"
-        >
+      <div className="flex min-w-0 shrink-0 flex-col border-b border-border bg-chrome lg:h-11 lg:flex-row lg:items-center lg:gap-2 lg:px-2">
+        {presentation !== "visual" && <ActionToolbar />}
+        <div className="flex h-10 shrink-0 items-center justify-between gap-2 bg-chrome px-2 lg:h-11 lg:justify-end lg:px-0">
           <button
+            ref={filesButtonRef}
             type="button"
-            aria-pressed={mode === "source" && view === "source"}
-            aria-controls="source-panel"
-            onClick={requestSource}
-            className="rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={filesOpen}
+            aria-controls="workbench-sidebar"
+            onClick={() => setFilesOpen(!filesOpen)}
+            className="inline-flex h-8 items-center gap-2 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
           >
-            Source
+            <Files aria-hidden="true" size={15} /> Files
           </button>
-          <button
-            type="button"
-            aria-pressed={mode === "visual" && view === "source"}
-            aria-controls="source-panel"
-            disabled={!visualSupported}
-            title={
-              !visualSupported
-                ? "Visual writing requires a .tex file and CodeMirror"
-                : "Visual writing"
-            }
-            onClick={() => {
-              setMode("visual");
-              setPresentation("visual");
-              setView("source");
-              if (
-                window.matchMedia("(min-width: 1024px)").matches &&
-                sidebarOpen
-              )
-                toggleSidebar();
-            }}
-            className="rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <div
+            className="flex items-center gap-0.5 rounded-lg border border-border bg-panel-header p-0.5"
+            role="group"
+            aria-label="Writing mode"
           >
-            Visual
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === "proof"}
-            aria-controls="source-panel pdf-panel"
-            onClick={() => {
-              setMode("proof");
-              setView("pdf");
-            }}
-            className="rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Proof
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === "pdf"}
-            aria-controls="pdf-panel"
-            onClick={() => {
-              setMode("proof");
-              setView("pdf");
-            }}
-            className="lg:hidden rounded px-3 py-1 text-xs font-medium aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            PDF
-          </button>
+            <button
+              type="button"
+              aria-pressed={mode === "source" && view === "source"}
+              aria-controls="source-panel"
+              onClick={requestSource}
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Source
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "visual" && view === "source"}
+              aria-controls="source-panel"
+              disabled={!visualSupported}
+              title={
+                !visualSupported
+                  ? "Visual writing requires a .tex file and CodeMirror"
+                  : "Visual writing"
+              }
+              onClick={() => {
+                setMode("visual");
+                setPresentation("visual");
+                setView("source");
+                if (
+                  window.matchMedia("(min-width: 1024px)").matches &&
+                  sidebarOpen
+                )
+                  toggleSidebar();
+              }}
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Visual
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "proof"}
+              aria-controls="source-panel pdf-panel"
+              onClick={() => {
+                setMode("proof");
+                setView("pdf");
+              }}
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Proof
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "pdf"}
+              aria-controls="pdf-panel"
+              onClick={() => {
+                setMode("proof");
+                setView("pdf");
+              }}
+              className="lg:hidden rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              PDF
+            </button>
+          </div>
         </div>
       </div>
       <PanelGroup direction="vertical" className="min-h-0 flex-1">
         <Panel minSize={50} className="min-h-0">
-          <main className="relative flex h-full min-h-0 min-w-0 overflow-hidden">
+          <main className="relative flex h-full min-h-0 min-w-0 gap-0 overflow-hidden bg-workspace p-0 lg:gap-2 lg:p-2">
             <ActivityRail
               drawerOpen={filesOpen}
               onOpenSidebar={() => setFilesOpen(true)}
@@ -258,7 +260,7 @@ export function LatexEditorApp() {
               />
             )}
             <div
-              className="workbench-sidebar min-h-0 overflow-hidden border-r border-border bg-background"
+              className="workbench-sidebar min-h-0 overflow-hidden border-r border-border bg-chrome lg:rounded-lg lg:border"
               id="workbench-sidebar"
               data-testid="workbench-sidebar"
               role={filesOpen ? "dialog" : undefined}
@@ -290,7 +292,7 @@ export function LatexEditorApp() {
               <Panel
                 defaultSize={58}
                 minSize={35}
-                className="workbench-source-panel min-w-0"
+                className="workbench-source-panel min-w-0 lg:overflow-hidden lg:rounded-lg lg:border lg:border-border lg:bg-background"
                 data-testid="source-panel"
                 id="source-panel"
               >
@@ -306,7 +308,7 @@ export function LatexEditorApp() {
               <Panel
                 defaultSize={42}
                 minSize={28}
-                className="workbench-pdf-panel min-w-0"
+                className="workbench-pdf-panel min-w-0 lg:overflow-hidden lg:rounded-lg lg:border lg:border-border lg:bg-background"
                 data-testid="pdf-panel"
                 id="pdf-panel"
               >

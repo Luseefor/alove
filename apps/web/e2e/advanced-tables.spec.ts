@@ -147,7 +147,7 @@ test("merge, widths, borders and rich cells share one checkpointed undo transact
   expect((await archive(page)).files["main.tex"]).toBe(original);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   expect((await archive(page)).files).toEqual(changed);
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   expect((await archive(page)).files).toEqual(changed);
   expect(errors).toEqual([]);
