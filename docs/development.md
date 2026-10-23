@@ -107,5 +107,9 @@ prose, headings, bold/italic and lists with shared Source/Visual/Proof history.
 Issues #47–#49 add bounded table cells/TSV paste, figure previews/width/captions,
 rendered equation controls and project cite/ref pickers with checkpointed Apply.
 Issue #51 adds horizontal table merging/splitting, wrapping widths, borders,
-formatted/math cells and bounded tabularx/longtable support. Unsupported table
-structures, arbitrary custom TeX and wider manuscript navigation remain under #24; this does not establish full visual-editor parity.
+formatted/math cells and bounded tabularx/longtable support. Issues #54–#56 add
+a project include outline, visible navigation targets, figure drag sizing and
+placement, bounded subfigures, vertical table merges and labelled longtable sections.
+Combined/custom table structures and arbitrary TeX remain under #24; this does not
+establish full visual-editor parity. Issue #57 adds real-compiler recovery checks
+on a pinned public thesis template, with exact provenance and refusal controls.

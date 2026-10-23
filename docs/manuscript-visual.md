@@ -92,18 +92,31 @@ viewer role or failed checkpoint leaves the draft unapplied.
   in Source first. Limits: 20 rows × 12 columns, 64 Ki pasted characters and
   10,000 characters per cell. Custom cells/comments and repeated longtable
   headers protect structure while allowing independent supported cell edits.
-  Vertical multirow merging, programmable/repeated columns, custom spacing,
+  Standard positive vertical multirow spans support merge/split with all contents
+  retained in the anchor. Horizontal and vertical spans cannot be combined;
+  split them before changing intersecting rows. First/repeated headers and
+  footers in longtable have labelled sections and exact independent cell edits.
+  Structural rewrites across these sections stay in Source. Programmable/repeated columns, custom spacing,
   environment conversion and rich HTML/CSV paste require Source. The preview
   illustrates structure; the compiled PDF remains the layout authority.
 - **Figures (#48):** select a project PNG/JPEG/PDF, or upload one up to 500 KB;
-  resize from 10–100% of text width and edit plain captions/labels. Standard
+  resize from 10–100% of text width by dragging, keyboard, slider or number,
+  and edit plain captions/labels. Explicit float placement keeps the original
+  option until changed; H requires consent to enable float. Standard
   includegraphics width options using textwidth/linewidth are supported; custom
   options remain Source. PNG/JPEG preview from project data only; PDF figures
   are shown in compiled Proof. If graphicx is absent from the main setup,
   explicit consent adds it in the same source transaction when editing that
   main file. Included files require setup in Source first. Uploads are separate
   project files and remain after Cancel or undo of the figure insertion. There
-  is no crop, drag-resize, remote-URL fetch or arbitrary TeX package inference.
+  is no crop, remote-URL fetch or arbitrary TeX package inference.
+  Standard subcaption groups support up to four panels with one contextual
+  editor for the selected panel: project image, width, alignment, caption and
+  label. Group caption/label/placement are separate. Panel order and count stay
+  source controlled; separators and untouched panels retain exact bytes.
+  Insertion adds a two-panel group with unique labels. Subcaption setup also
+  requires consent in the same checkpointed transaction. Custom layouts stay
+  in Source.
 - **Equations (#49):** inline/display math and equation/equation* render through
   KaTeX with a LaTeX input, symbol buttons and live preview. Editing the body
   retains original delimiters, labels and whitespace. An explicit display toggle
@@ -121,9 +134,24 @@ viewer role or failed checkpoint leaves the draft unapplied.
   or bibliography-style output.
 
 These are bounded source-backed controls, not full visual-editor parity.
-Issue #24 still includes wider manuscript navigation, unsupported table structures and
-arbitrary custom TeX support. Deployment/live provider checks stay deferred in
+Issues #54–#56 add project navigation, figure controls and vertical table spans.
+Issue #24 still includes unsupported table structures and arbitrary custom TeX support. Deployment/live provider checks stay deferred in
 #42. See the [dated comparison](overleaf-comparison.md) for the remaining gaps.
+
+## Manuscript navigation (#54)
+
+The outline follows literal input/include commands from the chosen main file in
+manuscript order. Entries identify the file and line, including repeated inputs.
+It skips comments, verbatim content and macro arguments; missing/dynamic inputs,
+cycles and scan limits have notices. Literal includeonly uses its last assignment.
+The bounded scanner does not execute macros, conditionals, custom import packages
+or TeX filename expansion. Root-relative targets win; a missing root target may
+resolve relative to its including file when that path exists inside the project.
+
+Outline, search, diagnostics and reverse SyncTeX reveal the source pane on phones.
+Targets hidden or protected by Visual switch to Source before their selection is
+consumed. Forward SyncTeX reveals Proof. These view changes preserve source and
+per-file undo. Missing-file and stale diagnostic clicks do not open a wrong file.
 
 ## Validation
 

@@ -20,7 +20,9 @@ Visual controls were rechecked against the official table documentation on
 2026-10-22. Overleaf documents cell merging, column widths, border controls,
 styled/math cells and richer table paste. Issue #51 adds horizontal merge/split,
 wrapping widths, borders and supported formatted/math cells to alove, along with
-bounded standard tabularx/longtable editing. Custom cells, repeated longtable
+bounded standard tabularx/longtable editing. Issues #54–#56 add a project include
+outline, figure resizing/placement/subfigures, vertical multirow spans and
+labelled repeated longtable sections with independent cell editing. Custom cells, repeated longtable
 header restructuring, programmable columns and richer HTML/CSV paste still use
 Source. These controls narrow the documented gap; no matched Overleaf task study
 or general visual lead is established.
