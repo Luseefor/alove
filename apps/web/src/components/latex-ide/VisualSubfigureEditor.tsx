@@ -2,8 +2,10 @@
 import React, { useState } from "react";
 import { isFigurePath, safeFigureAsset } from "@/lib/visualFigure";
 import {
+  createSubfigurePanelDraft,
   patchesForVisualSubfigure,
   subfigureDraft,
+  SUBFIGURE_MAX_PANELS,
   type VisualSubfigure,
 } from "@/lib/visualSubfigure";
 import type { VisualSourcePatch } from "@/lib/visualObjectTypes";
@@ -17,6 +19,7 @@ export function VisualSubfigureEditor({
   onCancel,
   onUpload,
   disabled,
+  usedLabels,
 }: {
   model: VisualSubfigure;
   assets: Record<string, string>;
@@ -24,23 +27,51 @@ export function VisualSubfigureEditor({
   onCancel: () => void;
   onUpload: (file: File) => Promise<string>;
   disabled?: boolean;
+  usedLabels?: string[];
 }) {
   const [draft, setDraft] = useState(() => subfigureDraft(model));
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [pendingRemoveId, setPendingRemoveId] = useState<number | null>(null);
+  const originalCount = model.panels.length;
+  const addedPanels = draft.addedPanels ?? [];
   const order = draft.order ?? draft.panels.map((_, i) => i);
-  const originalIndex = order[selected] ?? selected;
-  const panel = draft.panels[originalIndex]!;
-  const original = model.panels[originalIndex]!;
+  const activeId = order[selected] ?? selected;
+  const isNewPanel = activeId >= originalCount;
+  const addedIndex = activeId - originalCount;
+  const panel = isNewPanel
+    ? addedPanels[addedIndex]!
+    : draft.panels[activeId]!;
+  const original = isNewPanel ? null : model.panels[activeId]!;
+  const unit = isNewPanel ? "textwidth" : original!.envWidthUnit;
   const locked = disabled || uploading;
+  const confirming = pendingRemoveId !== null;
+  const usableImageCount = Object.keys(assets).filter(isFigurePath).length;
+  function cancelPending() {
+    setPendingRemoveId(null);
+  }
+  function selectPanel(index: number) {
+    setSelected(index);
+    setPendingRemoveId(null);
+  }
   function update(value: Partial<typeof panel>) {
+    const targetId = activeId;
     setDraft((d) => {
-      const currentOrder = d.order ?? d.panels.map((_, i) => i);
-      const target = currentOrder[selected] ?? selected;
+      if (targetId >= model.panels.length) {
+        const idx = targetId - model.panels.length;
+        return {
+          ...d,
+          addedPanels: (d.addedPanels ?? []).map((p, i) =>
+            i === idx ? { ...p, ...value } : p,
+          ),
+        };
+      }
       return {
         ...d,
-        panels: d.panels.map((p, i) => (i === target ? { ...p, ...value } : p)),
+        panels: d.panels.map((p, i) =>
+          i === targetId ? { ...p, ...value } : p,
+        ),
       };
     });
   }
@@ -48,6 +79,7 @@ export function VisualSubfigureEditor({
     if (locked) return;
     const next = selected + delta;
     if (next < 0 || next >= order.length) return;
+    setPendingRemoveId(null);
     setDraft((d) => {
       const current = [...(d.order ?? d.panels.map((_, i) => i))];
       const atSelected = current[selected]!;
@@ -57,6 +89,71 @@ export function VisualSubfigureEditor({
     });
     setSelected(next);
   }
+  function addPanel() {
+    if (locked) return;
+    if (order.length >= SUBFIGURE_MAX_PANELS) return;
+    setPendingRemoveId(null);
+    const available = Object.keys(assets).filter(isFigurePath);
+    const selectedPath = panel?.path;
+    const defaultPath =
+      selectedPath && isFigurePath(selectedPath) && assets[selectedPath]
+        ? selectedPath
+        : (available[0] ?? selectedPath);
+    if (!defaultPath || !isFigurePath(defaultPath)) return;
+    const used = new Set<string>([
+      ...(usedLabels ?? []),
+      ...draft.panels.map((p) => p.label),
+      ...(draft.addedPanels ?? []).map((p) => p.label),
+      draft.label,
+    ]);
+    const fresh = createSubfigurePanelDraft({
+      path: defaultPath,
+      usedLabels: used,
+    });
+    setDraft((d) => {
+      const currentAdded = [...(d.addedPanels ?? []), fresh];
+      const newId = model.panels.length + currentAdded.length - 1;
+      const currentOrder = [...(d.order ?? d.panels.map((_, i) => i))];
+      currentOrder.splice(selected + 1, 0, newId);
+      return { ...d, addedPanels: currentAdded, order: currentOrder };
+    });
+    setSelected(selected + 1);
+  }
+  function requestRemove() {
+    if (locked || order.length <= 1) return;
+    setPendingRemoveId(activeId);
+  }
+  function confirmRemove() {
+    if (locked) return;
+    const removeId = pendingRemoveId;
+    if (removeId === null) return;
+    const displayIndex = order.indexOf(removeId);
+    if (displayIndex < 0) {
+      setPendingRemoveId(null);
+      return;
+    }
+    setDraft((d) => {
+      const currentOrder = [...(d.order ?? d.panels.map((_, i) => i))];
+      const atDisplay = currentOrder[displayIndex];
+      if (atDisplay === undefined || atDisplay !== removeId) {
+        return d;
+      }
+      currentOrder.splice(displayIndex, 1);
+      if (removeId >= model.panels.length) {
+        const removeAddedIndex = removeId - model.panels.length;
+        const currentAdded = (d.addedPanels ?? []).filter(
+          (_, i) => i !== removeAddedIndex,
+        );
+        const adjusted = currentOrder.map((id) =>
+          id > removeId ? id - 1 : id,
+        );
+        return { ...d, addedPanels: currentAdded, order: adjusted };
+      }
+      return { ...d, order: currentOrder };
+    });
+    setSelected(Math.max(0, Math.min(displayIndex, order.length - 2)));
+    setPendingRemoveId(null);
+  }
   return (
     <form
       aria-label="Subfigure editor"
@@ -65,7 +162,12 @@ export function VisualSubfigureEditor({
         e.preventDefault();
         if (locked) return;
         try {
-          if (draft.panels.some((p) => !assets[p.path]))
+          const activePaths = order.map((id) =>
+            id < model.panels.length
+              ? draft.panels[id]!.path
+              : (draft.addedPanels ?? [])[id - model.panels.length]!.path,
+          );
+          if (activePaths.some((p) => !assets[p]))
             throw new Error("Choose a project image for every panel.");
           onSave(patchesForVisualSubfigure(model, draft));
           setError("");
@@ -83,7 +185,8 @@ export function VisualSubfigureEditor({
             aria-label="Selected figure panel"
             className={field}
             value={selected}
-            onChange={(e) => setSelected(Number(e.target.value))}
+            disabled={uploading}
+            onChange={(e) => selectPanel(Number(e.target.value))}
           >
             {order.map((_, i) => (
               <option key={i} value={i}>
@@ -92,7 +195,7 @@ export function VisualSubfigureEditor({
             ))}
           </select>
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             aria-label="Move panel earlier"
@@ -111,7 +214,52 @@ export function VisualSubfigureEditor({
           >
             Move later
           </button>
+          <button
+            type="button"
+            aria-label="Add panel"
+            disabled={
+              locked ||
+              order.length >= SUBFIGURE_MAX_PANELS ||
+              usableImageCount === 0
+            }
+            onClick={addPanel}
+            className="min-h-9 rounded border border-border px-3 text-sm disabled:opacity-40"
+          >
+            Add panel
+          </button>
+          <button
+            type="button"
+            aria-label="Remove panel"
+            disabled={locked || order.length <= 1}
+            onClick={requestRemove}
+            className="min-h-9 rounded border border-border px-3 text-sm disabled:opacity-40"
+          >
+            Remove panel
+          </button>
         </div>
+        {confirming && (
+          <div className="flex flex-wrap items-center gap-2 rounded border border-border p-2 text-xs">
+            <span>Remove this panel?</span>
+            <button
+              type="button"
+              aria-label="Confirm remove panel"
+              disabled={locked}
+              onClick={confirmRemove}
+              className="min-h-9 rounded border border-error px-3 text-sm text-error disabled:opacity-40"
+            >
+              Confirm remove panel
+            </button>
+            <button
+              type="button"
+              aria-label="Cancel removal"
+              disabled={locked}
+              onClick={cancelPending}
+              className="min-h-9 rounded border border-border px-3 text-sm disabled:opacity-40"
+            >
+              Cancel removal
+            </button>
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <FigureResizePreview
             preview={safeFigureAsset(assets[panel.path])}
@@ -154,9 +302,30 @@ export function VisualSubfigureEditor({
                   const input = e.currentTarget,
                     file = input.files?.[0];
                   if (!file) return;
+                  const targetId = activeId;
+                  const targetIsNew = targetId >= model.panels.length;
+                  const targetAddedIndex = targetId - model.panels.length;
                   setUploading(true);
                   try {
-                    update({ path: await onUpload(file) });
+                    const nextPath = await onUpload(file);
+                    setDraft((d) => {
+                      if (targetIsNew) {
+                        return {
+                          ...d,
+                          addedPanels: (d.addedPanels ?? []).map((p, i) =>
+                            i === targetAddedIndex
+                              ? { ...p, path: nextPath }
+                              : p,
+                          ),
+                        };
+                      }
+                      return {
+                        ...d,
+                        panels: d.panels.map((p, i) =>
+                          i === targetId ? { ...p, path: nextPath } : p,
+                        ),
+                      };
+                    });
                   } catch (err) {
                     setError(
                       err instanceof Error ? err.message : "Upload failed.",
@@ -169,7 +338,7 @@ export function VisualSubfigureEditor({
               />
             </label>
             <label className="block text-xs">
-              Panel width (% of {original.envWidthUnit})
+              Panel width (% of {unit})
               <input
                 aria-label="Panel width percentage"
                 type="number"
@@ -208,7 +377,7 @@ export function VisualSubfigureEditor({
             <input
               aria-label="Panel caption"
               className={field}
-              disabled={locked || original.caption?.text === null}
+              disabled={locked || (!isNewPanel && original?.caption?.text === null)}
               value={panel.caption}
               onChange={(e) => update({ caption: e.target.value })}
             />

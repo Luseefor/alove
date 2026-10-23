@@ -75,13 +75,108 @@ export type SubfigurePanelDraft = {
   label: string;
 };
 
+export const SUBFIGURE_NEW_PANEL_WIDTH = 0.45;
+
 export type SubfigureDraft = {
   placement?: string | null;
   panels: SubfigurePanelDraft[];
+  addedPanels?: SubfigurePanelDraft[];
   caption: string;
   label: string;
   order?: number[];
 };
+
+export function uniqueSubfigurePanelLabel(used: Iterable<string>): string {
+  const taken = new Set(used);
+  const base = "fig:new-panel";
+  if (!taken.has(base)) return base;
+  let n = 1;
+  while (taken.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
+
+export function createSubfigurePanelDraft(options: {
+  path: string;
+  usedLabels?: Iterable<string>;
+}): SubfigurePanelDraft {
+  const label = uniqueSubfigurePanelLabel(options.usedLabels ?? []);
+  return {
+    path: options.path,
+    envWidth: SUBFIGURE_NEW_PANEL_WIDTH,
+    envPosition: "b",
+    graphicWidth: 1,
+    caption: "",
+    label,
+  };
+}
+
+export function isSafeSubfigureSeparatorForCountChange(gap: string): boolean {
+  if (gap.includes("%")) return false;
+  if (gap.includes("\\\\")) return false;
+  if (gap.includes("\\caption") || gap.includes("\\label")) return false;
+  return /^[\s]*(?:\\hfill[\s]*|\\hfil[\s]*)*$/.test(gap);
+}
+
+function assertSafeSubfigureGapsForCountChange(model: VisualSubfigure): void {
+  for (let i = 0; i + 1 < model.panels.length; i++) {
+    const gap = model.source.slice(
+      model.panels[i]!.panelTo - model.from,
+      model.panels[i + 1]!.panelFrom - model.from,
+    );
+    if (!isSafeSubfigureSeparatorForCountChange(gap))
+      throw new Error(
+        "Edit panel count in Source for custom spacing between panels.",
+      );
+  }
+}
+
+function editedOriginalBlock(
+  panel: { panelFrom: number },
+  originalBlock: string,
+  patches: VisualSourcePatch[],
+): string {
+  const list = [...patches].sort((a, b) => a.from - b.from);
+  if (list.length === 0) return originalBlock;
+  let out = "";
+  let cursor = 0;
+  for (const patch of list) {
+    const relFrom = patch.from - panel.panelFrom;
+    const relTo = patch.to - panel.panelFrom;
+    if (
+      relFrom < 0 ||
+      relTo < relFrom ||
+      relTo > originalBlock.length ||
+      relFrom < cursor
+    )
+      throw new Error("Panel order is invalid.");
+    out += originalBlock.slice(cursor, relFrom) + patch.insert;
+    cursor = relTo;
+  }
+  out += originalBlock.slice(cursor);
+  return out;
+}
+
+function buildSubfigurePanelBlock(
+  draft: SubfigurePanelDraft,
+  eol: string,
+): string {
+  const position = draft.envPosition ? `[${draft.envPosition}]` : "";
+  const width = `${draft.envWidth}\\textwidth`;
+  let graphic = "";
+  if (draft.graphicWidth !== null) {
+    graphic =
+      draft.graphicWidth === 1
+        ? `[width=\\linewidth]`
+        : `[width=${draft.graphicWidth}\\linewidth]`;
+  }
+  const caption = `\\caption{${encodeVisualProse(draft.caption)}}${eol}`;
+  const label = draft.label ? `\\label{${draft.label}}${eol}` : "";
+  return (
+    `\\begin{subfigure}${position}{${width}}${eol}\\centering${eol}` +
+    `\\includegraphics${graphic}{\\detokenize{${draft.path}}}${eol}` +
+    `${caption}${label}\\end{subfigure}`
+  );
+}
 
 function blank(s: string, from: number, to: number): string {
   return s.slice(0, from) + " ".repeat(to - from) + s.slice(to);
@@ -450,9 +545,12 @@ export function patchesForVisualSubfigure(
   let placement = model.placement;
   if (draft.placement !== undefined)
     placement = draft.placement === "" ? null : draft.placement;
+  const originalCount = model.panels.length;
+  const addedPanels = draft.addedPanels ?? [];
   if (
     !isFigurePlacement(placement) ||
-    draft.panels.length !== model.panels.length ||
+    draft.panels.length !== originalCount ||
+    addedPanels.length > SUBFIGURE_MAX_PANELS ||
     draft.caption.length > 10000 ||
     (draft.label !== model.label?.value &&
       draft.label &&
@@ -461,8 +559,22 @@ export function patchesForVisualSubfigure(
     throw new Error(
       "Choose panel widths from 5–100%, graphic widths from 10–100%, and simple labels.",
     );
-  for (let i = 0; i < draft.panels.length; i++) {
-    const panel = draft.panels[i]!;
+  const order =
+    draft.order === undefined
+      ? model.panels.map((_, i) => i)
+      : [...draft.order];
+  if (order.length < 1 || order.length > SUBFIGURE_MAX_PANELS)
+    throw new Error("Choose one to four panels.");
+  const totalIds = originalCount + addedPanels.length;
+  if (
+    order.some((v) => !Number.isInteger(v) || v < 0 || v >= totalIds) ||
+    new Set(order).size !== order.length
+  )
+    throw new Error("Panel order is invalid.");
+  const activeOriginalIds = order.filter((v) => v < originalCount);
+  const activeAddedIds = order.filter((v) => v >= originalCount);
+  for (const id of activeOriginalIds) {
+    const panel = draft.panels[id]!;
     if (
       !isFigurePath(panel.path) ||
       !Number.isFinite(panel.envWidth) ||
@@ -474,7 +586,7 @@ export function patchesForVisualSubfigure(
           panel.graphicWidth < SUBFIGURE_MIN_GRAPHIC_WIDTH ||
           panel.graphicWidth > SUBFIGURE_MAX_GRAPHIC_WIDTH)) ||
       panel.caption.length > 10000 ||
-      (panel.label !== model.panels[i]!.label?.value &&
+      (panel.label !== model.panels[id]!.label?.value &&
         panel.label &&
         !isVisualTexKey(panel.label))
     )
@@ -482,18 +594,50 @@ export function patchesForVisualSubfigure(
         "Choose panel widths from 5–100%, graphic widths from 10–100%, and simple labels.",
       );
   }
-  const count = model.panels.length;
-  const order =
-    draft.order === undefined
-      ? model.panels.map((_, i) => i)
-      : [...draft.order];
-  if (
-    order.length !== count ||
-    order.some((v) => !Number.isInteger(v) || v < 0 || v >= count) ||
-    new Set(order).size !== count
-  )
-    throw new Error("Panel order is invalid.");
-  const reordered = order.some((v, i) => v !== i);
+  for (const id of activeAddedIds) {
+    const panel = addedPanels[id - originalCount]!;
+    if (
+      !isFigurePath(panel.path) ||
+      !Number.isFinite(panel.envWidth) ||
+      panel.envWidth < SUBFIGURE_MIN_ENV_WIDTH ||
+      panel.envWidth > SUBFIGURE_MAX_ENV_WIDTH ||
+      !isSubfigurePosition(panel.envPosition) ||
+      (panel.graphicWidth !== null &&
+        (!Number.isFinite(panel.graphicWidth) ||
+          panel.graphicWidth < SUBFIGURE_MIN_GRAPHIC_WIDTH ||
+          panel.graphicWidth > SUBFIGURE_MAX_GRAPHIC_WIDTH)) ||
+      panel.caption.length > 10000 ||
+      (panel.label && !isVisualTexKey(panel.label))
+    )
+      throw new Error(
+        "Choose panel widths from 5–100%, graphic widths from 10–100%, and simple labels.",
+      );
+  }
+  {
+    const counts = new Map<string, { total: number; changed: number }>();
+    const track = (label: string, changed: boolean) => {
+      if (!label) return;
+      const entry = counts.get(label) ?? { total: 0, changed: 0 };
+      entry.total += 1;
+      if (changed) entry.changed += 1;
+      counts.set(label, entry);
+    };
+    for (const id of activeOriginalIds) {
+      const label = draft.panels[id]!.label;
+      track(label, label !== model.panels[id]!.label?.value);
+    }
+    for (const id of activeAddedIds) {
+      const label = addedPanels[id - originalCount]!.label;
+      track(label, true);
+    }
+    track(draft.label, draft.label !== model.label?.value);
+    for (const entry of counts.values()) {
+      if (entry.total > 1 && entry.changed > 0)
+        throw new Error("Panel labels must be unique.");
+    }
+  }
+  const isStructural =
+    activeAddedIds.length > 0 || order.length !== originalCount;
   const patches: VisualSourcePatch[] = [];
   if (placement !== model.placement) {
     if (model.placement === null && placement !== null) {
@@ -517,7 +661,8 @@ export function patchesForVisualSubfigure(
     }
   }
   const panelPatches: VisualSourcePatch[][] = model.panels.map(() => []);
-  draft.panels.forEach((panelDraft, i) => {
+  for (const i of activeOriginalIds) {
+    const panelDraft = draft.panels[i]!;
     const panel = model.panels[i]!;
     const target = panelPatches[i]!;
     const position =
@@ -624,43 +769,86 @@ export function patchesForVisualSubfigure(
         insert: suffix,
       });
     }
-  });
-  if (!reordered) {
-    for (const list of panelPatches) patches.push(...list);
+  }
+  if (!isStructural) {
+    const reordered = order.some((v, i) => v !== i);
+    if (!reordered) {
+      for (const list of panelPatches) patches.push(...list);
+    } else {
+      const editedBlocks = model.panels.map((panel, i) =>
+        editedOriginalBlock(
+          panel,
+          model.source.slice(
+            panel.panelFrom - model.from,
+            panel.panelTo - model.from,
+          ),
+          panelPatches[i]!,
+        ),
+      );
+      model.panels.forEach((slot, slotIndex) => {
+        const originalBlock = model.source.slice(
+          slot.panelFrom - model.from,
+          slot.panelTo - model.from,
+        );
+        const nextBlock = editedBlocks[order[slotIndex]!]!;
+        if (nextBlock !== originalBlock) {
+          patches.push({
+            from: slot.panelFrom,
+            to: slot.panelTo,
+            insert: nextBlock,
+          });
+        }
+      });
+    }
   } else {
-    const editedBlocks = model.panels.map((panel, i) => {
-      const originalBlock = model.source.slice(
-        panel.panelFrom - model.from,
-        panel.panelTo - model.from,
+    assertSafeSubfigureGapsForCountChange(model);
+    const editedBlocks = new Map<number, string>();
+    for (const id of activeOriginalIds) {
+      const panel = model.panels[id]!;
+      editedBlocks.set(
+        id,
+        editedOriginalBlock(
+          panel,
+          model.source.slice(
+            panel.panelFrom - model.from,
+            panel.panelTo - model.from,
+          ),
+          panelPatches[id]!,
+        ),
       );
-      const list = [...panelPatches[i]!].sort((a, b) => a.from - b.from);
-      if (list.length === 0) return originalBlock;
-      let out = "";
-      let cursor = 0;
-      for (const patch of list) {
-        const relFrom = patch.from - panel.panelFrom;
-        const relTo = patch.to - panel.panelFrom;
-        if (relFrom < 0 || relTo < relFrom || relTo > originalBlock.length)
-          throw new Error("Panel order is invalid.");
-        out += originalBlock.slice(cursor, relFrom) + patch.insert;
-        cursor = relTo;
-      }
-      out += originalBlock.slice(cursor);
-      return out;
-    });
-    model.panels.forEach((slot, slotIndex) => {
-      const originalBlock = model.source.slice(
-        slot.panelFrom - model.from,
-        slot.panelTo - model.from,
+    }
+    const activeBlocks = order.map((id) =>
+      id < originalCount
+        ? editedBlocks.get(id)!
+        : buildSubfigurePanelBlock(
+            addedPanels[id - originalCount]!,
+            model.eol,
+          ),
+    );
+    const existingSeparators: string[] = [];
+    for (let i = 0; i + 1 < model.panels.length; i++) {
+      existingSeparators.push(
+        model.source.slice(
+          model.panels[i]!.panelTo - model.from,
+          model.panels[i + 1]!.panelFrom - model.from,
+        ),
       );
-      const nextBlock = editedBlocks[order[slotIndex]!]!;
-      if (nextBlock !== originalBlock) {
-        patches.push({
-          from: slot.panelFrom,
-          to: slot.panelTo,
-          insert: nextBlock,
-        });
+    }
+    const parts: string[] = [];
+    for (let i = 0; i < activeBlocks.length; i++) {
+      if (i > 0) {
+        parts.push(
+          i - 1 < existingSeparators.length
+            ? existingSeparators[i - 1]!
+            : `${model.eol}\\hfill${model.eol}`,
+        );
       }
+      parts.push(activeBlocks[i]!);
+    }
+    patches.push({
+      from: model.panels[0]!.panelFrom,
+      to: model.panels[model.panels.length - 1]!.panelTo,
+      insert: parts.join(""),
     });
   }
   if (

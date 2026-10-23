@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  createSubfigurePanelDraft,
   createVisualSubfigure,
+  isSafeSubfigureSeparatorForCountChange,
   parseVisualSubfigure,
   patchesForVisualSubfigure,
   requiredSubfigurePackages,
   subfigureDraft,
+  uniqueSubfigurePanelLabel,
   SUBFIGURE_MAX_PANELS,
+  SUBFIGURE_NEW_PANEL_WIDTH,
 } from "./visualSubfigure";
 import { applyVisualSourcePatches as apply } from "./visualObjects";
+import { isFigurePath } from "./visualFigure";
 
 const TWO_PANEL =
   "\\begin{figure}[htbp]\n\\centering\n" +
@@ -300,13 +305,44 @@ describe("visual subfigures", () => {
 
   it("rejects duplicate, out-of-range and misshapen permutations", () => {
     const model = parseVisualSubfigure(TWO_PANEL)!;
-    for (const order of [[0, 0], [1, 1], [0, 2], [-1, 1], [0], [0, 1, 2]]) {
+    for (const order of [[0, 0], [1, 1], [0, 2], [-1, 1], [0, 1, 2]]) {
       const draft = subfigureDraft(model);
       draft.order = order;
       expect(() => patchesForVisualSubfigure(model, draft)).toThrow(
         /order/i,
       );
     }
+    for (const order of [[], [0, 1, 2, 3, 4]]) {
+      const draft = subfigureDraft(model);
+      draft.order = order;
+      expect(() => patchesForVisualSubfigure(model, draft)).toThrow(
+        /one to four/i,
+      );
+    }
+  });
+
+  it("preserves existing duplicate labels on no-op and reorder", () => {
+    const dup = TWO_PANEL.replace("\\label{fig:b}", "\\label{fig:a}");
+    const model = parseVisualSubfigure(dup)!;
+    expect(model.panels[0]!.label?.value).toBe("fig:a");
+    expect(model.panels[1]!.label?.value).toBe("fig:a");
+    expect(patchesForVisualSubfigure(model, subfigureDraft(model))).toEqual(
+      [],
+    );
+    const reordered = subfigureDraft(model);
+    reordered.order = [1, 0];
+    const result = apply(dup, patchesForVisualSubfigure(model, reordered));
+    expect(result.indexOf("figures/b.png")).toBeLessThan(
+      result.indexOf("figures/a.png"),
+    );
+    const changed = subfigureDraft(model);
+    changed.panels[1]!.label = "fig:a";
+    expect(() => patchesForVisualSubfigure(model, changed)).not.toThrow();
+    const newlyDup = subfigureDraft(model);
+    newlyDup.panels[1]!.label = "fig:main";
+    expect(() => patchesForVisualSubfigure(model, newlyDup)).toThrow(
+      /unique/i,
+    );
   });
 
   it("preserves CRLF and nonzero offsets when reordering", () => {
@@ -382,5 +418,137 @@ describe("visual subfigures", () => {
     expect(result.indexOf("figures/b.png")).toBeLessThan(
       result.indexOf("figures/a.png"),
     );
+  });
+
+  it("adds a panel with defaults and removes back to a no-op", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    expect(SUBFIGURE_NEW_PANEL_WIDTH).toBe(0.45);
+    const fresh = createSubfigurePanelDraft({
+      path: "figures/c.png",
+      usedLabels: ["fig:a", "fig:b", "fig:main"],
+    });
+    expect(fresh.envWidth).toBe(0.45);
+    expect(fresh.envPosition).toBe("b");
+    expect(isFigurePath(fresh.path)).toBe(true);
+    expect(uniqueSubfigurePanelLabel(["fig:new-panel"])).toBe(
+      "fig:new-panel-1",
+    );
+    const draft = subfigureDraft(model);
+    draft.addedPanels = [fresh];
+    draft.order = [0, 1, 2];
+    const added = apply(TWO_PANEL, patchesForVisualSubfigure(model, draft));
+    expect(added).toContain("figures/c.png");
+    expect(added).toContain("{0.45\\textwidth}");
+    expect(added).toContain(fresh.label);
+    // Original widths untouched.
+    expect(added).toContain("{0.48\\textwidth}");
+    // Removing the new panel restores the original source exactly.
+    const removed = subfigureDraft(model);
+    removed.addedPanels = [fresh];
+    removed.order = [0, 1];
+    expect(apply(TWO_PANEL, patchesForVisualSubfigure(model, removed))).toBe(
+      TWO_PANEL,
+    );
+    expect(patchesForVisualSubfigure(model, subfigureDraft(model))).toEqual(
+      [],
+    );
+  });
+
+  it("removes an original panel and keeps exact surviving blocks", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    const draft = subfigureDraft(model);
+    draft.order = [1];
+    const result = apply(TWO_PANEL, patchesForVisualSubfigure(model, draft));
+    expect(result).toContain("figures/b.png");
+    expect(result).not.toContain("figures/a.png");
+    expect(result).toContain("\\caption{Main}");
+    expect(result).toContain("\\label{fig:main}");
+    expect(result.slice(0, result.indexOf("\\begin{subfigure}"))).toBe(
+      TWO_PANEL.slice(0, TWO_PANEL.indexOf("\\begin{subfigure}")),
+    );
+    expect(result.slice(result.lastIndexOf("\\end{subfigure}") + 16)).toBe(
+      TWO_PANEL.slice(TWO_PANEL.lastIndexOf("\\end{subfigure}") + 16),
+    );
+  });
+
+  it("treats remove-original plus add-new with unchanged count as structural", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    const fresh = createSubfigurePanelDraft({
+      path: "figures/c.png",
+      usedLabels: ["fig:a", "fig:b", "fig:main"],
+    });
+    const draft = subfigureDraft(model);
+    draft.panels[1]!.caption = "Second edited";
+    draft.addedPanels = [fresh];
+    draft.order = [1, 2];
+    const result = apply(TWO_PANEL, patchesForVisualSubfigure(model, draft));
+    expect(result).not.toContain("figures/a.png");
+    expect(result).toContain("figures/b.png");
+    expect(result).toContain("figures/c.png");
+    expect(result).toContain("\\caption{Second edited}");
+    expect(result).toContain(fresh.label);
+  });
+
+  it("validates only active drafts so removed invalid edits do not block", () => {
+    const model = parseVisualSubfigure(TWO_PANEL)!;
+    const draft = subfigureDraft(model);
+    draft.panels[0]!.path = "../evil.png";
+    draft.order = [1];
+    expect(() => patchesForVisualSubfigure(model, draft)).not.toThrow();
+    const result = apply(TWO_PANEL, patchesForVisualSubfigure(model, draft));
+    expect(result).not.toContain("evil");
+  });
+
+  it("refuses ambiguous inter-panel gaps for count changes only", () => {
+    expect(isSafeSubfigureSeparatorForCountChange("\n\\hfill\n")).toBe(true);
+    expect(isSafeSubfigureSeparatorForCountChange("\n")).toBe(true);
+    expect(isSafeSubfigureSeparatorForCountChange("\n% hi\n")).toBe(false);
+    expect(isSafeSubfigureSeparatorForCountChange("\n\\\\\n")).toBe(false);
+    expect(
+      isSafeSubfigureSeparatorForCountChange("\n\\caption{X}\n"),
+    ).toBe(false);
+    const commented = TWO_PANEL.replace(
+      "\\end{subfigure}\n\\hfill",
+      "\\end{subfigure}\n% note\n\\hfill",
+    );
+    const commentedModel = parseVisualSubfigure(commented)!;
+    // Order-only still supports arbitrary separators.
+    const reorder = subfigureDraft(commentedModel);
+    reorder.order = [1, 0];
+    expect(() =>
+      apply(commented, patchesForVisualSubfigure(commentedModel, reorder)),
+    ).not.toThrow();
+    // Count change refuses and explains Source.
+    const remove = subfigureDraft(commentedModel);
+    remove.order = [1];
+    expect(() => patchesForVisualSubfigure(commentedModel, remove)).toThrow(
+      /Source/,
+    );
+  });
+
+  it("preserves CRLF, offsets and exact blocks on count changes", () => {
+    const source = TWO_PANEL.replace(/\n/g, "\r\n");
+    const model = parseVisualSubfigure(source)!;
+    const fresh = createSubfigurePanelDraft({
+      path: "figures/c.png",
+      usedLabels: ["fig:a", "fig:b", "fig:main"],
+    });
+    const draft = subfigureDraft(model);
+    draft.addedPanels = [fresh];
+    draft.order = [0, 1, 2];
+    const result = apply(source, patchesForVisualSubfigure(model, draft));
+    expect(result.replace(/\r\n/g, "")).not.toContain("\n");
+    expect(result).toContain(`\r\n\\hfill\r\n`);
+    const prefix = "Pre\r\n\r\n";
+    const full = `${prefix}${source}\r\nPost`;
+    const shifted = parseVisualSubfigure(source, prefix.length)!;
+    const shiftedDraft = subfigureDraft(shifted);
+    shiftedDraft.addedPanels = [fresh];
+    shiftedDraft.order = [0, 1, 2];
+    const patches = patchesForVisualSubfigure(shifted, shiftedDraft);
+    for (const patch of patches) {
+      expect(patch.from).toBeGreaterThanOrEqual(prefix.length);
+    }
+    expect(apply(full, patches)).toContain("figures/c.png");
   });
 });
