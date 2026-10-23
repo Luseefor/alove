@@ -160,7 +160,7 @@ test("table cells, TSV, structure, keyboard, cancel and shared undo preserve exa
   expect(result["main.tex"]).toContain("\\caption{Pasted results}");
   expect(result["notes.tex"]).toBe("Untouched notes.\r\n");
   expect(errors).toEqual([]);
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   expect((await archive(page)).files).toEqual(result);
 });

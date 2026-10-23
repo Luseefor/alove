@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { History } from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -80,9 +81,12 @@ export function WorkspaceHistory() {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="rounded-md px-2 py-1.5 text-xs font-medium hover:bg-muted"
+          aria-label="History"
+          title="History"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          History
+          <History aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <span className="hidden xl:inline">History</span>
         </button>
       </DialogTrigger>
       <DialogContent

@@ -27,7 +27,7 @@ test("finds a tested file recovery, preserves unrelated edits, exports evidence,
   await editor.fill("\\proofword\nUnrelated prose retained.");
   await page.getByTestId("compile-button").click();
   await expect(preview).toHaveAttribute("data-status", "failed", { timeout: 60000 });
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   // Reload verifies that recovery reads durable records, not just component state.
   await page.reload();
   await page.getByRole("button", { name: "Export", exact: true }).click();
@@ -107,7 +107,7 @@ test("tests a change before applying it and retains separate prose edits in the 
   await editor.fill(failedMain);
   await page.getByTestId("compile-button").click();
   await expect(preview).toHaveAttribute("data-status", "failed", { timeout: 60000 });
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Build recovery", exact: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "Find breaking change" });

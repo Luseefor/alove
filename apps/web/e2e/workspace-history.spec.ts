@@ -5,7 +5,7 @@ test("history previews, cancels, restores and preserves a checkpoint of replaced
 }) => {
   await page.goto("/editor?new=true");
   const editor = page.getByRole("textbox", { name: "LaTeX source editor" });
-  const saved = page.getByText("Project Saved", { exact: true });
+  const saved = page.getByText("Project saved", { exact: true });
   await expect(saved).toBeVisible();
   await editor.fill("Original historical source");
   await expect(saved).toBeVisible();
@@ -51,7 +51,7 @@ test("deleted project checkpoints recover into an independent project", async ({
   const originalUrl = page.url();
   const editor = page.getByRole("textbox", { name: "LaTeX source editor" });
   await editor.fill("Recover deleted project source");
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   const projectId = new URL(page.url()).searchParams.get("project");
   await page.goto("/projects");
   const row = page

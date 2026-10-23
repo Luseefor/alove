@@ -32,15 +32,9 @@ function ToolbarGroup({ label, children }: ToolbarGroupProps) {
     <div
       role="group"
       aria-label={label}
-      className="flex min-w-0 shrink-0 flex-row items-center gap-1 border-r border-border px-2 last:border-r-0"
+      className="flex min-w-0 shrink-0 flex-row items-center gap-0.5"
     >
-      <span
-        aria-hidden="true"
-        className="hidden whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-widest text-muted-foreground lg:inline"
-      >
-        {label}
-      </span>
-      <div className="flex items-center gap-1">{children}</div>
+      <div className="flex items-center gap-0.5">{children}</div>
     </div>
   );
 }
@@ -85,11 +79,11 @@ const ToolbarButton = forwardRef<
       aria-haspopup={hasDropdown ? "menu" : undefined}
       {...rest}
       className={cn(
-        "group inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 transition-colors active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         variant === "primary"
           ? "bg-primary text-primary-foreground hover:bg-primary/90"
           : active
-            ? "bg-primary/10 text-primary font-bold"
+            ? "bg-accent text-accent-foreground font-medium"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
@@ -104,7 +98,7 @@ const ToolbarButton = forwardRef<
               : "text-muted-foreground group-hover:text-foreground",
         )}
       />
-      <span className="whitespace-nowrap text-[12px] font-bold tracking-tight">
+      <span className="whitespace-nowrap text-[12px] font-medium tracking-tight">
         {label}
       </span>
       {hasDropdown && (
@@ -148,7 +142,7 @@ export function ActionToolbar() {
     <div
       role="toolbar"
       aria-label="LaTeX actions"
-      className="z-40 flex h-11 w-full min-w-0 shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-border bg-background px-2 text-foreground scrollbar-hide"
+      className="z-40 flex h-10 w-full min-w-0 flex-1 shrink-0 items-center gap-1 overflow-x-auto whitespace-nowrap bg-chrome px-2 text-foreground scrollbar-hide lg:h-11 lg:w-auto"
     >
       <ToolbarGroup label="Citations">
         <DropdownMenu>

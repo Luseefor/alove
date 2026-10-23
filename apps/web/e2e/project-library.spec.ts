@@ -21,7 +21,7 @@ test("template, project rename, library search and guarded deletion work", async
   await expect(page.getByRole("button", { name: "Rename project" })).toHaveText(
     "Library test paper",
   );
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Projects", exact: true }).click();
   await expect(page).toHaveURL(/\/projects$/);
   await page
@@ -90,7 +90,7 @@ test("library archive import creates a durable independent project", async ({
   await expect(
     page.getByRole("textbox", { name: "LaTeX source editor" }),
   ).toContainText("Imported library text.");
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "Rename project" })).toHaveText(
     "Imported library paper",

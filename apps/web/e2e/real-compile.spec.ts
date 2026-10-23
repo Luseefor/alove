@@ -43,7 +43,7 @@ ALOVE BROWSER REAL PDF PROOF
   await expect(page.getByRole("button", { name: /Undefined control sequence/ })).toBeVisible();
 
   await editor.fill(source);
-  await expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   const projectUrl = page.url();
   await page.reload();
   await expect(page).toHaveURL(projectUrl);

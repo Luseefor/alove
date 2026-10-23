@@ -1,0 +1,98 @@
+[
+  {
+    "profile": "slate",
+    "mode": "light",
+    "button": 7.27,
+    "mutedEditorText": 5.33,
+    "mutedChromeText": 5.02,
+    "strongText": 12.92
+  },
+  {
+    "profile": "slate",
+    "mode": "dark",
+    "button": 9.41,
+    "mutedEditorText": 7.09,
+    "mutedChromeText": 6.79,
+    "strongText": 13.35
+  },
+  {
+    "profile": "emerald",
+    "mode": "light",
+    "button": 6.15,
+    "mutedEditorText": 5.33,
+    "mutedChromeText": 5.02,
+    "strongText": 12.92
+  },
+  {
+    "profile": "emerald",
+    "mode": "dark",
+    "button": 8.44,
+    "mutedEditorText": 7.09,
+    "mutedChromeText": 6.79,
+    "strongText": 13.35
+  },
+  {
+    "profile": "ocean",
+    "mode": "light",
+    "button": 5.51,
+    "mutedEditorText": 5.33,
+    "mutedChromeText": 5.02,
+    "strongText": 12.92
+  },
+  {
+    "profile": "ocean",
+    "mode": "dark",
+    "button": 8.58,
+    "mutedEditorText": 7.09,
+    "mutedChromeText": 6.79,
+    "strongText": 13.35
+  },
+  {
+    "profile": "violet",
+    "mode": "light",
+    "button": 5.96,
+    "mutedEditorText": 5.33,
+    "mutedChromeText": 5.02,
+    "strongText": 12.92
+  },
+  {
+    "profile": "violet",
+    "mode": "dark",
+    "button": 8.13,
+    "mutedEditorText": 7.09,
+    "mutedChromeText": 6.79,
+    "strongText": 13.35
+  },
+  {
+    "profile": "amber",
+    "mode": "light",
+    "button": 5.81,
+    "mutedEditorText": 5.33,
+    "mutedChromeText": 5.02,
+    "strongText": 12.92
+  },
+  {
+    "profile": "amber",
+    "mode": "dark",
+    "button": 8.28,
+    "mutedEditorText": 7.09,
+    "mutedChromeText": 6.79,
+    "strongText": 13.35
+  },
+  {
+    "profile": "rose",
+    "mode": "light",
+    "button": 5.66,
+    "mutedEditorText": 5.33,
+    "mutedChromeText": 5.02,
+    "strongText": 12.92
+  },
+  {
+    "profile": "rose",
+    "mode": "dark",
+    "button": 7.7,
+    "mutedEditorText": 7.09,
+    "mutedChromeText": 6.79,
+    "strongText": 13.35
+  }
+]

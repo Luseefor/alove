@@ -8,7 +8,7 @@ test("a paper survives its complete create, recover, export, import and delete j
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const source = page.getByRole("textbox", { name: "LaTeX source editor" });
-  const saved = () => expect(page.getByText("Project Saved", { exact: true })).toBeVisible();
+  const saved = () => expect(page.getByText("Project saved", { exact: true })).toBeVisible();
   const preview = page.getByTestId("pdf-preview-pane");
   const createFile = async (path: string, content: string) => {
     await page.getByRole("button", { name: "New file", exact: true }).first().click();

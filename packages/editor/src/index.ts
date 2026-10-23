@@ -29,13 +29,9 @@ import {
   StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
-import {
-  closeBrackets,
-  closeBracketsKeymap,
-} from "@codemirror/autocomplete";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { stex } from "@codemirror/legacy-modes/mode/stex";
 import { searchKeymap } from "@codemirror/search";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { lintGutter } from "@codemirror/lint";
 import { tags as t } from "@lezer/highlight";
 import { vim } from "@replit/codemirror-vim";
@@ -105,65 +101,102 @@ export type LatexEditorOptions = {
 
 export type LatexEditorCommand = "undo" | "redo" | "selectAll";
 
-const lightBaseTheme = EditorView.theme({
-  "&": {
-    backgroundColor: "#ffffff",
-    color: "#0f172a",
-  },
-  ".cm-content": {
-    caretColor: "#7c3aed",
-    padding: "24px 0",
-  },
-  "&.cm-focused .cm-cursor": {
-    borderLeftColor: "#7c3aed",
-  },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-    backgroundColor: "#7c3aed22",
-  },
-  ".cm-activeLine": {
-    backgroundColor: "#7c3aed08",
-  },
-  ".cm-gutters": {
-    backgroundColor: "#fdfcff",
-    color: "#94a3b8",
-    borderRight: "1px solid #e8e6f2",
-  },
-  ".cm-activeLineGutter": {
-    backgroundColor: "#7c3aed11",
-    color: "#7c3aed",
-    fontWeight: "bold",
-  },
-  ".cm-foldPlaceholder": {
-    backgroundColor: "#f1f5f9",
-    border: "none",
-    color: "#64748b",
-  },
-}, { dark: false });
+function editorBaseTheme(dark: boolean): Extension {
+  return EditorView.theme(
+    {
+      "&": {
+        backgroundColor: `var(--background, ${dark ? "#171c23" : "#ffffff"})`,
+        color: `var(--foreground, ${dark ? "#dce4ee" : "#253247"})`,
+      },
+      "&.cm-focused": { outline: "none" },
+      ".cm-content": {
+        caretColor: `var(--foreground, ${dark ? "#dce4ee" : "#253247"})`,
+        padding: "20px 0",
+      },
+      "&.cm-focused .cm-cursor": {
+        borderLeftColor: `var(--foreground, ${dark ? "#dce4ee" : "#253247"})`,
+      },
+      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection":
+        {
+          backgroundColor: "var(--editor-selection, #d7e1e6)",
+        },
+      ".cm-activeLine": { backgroundColor: "var(--editor-line, #f2f1ee)" },
+      ".cm-gutters": {
+        backgroundColor: "transparent",
+        color: "var(--editor-gutter, #898d93)",
+        border: "none",
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "transparent",
+        color: "var(--muted-foreground, #686c72)",
+      },
+      ".cm-foldPlaceholder": {
+        backgroundColor: "var(--muted, #f0efec)",
+        border: "none",
+        color: "var(--muted-foreground, #686c72)",
+      },
+      ".cm-tooltip, .cm-panels": {
+        backgroundColor: "var(--card-bg, #ffffff)",
+        color: `var(--foreground, ${dark ? "#dce4ee" : "#253247"})`,
+        borderColor: "var(--border, #e2e1dd)",
+      },
+      ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
+        backgroundColor: "var(--accent, #eae9e5)",
+        color: `var(--foreground, ${dark ? "#dce4ee" : "#253247"})`,
+      },
+      ".cm-searchMatch": {
+        backgroundColor: "var(--warning-bg, #f7f1e5)",
+        outline: "1px solid var(--warning, #866128)",
+      },
+    },
+    { dark },
+  );
+}
 
-const latexHighlightLight = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword], color: "#7c3aed", fontWeight: "700" },
-  { tag: [t.macroName, t.function(t.variableName)], color: "#4c1d95", fontWeight: "600" },
-  { tag: [t.string, t.special(t.string)], color: "#059669" },
-  { tag: [t.number, t.bool, t.atom], color: "#d97706" },
-  { tag: [t.comment, t.lineComment], color: "#94a3b8", fontStyle: "italic" },
-  { tag: [t.brace, t.paren, t.squareBracket], color: "#64748b" },
-  { tag: [t.invalid], color: "#ef4444" },
-]);
-
-const latexHighlightDark = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword], color: "#7dd3fc", fontWeight: "600" },
-  { tag: [t.macroName, t.function(t.variableName)], color: "#38bdf8" },
-  { tag: [t.string, t.special(t.string)], color: "#86efac" },
-  { tag: [t.number, t.bool, t.atom], color: "#fdba74" },
-  { tag: [t.comment, t.lineComment], color: "#94a3b8", fontStyle: "italic" },
-  { tag: [t.brace, t.paren, t.squareBracket], color: "#cbd5e1" },
-  { tag: [t.invalid], color: "#fca5a5" },
-]);
+function createLatexHighlight(dark: boolean): HighlightStyle {
+  const color = (token: string, light: string, night: string) =>
+    `var(${token}, ${dark ? night : light})`;
+  return HighlightStyle.define([
+    {
+      tag: [
+        t.keyword,
+        t.controlKeyword,
+        t.tagName,
+        t.macroName,
+        t.function(t.variableName),
+      ],
+      color: color("--syntax-command", "#705581", "#baa6ca"),
+    },
+    {
+      tag: [t.string, t.special(t.string)],
+      color: color("--syntax-string", "#426e57", "#a8c4ad"),
+    },
+    {
+      tag: [t.number, t.bool, t.atom],
+      color: color("--syntax-number", "#856230", "#c8b18c"),
+    },
+    {
+      tag: [t.comment, t.lineComment],
+      color: color("--syntax-comment", "#73777d", "#939aa4"),
+      fontStyle: "italic",
+    },
+    {
+      tag: [t.bracket, t.brace, t.paren, t.squareBracket],
+      color: color("--syntax-punctuation", "#66748a", "#a5abb4"),
+    },
+    { tag: [t.invalid], color: color("--error", "#ab4e50", "#d9a0a1") },
+  ]);
+}
+const latexHighlightLight = createLatexHighlight(false);
+const latexHighlightDark = createLatexHighlight(true);
 
 function themeExtension(theme: EditorTheme): Extension[] {
-  return theme === "dark"
-    ? [oneDark, syntaxHighlighting(latexHighlightDark)]
-    : [lightBaseTheme, syntaxHighlighting(latexHighlightLight)];
+  return [
+    editorBaseTheme(theme === "dark"),
+    syntaxHighlighting(
+      theme === "dark" ? latexHighlightDark : latexHighlightLight,
+    ),
+  ];
 }
 
 export function createLatexEditorExtensions(
@@ -247,8 +280,11 @@ export function runLatexEditorCommand(
 export { parseVisualDocument } from "./visualDocument";
 export type { VisualDocument } from "./visualDocument";
 export {
-  createVisualEditing, visualDocumentField, visualSourceTransaction,
-  formatVisualSelection, escapeVisualText,
+  createVisualEditing,
+  visualDocumentField,
+  visualSourceTransaction,
+  formatVisualSelection,
+  escapeVisualText,
 } from "./visualEditing";
 export type { VisualFormat } from "./visualEditing";
 export { canEditVisualRange, applyGuardedVisualPatches } from "./visualEditing";

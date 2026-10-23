@@ -30,24 +30,18 @@ function RailItem({
       aria-label={label}
       aria-pressed={pressed ?? active ?? false}
       className={cn(
-        "w-12 h-12 flex items-center justify-center transition-all group relative disabled:opacity-20 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        "flex h-9 w-9 items-center justify-center transition-colors group relative rounded-lg disabled:opacity-20 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         active
-          ? "text-primary"
-          : "text-muted-foreground hover:text-muted-foreground hover:bg-muted",
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted",
       )}
     >
       <Icon
         aria-hidden="true"
-        size={20}
-        strokeWidth={active ? 2.5 : 2}
-        className="transition-transform group-hover:scale-110"
+        size={18}
+        strokeWidth={2}
+        className="transition-transform group-hover:scale-105"
       />
-      {active && (
-        <div
-          aria-hidden="true"
-          className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-primary rounded-r-full shadow-[0_0_8px_rgba(124,58,237,0.5)]"
-        />
-      )}
     </button>
   );
 }
@@ -85,9 +79,9 @@ export function ActivityRail({
   return (
     <nav
       aria-label="Workbench"
-      className="relative z-[45] isolate w-12 border-r bg-background flex flex-col items-center shrink-0 select-none shadow-[1px_0_0_rgba(0,0,0,0.02)]"
+      className="relative z-[45] isolate w-12 shrink-0 select-none flex flex-col items-center border-r border-border bg-chrome py-1"
     >
-      <div className="flex flex-col flex-1 w-full items-center">
+      <div className="flex flex-col flex-1 w-full items-center gap-0.5">
         <RailItem
           icon={FileText}
           label="Project"
@@ -108,7 +102,7 @@ export function ActivityRail({
         />
       </div>
 
-      <div className="relative z-[1] flex flex-col w-full items-center pb-4">
+      <div className="relative z-[1] flex flex-col w-full items-center gap-0.5 pb-2">
         <RailItem
           icon={Settings}
           label="Settings"
@@ -116,15 +110,15 @@ export function ActivityRail({
           pressed={false}
           onClick={() => setSettingsModalOpen(true)}
         />
-        <div aria-hidden="true" className="w-8 h-px bg-muted my-2" />
+        <div aria-hidden="true" className="w-6 h-px bg-border my-1" />
         <button
           type="button"
           aria-label="Toggle file browser"
           aria-expanded={expanded}
           onClick={onToggleSidebar ?? toggleSidebar}
-          className="size-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Menu aria-hidden="true" size={20} />
+          <Menu aria-hidden="true" size={18} />
         </button>
       </div>
     </nav>

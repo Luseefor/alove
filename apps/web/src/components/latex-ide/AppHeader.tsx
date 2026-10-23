@@ -172,10 +172,10 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="z-[60] w-full min-w-0 shrink-0 select-none border-b border-border bg-background text-foreground">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-2 py-2 sm:px-4 md:h-14 md:flex-nowrap md:py-0">
-          <div className="order-1 flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
-            {/* Logo */}
+      <header className="z-[60] w-full min-w-0 shrink-0 select-none border-b border-border bg-chrome text-foreground">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-2 py-1.5 sm:px-3 md:h-14 md:grid-cols-[minmax(0,1fr)_auto_auto] md:gap-3 md:py-0">
+          {/* Identity: logo + project title near logo */}
+          <div className="flex min-w-0 items-center gap-2 md:order-1">
             <Link
               href="/projects"
               aria-label="Projects"
@@ -195,54 +195,17 @@ export function AppHeader() {
                   );
                 }
               }}
-              className="flex items-center gap-2 border-r border-border pr-2 sm:pr-4"
+              className="flex shrink-0 items-center gap-2"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <span className="font-bold text-lg tracking-tight">a</span>
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground md:h-8 md:w-8">
+                <span className="font-bold text-base tracking-tight md:text-lg">a</span>
               </div>
-              <span className="hidden whitespace-nowrap text-xl font-bold tracking-tight text-primary sm:inline">
+              <span className="hidden whitespace-nowrap text-lg font-bold tracking-tight text-foreground sm:inline">
                 alove
               </span>
             </Link>
-
-            {/* Global Actions */}
-            <div className="flex shrink-0 items-center gap-1">
-              <IconButton
-                icon={Save}
-                title="Save (Ctrl+S)"
-                onClick={() => void saveAllDirtyFiles()}
-                disabled={readOnly || (!hasDirty && !activeFileId)}
-                className={
-                  hasDirty
-                    ? "text-primary hover:bg-primary/90 hover:text-primary-foreground"
-                    : ""
-                }
-              />
-              <div
-                className="mx-1 hidden h-4 w-px bg-border sm:block"
-                aria-hidden="true"
-              />
-              <div className="flex items-center gap-1">
-                <IconButton
-                  icon={Undo2}
-                  title="Undo"
-                  disabled={readOnly}
-                  onClick={() => requestEditorCommand("undo")}
-                />
-                <IconButton
-                  icon={Redo2}
-                  title="Redo"
-                  disabled={readOnly}
-                  onClick={() => requestEditorCommand("redo")}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Project Title & State */}
-          <div className="order-3 flex min-w-0 basis-full items-center justify-start md:order-2 md:flex-1 md:justify-center md:px-1">
-            <div className="flex min-w-0 max-w-full flex-col items-start md:items-center">
-              <div className="flex min-w-0 max-w-full items-center gap-2">
+            <div className="flex min-w-0 flex-col leading-tight">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <button
                   ref={renameButtonRef}
                   type="button"
@@ -255,161 +218,179 @@ export function AppHeader() {
                     setRenameError("");
                     setRenameOpen(true);
                   }}
-                  className="min-w-0 max-w-full truncate text-[14px] font-bold tracking-tight text-foreground"
+                  className="min-w-0 max-w-full truncate text-[13px] font-semibold tracking-tight text-foreground"
                 >
                   {projectTitle}
                 </button>
                 <div
                   aria-hidden="true"
                   className={cn(
-                    "h-2 w-2 shrink-0 rounded-full",
-                    hasUnsaved ? "bg-warning animate-pulse" : "bg-success",
+                    "h-1.5 w-1.5 shrink-0 rounded-full bg-warning animate-pulse",
+                    !hasUnsaved && "hidden",
                   )}
                 />
               </div>
-              <div className="mt-0.5 flex min-w-0 max-w-full items-center gap-1.5">
-                <span
-                  className={cn(
-                    "max-w-full truncate whitespace-nowrap text-[9px] font-black uppercase tracking-[0.1em]",
-                    hasUnsaved ? "text-warning" : "text-success",
-                  )}
-                >
-                  {saveStatus === "error"
-                    ? "Save failed"
-                    : saveStatus === "conflict"
-                      ? "Save conflict"
-                      : saveStatus === "loading"
-                        ? "Opening…"
-                        : saveStatus === "saving"
-                          ? "Saving…"
-                          : hasDirty || saveStatus === "unsaved"
-                            ? "Unsaved Changes"
-                            : "Project Saved"}
-                </span>
-              </div>
+              <span
+                className={cn(
+                  "max-w-full truncate whitespace-nowrap text-[11px]",
+                  hasUnsaved
+                    ? "font-medium text-warning"
+                    : "font-normal text-muted-foreground",
+                )}
+              >
+                {saveStatus === "error"
+                  ? "Save failed"
+                  : saveStatus === "conflict"
+                    ? "Save conflict"
+                    : saveStatus === "loading"
+                      ? "Opening…"
+                      : saveStatus === "saving"
+                        ? "Saving…"
+                        : hasDirty || saveStatus === "unsaved"
+                          ? "Unsaved changes"
+                          : "Project saved"}
+              </span>
             </div>
           </div>
 
-          {/* Right Actions */}
-          <div className="order-2 ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1 sm:gap-2 md:order-3 md:ml-0">
-            <div className="flex shrink-0 items-center gap-1">
-              <IconButton
-                icon={Settings}
-                title="Settings"
-                onClick={() => setSettingsModalOpen(true)}
+          {/* Build: top row on phone, far right on desktop */}
+          <div className="flex shrink-0 items-center justify-end gap-2 md:order-3">
+            {(buildStatus === "queued" || buildStatus === "running") && (
+              <button
+                type="button"
+                disabled={!activeCompileJobId}
+                onClick={() => void cancelCompile()}
+                aria-label="Cancel build"
+                className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Cancel
+              </button>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              data-testid="compile-button"
+              onClick={() => void runCompile()}
+              disabled={readOnly || buildStatus === "running" || buildStatus === "queued"}
+              className="h-8 shrink-0 gap-1.5 whitespace-nowrap rounded-md px-3 text-xs font-semibold md:h-9 sm:px-4"
+            >
+              <Play
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 fill-current",
+                  buildStatus === "running" && "animate-pulse",
+                )}
+                aria-hidden="true"
               />
-            </div>
+              <span className="whitespace-nowrap">
+                {buildStatus === "running" ? "Building..." : "Build"}
+              </span>
+            </Button>
+          </div>
 
-            <div className="mr-1 flex min-w-0 flex-wrap items-center justify-end gap-1 border-r border-border pr-2 sm:mr-2 sm:gap-2 sm:pr-3">
-              {projectTools ?? (
+          {/* Utility command row: second row on phone, center on desktop */}
+          <div className="col-span-2 flex min-w-0 items-center gap-0.5 overflow-x-auto scrollbar-hide md:order-2 md:col-span-1">
+            <IconButton
+              icon={Save}
+              title="Save (Ctrl+S)"
+              onClick={() => void saveAllDirtyFiles()}
+              disabled={readOnly || (!hasDirty && !activeFileId)}
+              className="h-8 w-8"
+            />
+            <IconButton
+              icon={Undo2}
+              title="Undo"
+              disabled={readOnly}
+              onClick={() => requestEditorCommand("undo")}
+              className="h-8 w-8"
+            />
+            <IconButton
+              icon={Redo2}
+              title="Redo"
+              disabled={readOnly}
+              onClick={() => requestEditorCommand("redo")}
+              className="h-8 w-8"
+            />
+            <IconButton
+              icon={Settings}
+              title="Settings"
+              onClick={() => setSettingsModalOpen(true)}
+              className="h-8 w-8"
+            />
+            {projectTools ?? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Share"
+                onClick={() => setShareOpen(true)}
+                title="Share source snapshot"
+                className="h-8 shrink-0 gap-1.5 whitespace-nowrap rounded-md px-2 text-xs font-medium"
+              >
+                <Share2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="hidden lg:inline">Share</span>
+              </Button>
+            )}
+            {/* Workspace history stays visible next to Export. */}
+            <WorkspaceHistory />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  aria-label="Share"
-                  onClick={() => setShareOpen(true)}
-                  title="Share source snapshot"
-                  className="h-9 shrink-0 gap-2 whitespace-nowrap rounded-md px-2 font-bold sm:px-4"
+                  aria-label="Export"
+                  aria-haspopup="menu"
+                  title="Export"
+                  className="h-8 shrink-0 gap-1.5 whitespace-nowrap rounded-md px-2 text-xs font-medium"
                 >
-                  <Share2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="hidden lg:inline">Share</span>
+                  <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="hidden min-[525px]:inline">Export</span>
+                  <ChevronDown
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                 </Button>
-              )}
-
-              {/* Workspace history stays visible on narrow layouts next to Export. */}
-              <WorkspaceHistory />
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label="Export"
-                    aria-haspopup="menu"
-                    title="Export"
-                    className="h-9 shrink-0 gap-2 whitespace-nowrap rounded-md px-2 font-bold sm:px-4"
-                  >
-                    <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span className="hidden min-[525px]:inline">Export</span>
-                    <ChevronDown
-                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-48 rounded-md border-border bg-background p-2"
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-48 rounded-md border-border bg-background p-2"
+              >
+                <DropdownMenuItem
+                  disabled={!pdfDataUrl}
+                  className="rounded-md font-semibold text-xs gap-3 p-2.5 cursor-pointer"
+                  onSelect={() => {
+                    if (pdfDataUrl) {
+                      const a = document.createElement("a");
+                      a.href = pdfDataUrl;
+                      a.download = `${projectTitle.toLowerCase().replace(/\s+/g, "-")}.pdf`;
+                      a.click();
+                    }
+                  }}
                 >
+                  <FileText className="w-4 h-4 text-primary" />
+                  Download PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={exportSource}
+                  className="rounded-md font-semibold text-xs gap-3 p-2.5 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  Download Source (.alove.json)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setBuildRecoveryOpen(true)}
+                  className="rounded-md font-semibold text-xs p-2.5 cursor-pointer"
+                >
+                  Build recovery
+                </DropdownMenuItem>
+                {localMode && (
                   <DropdownMenuItem
-                    disabled={!pdfDataUrl}
-                    className="rounded-md font-semibold text-xs gap-3 p-2.5 cursor-pointer"
-                    onSelect={() => {
-                      if (pdfDataUrl) {
-                        const a = document.createElement("a");
-                        a.href = pdfDataUrl;
-                        a.download = `${projectTitle.toLowerCase().replace(/\s+/g, "-")}.pdf`;
-                        a.click();
-                      }
-                    }}
-                  >
-                    <FileText className="w-4 h-4 text-primary" />
-                    Download PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={exportSource}
-                    className="rounded-md font-semibold text-xs gap-3 p-2.5 cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-muted-foreground" />
-                    Download Source (.alove.json)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => setBuildRecoveryOpen(true)}
+                    onSelect={() => importInput.current?.click()}
                     className="rounded-md font-semibold text-xs p-2.5 cursor-pointer"
                   >
-                    Build recovery
+                    Import Source as New Project
                   </DropdownMenuItem>
-                  {localMode && (
-                    <DropdownMenuItem
-                      onSelect={() => importInput.current?.click()}
-                      className="rounded-md font-semibold text-xs p-2.5 cursor-pointer"
-                    >
-                      Import Source as New Project
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {(buildStatus === "queued" || buildStatus === "running") && (
-                <button
-                  type="button"
-                  disabled={!activeCompileJobId}
-                  onClick={() => void cancelCompile()}
-                  aria-label="Cancel build"
-                  className="rounded border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Cancel build
-                </button>
-              )}
-              <Button
-                variant="primary"
-                size="sm"
-                data-testid="compile-button"
-                onClick={() => void runCompile()}
-                disabled={readOnly || buildStatus === "running" || buildStatus === "queued"}
-                className="h-9 shrink-0 gap-2 whitespace-nowrap rounded-md px-3 font-bold sm:px-5"
-              >
-                <Play
-                  className={cn(
-                    "h-4 w-4 shrink-0 fill-current",
-                    buildStatus === "running" && "animate-pulse",
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="whitespace-nowrap">
-                  {buildStatus === "running" ? "Building..." : "Build"}
-                </span>
-              </Button>
-            </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -476,7 +457,7 @@ export function AppHeader() {
       {importError && (
         <div
           role="alert"
-          className="border-b bg-amber-50 px-4 py-2 text-sm text-amber-950"
+          className="bg-warning-bg px-4 py-2 text-sm text-warning"
         >
           {importError}
         </div>
@@ -484,7 +465,7 @@ export function AppHeader() {
       {saveMessage && (
         <div
           role="alert"
-          className="flex flex-wrap items-center gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950"
+          className="flex flex-wrap items-center gap-3 bg-warning-bg px-4 py-2 text-sm text-warning"
         >
           <span className="flex-1">{saveMessage}</span>
           {saveStatus === "error" && (

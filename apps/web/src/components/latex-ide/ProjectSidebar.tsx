@@ -221,11 +221,11 @@ export function ProjectSidebar() {
   }
 
   return (
-    <aside className="w-full h-full flex flex-col bg-background select-none border-r shrink-0">
+    <aside className="w-full h-full flex flex-col bg-chrome select-none shrink-0">
       {/* Project Header */}
-      <div className="h-12 border-b flex items-center justify-between px-4 shrink-0 bg-background">
+      <div className="h-10 flex items-center justify-between px-3 shrink-0 border-b border-border bg-chrome">
         <div className="flex items-center gap-2">
-          <span className="text-[12px] font-black uppercase tracking-widest text-muted-foreground">
+          <span className="text-[12px] font-semibold text-foreground">
             Project
           </span>
         </div>
@@ -246,7 +246,7 @@ export function ProjectSidebar() {
       {/* File Tree Section */}
       <div className="flex-[3] flex flex-col min-h-0">
         {/* Tree Toolbar */}
-        <div className="h-9 flex items-center justify-between px-3 shrink-0 bg-muted/30 border-b border-border">
+        <div className="h-9 flex items-center justify-between px-3 shrink-0 bg-chrome">
           <div className="flex min-w-0 flex-1 items-center gap-2 pr-2">
             <span
               className="truncate text-[11px] font-medium text-foreground"
@@ -292,7 +292,7 @@ export function ProjectSidebar() {
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-y-auto pt-1 min-h-0 bg-background">
+        <div className="flex-1 overflow-y-auto pt-1 min-h-0 bg-chrome">
           {filteredTree.length === 0 ? (
             <div className="px-6 py-12 text-center space-y-3">
               <div className="w-10 h-10 mx-auto rounded-full bg-muted flex items-center justify-center text-zinc-300 border border-border">
@@ -311,8 +311,8 @@ export function ProjectSidebar() {
       </div>
 
       {/* Combined Snippets + Outline Section */}
-      <div className="flex-[2] min-h-0 border-t flex flex-col bg-background">
-        <div className="h-10 px-1 border-b flex items-center bg-muted/50">
+      <div className="flex-[2] min-h-0 flex flex-col bg-chrome border-t border-border">
+        <div className="h-10 px-1 flex items-center bg-chrome">
           <SidebarTab
             active={sidebarTab === "snippets"}
             onClick={() => setSidebarTab("snippets")}
@@ -328,7 +328,7 @@ export function ProjectSidebar() {
         <div className="flex-1 overflow-hidden flex flex-col">
           {sidebarTab === "snippets" ? (
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="p-2 border-b border-border flex gap-2 bg-background">
+              <div className="p-2 flex gap-2 bg-chrome">
                 <div className="relative flex-1 group">
                   <Search
                     aria-hidden="true"
@@ -343,7 +343,7 @@ export function ProjectSidebar() {
                   />
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-background">
+              <div className="flex-1 overflow-y-auto p-2 space-y-0.5 bg-chrome">
                 {snippets.length === 0 ? (
                   <p className="text-[10px] text-muted-foreground text-center py-4 font-medium italic">
                     No snippets found.
@@ -359,12 +359,12 @@ export function ProjectSidebar() {
                           ? wrapSelectionOrInsert(s.wrap[0], s.wrap[1], s.code)
                           : appendToActiveFile(s.code)
                       }
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-muted border border-transparent hover:border-border group transition-all active:scale-[0.98]"
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left hover:bg-muted group transition-colors active:scale-[0.98]"
                     >
-                      <div className="w-5 h-5 bg-muted rounded-md flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                      <div className="w-5 h-5 bg-muted rounded flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors">
                         <s.icon aria-hidden="true" size={11} />
                       </div>
-                      <span className="text-[11px] font-bold text-muted-foreground group-hover:text-foreground transition-colors">
+                      <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                         {s.label}
                       </span>
                     </button>
@@ -484,19 +484,14 @@ function SidebarTab({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "px-4 py-3 text-[11px] font-black uppercase tracking-[0.15em] transition-all relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        "px-4 py-2 text-xs font-medium transition-colors rounded-md relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
         active
-          ? "text-primary"
-          : "text-muted-foreground hover:text-muted-foreground",
+          ? "bg-muted text-foreground"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
-      {active && (
-        <div
-          aria-hidden="true"
-          className="absolute bottom-0 inset-x-4 h-0.5 bg-primary rounded-t-full shadow-[0_0_8px_rgba(124,58,237,0.5)]"
-        />
-      )}
+
     </button>
   );
 }
@@ -591,9 +586,9 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
         aria-expanded={isFolder ? isOpen : undefined}
         aria-current={isActive ? "true" : undefined}
         className={cn(
-          "relative w-full min-h-8 flex items-center transition-all rounded-lg group/row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          "relative w-full min-h-8 flex items-center transition-colors rounded-md group/row focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           isActive
-            ? "bg-primary/5 text-primary border border-primary/10 shadow-sm"
+            ? "bg-accent text-accent-foreground font-medium"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
         style={{ paddingLeft: `${indent + 6}px` }}
@@ -624,31 +619,28 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
           )}
           <Icon
             size={14}
-            strokeWidth={isActive ? 2.5 : 2}
+            strokeWidth={2}
             className={cn(
               isActive
-                ? "text-primary"
+                ? "text-accent-foreground"
                 : "text-muted-foreground group-hover/row:text-muted-foreground",
             )}
           />
         </div>
         <span
           title={file.path}
-          className={cn(
-            "min-w-0 text-[12px] font-medium truncate flex-1",
-            isActive && "text-primary",
-          )}
+          className="min-w-0 text-[12px] font-medium truncate flex-1"
         >
           {file.name}
         </span>
 
         {file.path.endsWith(".tex") && (
-          <span className="text-[9px] font-black uppercase tracking-tighter text-primary/40 mr-1.5 bg-primary/5 px-1 rounded-sm border border-primary/5">
+          <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground mr-1.5 bg-muted px-1 rounded-sm border border-border">
             {mainFile === file.path ? "MAIN" : "TEX"}
           </span>
         )}
         {file.path.endsWith(".bib") && (
-          <span className="text-[9px] font-black uppercase tracking-tighter text-violet-400 mr-1.5 bg-violet-50 px-1 rounded-sm border border-violet-50">
+          <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground mr-1.5 bg-muted px-1 rounded-sm border border-border">
             BIB
           </span>
         )}
@@ -661,8 +653,8 @@ function FileRow({ file, level }: { file: ProjectFile; level: number }) {
                 aria-label={`File actions for ${file.path}`}
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  "shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-all",
-                  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 focus-visible:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-background hover:text-foreground shadow-sm border border-transparent hover:border-border",
+                  "shrink-0 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors",
+                  "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100 focus-visible:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100 hover:bg-muted hover:text-foreground",
                 )}
               >
                 <MoreVertical aria-hidden="true" size={12} />

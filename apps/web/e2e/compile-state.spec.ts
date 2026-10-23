@@ -38,7 +38,7 @@ test("builds the configured root and retains the last PDF on failure", async ({ 
   await page.getByRole("menuitem", { name: "Set as Main Document", exact: true }).click();
   await page.getByRole("button", { name: "Build", exact: true }).first().click();
   await expect.poll(() => roots.at(-1)).toBe("untitled.tex");
-  await expect(page.getByText(/^Project Saved$/)).toBeVisible();
+  await expect(page.getByText(/^Project saved$/)).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Build", exact: true }).first().click();
   await expect.poll(() => roots.length).toBe(4);
