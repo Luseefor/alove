@@ -48,7 +48,7 @@ Body & 7 \\
 Prose after the objects.
 \end{document}
 `;
-async function paper(page: Page) {
+async function paper(page: Page, initialSource = source) {
   await page.goto("/editor?new=true");
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await page
@@ -63,7 +63,7 @@ async function paper(page: Page) {
         version: 1,
         title: "Manuscript object proof",
         mainFile: "main.tex",
-        files: { "main.tex": source, "figures/a.png": png },
+        files: { "main.tex": initialSource, "figures/a.png": png },
       }),
     ),
   });
@@ -227,6 +227,83 @@ test("vertical merges retain content and repeated headers retain exact markers",
   await page.getByRole("button", { name: "Apply subfigure changes" }).click();
   await page.getByLabel("Enable subcaption in document setup").check();
   await page.getByRole("button", { name: "Apply subfigure changes" }).click();
+  await page.getByRole("button", { name: "Proof", exact: true }).click();
+  await build(page);
+});
+
+test("subfigure ordering follows panel edits through Cancel, undo, redo and reload", async ({
+  page,
+}) => {
+  const initial = source.replace(
+    String.raw`\usepackage{graphicx}`,
+    String.raw`\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{longtable}`,
+  );
+  const blocks = [
+    ...initial.matchAll(/\\begin\{subfigure\}[\s\S]*?\\end\{subfigure\}/g),
+  ].map((m) => m[0]);
+  expect(blocks).toHaveLength(2);
+  await paper(page, initial);
+  const open = () =>
+    page.getByRole("button", { name: "Edit subfigures", exact: true }).click();
+  await open();
+  await expect(
+    page.getByRole("button", { name: "Move panel earlier", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Move panel later", exact: true })
+    .click();
+  await expect(page.getByLabel("Panel caption", { exact: true })).toHaveValue(
+    "First panel",
+  );
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(await exported(page)).toBe(initial);
+  await open();
+  await page
+    .getByLabel("Panel caption", { exact: true })
+    .fill("First moved & edited");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const later = page.getByRole("button", {
+    name: "Move panel later",
+    exact: true,
+  });
+  await later.focus();
+  await page.keyboard.press("Enter");
+  await expect(later).toBeDisabled();
+  await expect(page.getByLabel("Panel caption", { exact: true })).toHaveValue(
+    "First moved & edited",
+  );
+  const earlier = page.getByRole("button", {
+    name: "Move panel earlier",
+    exact: true,
+  });
+  await expect(earlier).toBeInViewport();
+  const bounds = (await earlier.boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+  if (process.env.E2E_EVIDENCE_DIR)
+    await page.screenshot({
+      path: `${process.env.E2E_EVIDENCE_DIR}/subfigure-order-phone.png`,
+    });
+  await page.getByRole("button", { name: "Apply subfigure changes" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const expected = initial
+    .replace(blocks[0]!, "__FIRST_PANEL__")
+    .replace(
+      blocks[1]!,
+      blocks[0]!.replace("First panel", String.raw`First moved \& edited`),
+    )
+    .replace("__FIRST_PANEL__", blocks[1]!);
+  expect(await exported(page)).toBe(expected);
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "LaTeX source editor" });
+  await editor.press("ControlOrMeta+z");
+  expect(await exported(page)).toBe(initial);
+  await editor.press("ControlOrMeta+Shift+z");
+  expect(await exported(page)).toBe(expected);
+  await page.reload();
+  expect(await exported(page)).toBe(expected);
   await page.getByRole("button", { name: "Proof", exact: true }).click();
   await build(page);
 });
