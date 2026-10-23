@@ -29,14 +29,33 @@ export function VisualSubfigureEditor({
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
-  const panel = draft.panels[selected]!;
-  const original = model.panels[selected]!;
+  const order = draft.order ?? draft.panels.map((_, i) => i);
+  const originalIndex = order[selected] ?? selected;
+  const panel = draft.panels[originalIndex]!;
+  const original = model.panels[originalIndex]!;
   const locked = disabled || uploading;
   function update(value: Partial<typeof panel>) {
-    setDraft((d) => ({
-      ...d,
-      panels: d.panels.map((p, i) => (i === selected ? { ...p, ...value } : p)),
-    }));
+    setDraft((d) => {
+      const currentOrder = d.order ?? d.panels.map((_, i) => i);
+      const target = currentOrder[selected] ?? selected;
+      return {
+        ...d,
+        panels: d.panels.map((p, i) => (i === target ? { ...p, ...value } : p)),
+      };
+    });
+  }
+  function moveSelected(delta: -1 | 1) {
+    if (locked) return;
+    const next = selected + delta;
+    if (next < 0 || next >= order.length) return;
+    setDraft((d) => {
+      const current = [...(d.order ?? d.panels.map((_, i) => i))];
+      const atSelected = current[selected]!;
+      current[selected] = current[next]!;
+      current[next] = atSelected;
+      return { ...d, order: current };
+    });
+    setSelected(next);
   }
   return (
     <form
@@ -66,13 +85,33 @@ export function VisualSubfigureEditor({
             value={selected}
             onChange={(e) => setSelected(Number(e.target.value))}
           >
-            {draft.panels.map((_, i) => (
+            {order.map((_, i) => (
               <option key={i} value={i}>
                 Panel {i + 1}
               </option>
             ))}
           </select>
         </label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            aria-label="Move panel earlier"
+            disabled={locked || selected <= 0}
+            onClick={() => moveSelected(-1)}
+            className="min-h-9 rounded border border-border px-3 text-sm disabled:opacity-40"
+          >
+            Move earlier
+          </button>
+          <button
+            type="button"
+            aria-label="Move panel later"
+            disabled={locked || selected >= order.length - 1}
+            onClick={() => moveSelected(1)}
+            className="min-h-9 rounded border border-border px-3 text-sm disabled:opacity-40"
+          >
+            Move later
+          </button>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <FigureResizePreview
             preview={safeFigureAsset(assets[panel.path])}

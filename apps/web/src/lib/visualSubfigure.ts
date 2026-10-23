@@ -80,6 +80,7 @@ export type SubfigureDraft = {
   panels: SubfigurePanelDraft[];
   caption: string;
   label: string;
+  order?: number[];
 };
 
 function blank(s: string, from: number, to: number): string {
@@ -438,6 +439,7 @@ export function subfigureDraft(model: VisualSubfigure): SubfigureDraft {
     panels: model.panels.map(subfigurePanelDraft),
     caption: model.caption?.text ?? model.caption?.value ?? "",
     label: model.label?.value ?? "",
+    order: model.panels.map((_, i) => i),
   };
 }
 
@@ -480,6 +482,18 @@ export function patchesForVisualSubfigure(
         "Choose panel widths from 5–100%, graphic widths from 10–100%, and simple labels.",
       );
   }
+  const count = model.panels.length;
+  const order =
+    draft.order === undefined
+      ? model.panels.map((_, i) => i)
+      : [...draft.order];
+  if (
+    order.length !== count ||
+    order.some((v) => !Number.isInteger(v) || v < 0 || v >= count) ||
+    new Set(order).size !== count
+  )
+    throw new Error("Panel order is invalid.");
+  const reordered = order.some((v, i) => v !== i);
   const patches: VisualSourcePatch[] = [];
   if (placement !== model.placement) {
     if (model.placement === null && placement !== null) {
@@ -502,21 +516,23 @@ export function patchesForVisualSubfigure(
       });
     }
   }
+  const panelPatches: VisualSourcePatch[][] = model.panels.map(() => []);
   draft.panels.forEach((panelDraft, i) => {
     const panel = model.panels[i]!;
+    const target = panelPatches[i]!;
     const position =
       panelDraft.envPosition === "" ? null : panelDraft.envPosition;
     if (!isSubfigurePosition(position))
       throw new Error("Choose a panel position of b, c or t.");
     if (panelDraft.path !== panel.path) {
-      patches.push({
+      target.push({
         from: panel.pathFrom,
         to: panel.pathTo,
         insert: `\\detokenize{${panelDraft.path}}`,
       });
     }
     if (panelDraft.envWidth !== panel.envWidth) {
-      patches.push({
+      target.push({
         from: panel.envWidthFrom,
         to: panel.envWidthTo,
         insert: String(panelDraft.envWidth),
@@ -524,19 +540,19 @@ export function patchesForVisualSubfigure(
     }
     if (position !== panel.envPosition) {
       if (panel.envPosition === null && position !== null) {
-        patches.push({
+        target.push({
           from: panel.envPositionFrom,
           to: panel.envPositionTo,
           insert: `[${position}]`,
         });
       } else if (panel.envPosition !== null && position === null) {
-        patches.push({
+        target.push({
           from: panel.envPositionFrom - 1,
           to: panel.envPositionTo + 1,
           insert: "",
         });
       } else if (panel.envPosition !== null && position !== null) {
-        patches.push({
+        target.push({
           from: panel.envPositionFrom,
           to: panel.envPositionTo,
           insert: position,
@@ -545,7 +561,7 @@ export function patchesForVisualSubfigure(
     }
     if (panelDraft.graphicWidth !== panel.graphicWidth) {
       if (panel.graphicWidth === null && panelDraft.graphicWidth !== null) {
-        patches.push({
+        target.push({
           from: panel.graphicOptionFrom,
           to: panel.graphicOptionTo,
           insert: `[width=${panelDraft.graphicWidth}\\${panel.graphicWidthUnit}]`,
@@ -554,7 +570,7 @@ export function patchesForVisualSubfigure(
         panel.graphicWidth !== null &&
         panelDraft.graphicWidth === null
       ) {
-        patches.push({
+        target.push({
           from: panel.graphicOptionFrom,
           to: panel.graphicOptionTo,
           insert: "",
@@ -563,7 +579,7 @@ export function patchesForVisualSubfigure(
         panel.graphicWidth !== null &&
         panelDraft.graphicWidth !== null
       ) {
-        patches.push({
+        target.push({
           from: panel.graphicWidthFrom,
           to: panel.graphicWidthTo,
           insert: String(panelDraft.graphicWidth),
@@ -577,14 +593,14 @@ export function patchesForVisualSubfigure(
     ) {
       if (panelCaption.text === null)
         throw new Error("Edit custom caption markup in Source.");
-      patches.push({
+      target.push({
         from: panelCaption.contentFrom,
         to: panelCaption.contentTo,
         insert: encodeVisualProse(panelDraft.caption),
       });
     }
     if (panel.label && panelDraft.label !== panel.label.value) {
-      patches.push({
+      target.push({
         from: panel.label.contentFrom,
         to: panel.label.contentTo,
         insert: panelDraft.label,
@@ -602,13 +618,51 @@ export function patchesForVisualSubfigure(
       );
       const end =
         maskVisualComments(panelSource).lastIndexOf("\\end{subfigure}");
-      patches.push({
+      target.push({
         from: panel.panelFrom + end,
         to: panel.panelFrom + end,
         insert: suffix,
       });
     }
   });
+  if (!reordered) {
+    for (const list of panelPatches) patches.push(...list);
+  } else {
+    const editedBlocks = model.panels.map((panel, i) => {
+      const originalBlock = model.source.slice(
+        panel.panelFrom - model.from,
+        panel.panelTo - model.from,
+      );
+      const list = [...panelPatches[i]!].sort((a, b) => a.from - b.from);
+      if (list.length === 0) return originalBlock;
+      let out = "";
+      let cursor = 0;
+      for (const patch of list) {
+        const relFrom = patch.from - panel.panelFrom;
+        const relTo = patch.to - panel.panelFrom;
+        if (relFrom < 0 || relTo < relFrom || relTo > originalBlock.length)
+          throw new Error("Panel order is invalid.");
+        out += originalBlock.slice(cursor, relFrom) + patch.insert;
+        cursor = relTo;
+      }
+      out += originalBlock.slice(cursor);
+      return out;
+    });
+    model.panels.forEach((slot, slotIndex) => {
+      const originalBlock = model.source.slice(
+        slot.panelFrom - model.from,
+        slot.panelTo - model.from,
+      );
+      const nextBlock = editedBlocks[order[slotIndex]!]!;
+      if (nextBlock !== originalBlock) {
+        patches.push({
+          from: slot.panelFrom,
+          to: slot.panelTo,
+          insert: nextBlock,
+        });
+      }
+    });
+  }
   if (
     model.caption &&
     draft.caption !== (model.caption.text ?? model.caption.value)
