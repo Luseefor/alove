@@ -14,6 +14,32 @@ function preview(source: string) {
 }
 
 describe("advanced table widget preview", () => {
+  it("renders vertical spans with exact anchor mapping", () => {
+    const { frame, calls } = preview(
+      String.raw`\begin{tabular}{ll}\multirow{2}{*}{A} & B \\ & C \\ \end{tabular}`,
+    );
+    const cells = [...frame.querySelectorAll("td")];
+    expect(cells).toHaveLength(3);
+    expect(cells[0]!.rowSpan).toBe(2);
+    (cells[2]!.querySelector("button") as HTMLButtonElement).click();
+    expect(calls).toEqual([{ row: 1, column: 1 }]);
+  });
+  it("labels repeated longtable sections separately", () => {
+    const { frame } = preview(
+      String.raw`\begin{longtable}{ll}H & H \\ \endfirsthead R & R \\ \endhead F & F \\ \endfoot L & L \\ \endlastfoot A & B \\ \end{longtable}`,
+    );
+    expect(
+      [...frame.querySelectorAll("th")].map((cell) => cell.textContent),
+    ).toEqual([
+      "First page header",
+      "Repeated header",
+      "Repeated footer",
+      "Last page footer",
+      "Body",
+    ]);
+    expect(frame.querySelectorAll("td")).toHaveLength(10);
+  });
+
   it("skips covered cells, spans merges and keeps edit mapping", () => {
     const { frame, calls } = preview(
       String.raw`\begin{tabular}{|l|c|}\hline\multicolumn{2}{|c|}{Merged} \\\hline A & B \\\hline\end{tabular}`,
@@ -21,9 +47,7 @@ describe("advanced table widget preview", () => {
     const cells = [...frame.querySelectorAll("td")];
     expect(cells).toHaveLength(3);
     expect(cells[0]!.colSpan).toBe(2);
-    const buttons = [
-      ...frame.querySelectorAll("td button"),
-    ] as HTMLElement[];
+    const buttons = [...frame.querySelectorAll("td button")] as HTMLElement[];
     expect(
       buttons.map((b) => b.getAttribute("aria-label")?.split(":")[0]),
     ).toEqual([

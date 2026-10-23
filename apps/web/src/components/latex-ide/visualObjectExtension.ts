@@ -90,21 +90,42 @@ export function buildVisualTablePreview(
     const group = document.createElement("colgroup");
     object.columns.forEach((column) => {
       const col = document.createElement("col");
-      const width = column.width
-        ? tableDimensionCss(column.width)
-        : undefined;
+      const width = column.width ? tableDimensionCss(column.width) : undefined;
       if (width) col.style.width = width;
       group.appendChild(col);
     });
     table.appendChild(group);
   }
   object.cells.forEach((row, r) => {
+    if (
+      object.longtableMarkers?.some(Boolean) &&
+      (r === 0 || object.longtableMarkers[r])
+    ) {
+      const nextMarker = object.longtableMarkers.slice(r + 1).find(Boolean);
+      const sectionNames: Record<string, string> = {
+        endfirsthead: "First page header",
+        endhead: "Repeated header",
+        endfoot: "Repeated footer",
+        endlastfoot: "Last page footer",
+      };
+      const section = document.createElement("tr");
+      const label = document.createElement("th");
+      label.colSpan = object.columns.length;
+      label.textContent = nextMarker
+        ? (sectionNames[nextMarker] ?? "Body")
+        : "Body";
+      label.scope = "colgroup";
+      section.appendChild(label);
+      table.appendChild(section);
+    }
     const tr = document.createElement("tr");
     row.forEach((cell, c) => {
-      if (cell.colSpan === 0) return;
+      if (cell.colSpan === 0 || cell.rowSpan === 0) return;
       const span = cell.colSpan > 1 ? cell.colSpan : 1;
       const td = document.createElement("td");
       if (span > 1) td.colSpan = span;
+      const rowSpan = cell.rowSpan > 1 ? cell.rowSpan : 1;
+      if (rowSpan > 1) td.rowSpan = rowSpan;
       const override = spanOverride(cell.spanSpec);
       const alignment =
         override?.alignment ??
@@ -136,7 +157,7 @@ export function buildVisualTablePreview(
       else if (kind === "b") td.style.verticalAlign = "bottom";
       td.style.borderTop = tableHorizontalBorder(object.rules?.[r], c, span);
       td.style.borderBottom = tableHorizontalBorder(
-        object.rules?.[r + 1],
+        object.rules?.[r + rowSpan],
         c,
         span,
       );
@@ -168,7 +189,13 @@ class ObjectWidget extends WidgetType {
     this.asset =
       object.kind === "figure"
         ? safeFigureAsset(options.getAssets()[object.path])
-        : null;
+        : object.kind === "subfigure"
+          ? JSON.stringify(
+              object.panels.map((panel) =>
+                safeFigureAsset(options.getAssets()[panel.path]),
+              ),
+            )
+          : null;
   }
   eq(other: ObjectWidget) {
     return (
@@ -191,6 +218,7 @@ class ObjectWidget extends WidgetType {
     const block =
       object.kind === "table" ||
       object.kind === "figure" ||
+      object.kind === "subfigure" ||
       (object.kind === "math" && object.display);
     const root = document.createElement(block ? "div" : "span");
     root.className = `cm-visual-object cm-visual-object-${object.kind}`;
@@ -214,6 +242,41 @@ class ObjectWidget extends WidgetType {
         caption.textContent = object.caption.text ?? object.caption.value;
         root.appendChild(caption);
       }
+    } else if (object.kind === "subfigure") {
+      const panels = document.createElement("div");
+      panels.className = "flex flex-wrap items-start gap-3";
+      object.panels.forEach((panel, index) => {
+        const item = document.createElement("div");
+        item.style.width = `${panel.envWidth * 100}%`;
+        const asset = safeFigureAsset(this.options.getAssets()[panel.path]);
+        if (asset) {
+          const image = document.createElement("img");
+          image.src = asset;
+          image.alt = panel.caption?.text || panel.path;
+          image.style.maxWidth = "100%";
+          image.style.maxHeight = "180px";
+          item.appendChild(image);
+        } else {
+          const path = document.createElement("span");
+          path.textContent = panel.path;
+          item.appendChild(path);
+        }
+        const caption = document.createElement("div");
+        caption.className = "cm-visual-object-caption";
+        caption.textContent = `(${String.fromCharCode(97 + index)}) ${panel.caption?.text ?? panel.caption?.value ?? ""}`;
+        item.appendChild(caption);
+        panels.appendChild(item);
+      });
+      root.appendChild(panels);
+      if (object.caption) {
+        const caption = document.createElement("div");
+        caption.className = "cm-visual-object-caption";
+        caption.textContent = object.caption.text ?? object.caption.value;
+        root.appendChild(caption);
+      }
+      button.textContent = "Edit subfigures";
+      button.setAttribute("aria-label", "Edit subfigures");
+      root.appendChild(button);
     } else if (object.kind === "figure") {
       button.textContent = "Edit figure";
       button.setAttribute("aria-label", "Edit figure");
@@ -281,6 +344,7 @@ export function createVisualObjectExtension(options: Options): Extension {
             block:
               object.kind === "table" ||
               object.kind === "figure" ||
+              object.kind === "subfigure" ||
               (object.kind === "math" && object.display),
           }).range(object.from, object.to),
         ),
@@ -296,6 +360,7 @@ export function createVisualObjectExtension(options: Options): Extension {
                 block:
                   object.kind === "table" ||
                   object.kind === "figure" ||
+                  object.kind === "subfigure" ||
                   (object.kind === "math" && object.display),
               }).range(object.from, object.to),
             ),

@@ -25,6 +25,7 @@ import type { LucideIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ManuscriptOutline } from "./ManuscriptOutline";
 import { ProjectSearchPanel } from "@/components/latex-ide/ProjectSearchPanel";
 import {
   DropdownMenu,
@@ -84,11 +85,8 @@ export function ProjectSidebar() {
     projectTitle,
     filesByPath,
     activeRail,
-    activeFileId,
-    outline,
     setActiveRail,
     createFile,
-    jumpToDiagnostic,
     appendToActiveFile,
     wrapSelectionOrInsert,
   } = useWorkbenchStore();
@@ -375,37 +373,7 @@ export function ProjectSidebar() {
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto py-2 px-2 bg-background">
-              {outline.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center px-4 space-y-2 opacity-40">
-                  <Layout
-                    aria-hidden="true"
-                    className="w-6 h-6 text-muted-foreground"
-                  />
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                    No outline data
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {outline.map((node) => (
-                    <RecursiveOutlineItem
-                      key={node.id}
-                      node={node}
-                      onJump={(line) =>
-                        jumpToDiagnostic({
-                          severity: "info",
-                          message: `Jump to ${node.title}`,
-                          file: activeFileId || "main.tex",
-                          line,
-                          column: 1,
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <ManuscriptOutline />
           )}
         </div>
       </div>
@@ -533,31 +501,6 @@ function SidebarTab({
   );
 }
 
-function RecursiveOutlineItem({
-  node,
-  onJump,
-}: {
-  node: import("@/services/OutlineService").OutlineNode;
-  onJump: (line: number) => void;
-}) {
-  return (
-    <div className="space-y-0.5">
-      <OutlineItem
-        label={node.title}
-        level={node.level}
-        onClick={() => onJump(node.line)}
-      />
-      {node.children && node.children.length > 0 && (
-        <div className="space-y-0.5 px-0.5">
-          {node.children.map((child) => (
-            <RecursiveOutlineItem key={child.id} node={child} onJump={onJump} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SidebarAction({
   icon: Icon,
   onClick,
@@ -576,45 +519,6 @@ function SidebarAction({
       className="p-1 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Icon aria-hidden="true" size={14} />
-    </button>
-  );
-}
-
-function OutlineItem({
-  label,
-  level,
-  onClick,
-}: {
-  label: string;
-  level: number;
-  onClick: () => void;
-}) {
-  const depth = Math.max(0, level - 1);
-  const indent = depth * 12;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`Go to ${label}`}
-      className={cn(
-        "group relative w-full min-h-7 flex items-center text-[11px] text-left rounded-lg px-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-        "text-muted-foreground hover:bg-muted hover:text-foreground hover:pl-3",
-      )}
-      style={{ paddingLeft: `${indent + 8}px` }}
-    >
-      {depth > 0 && (
-        <span
-          aria-hidden="true"
-          className="absolute top-0 bottom-0 w-px bg-muted left-2"
-          style={{ left: `${indent + 4}px` }}
-        />
-      )}
-      <span className="truncate py-1 font-semibold">{label}</span>
-      <ChevronRight
-        aria-hidden="true"
-        size={10}
-        className="ml-auto opacity-0 group-hover:opacity-40 transition-opacity"
-      />
     </button>
   );
 }

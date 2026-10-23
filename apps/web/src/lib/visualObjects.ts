@@ -1,5 +1,6 @@
 import { parseVisualDocument } from "@alove/editor";
 import { parseVisualTable, type VisualTable } from "./visualTable";
+import { parseVisualSubfigure, type VisualSubfigure } from "./visualSubfigure";
 import { parseVisualFigure, type VisualFigure } from "./visualFigure";
 import {
   parseVisualMath,
@@ -11,6 +12,7 @@ import type { VisualSourcePatch } from "./visualObjectTypes";
 export type VisualObject =
   | VisualTable
   | VisualFigure
+  | VisualSubfigure
   | VisualMath
   | VisualCitation;
 export function parseVisualObjects(source: string): VisualObject[] {
@@ -42,6 +44,7 @@ export function parseVisualObjects(source: string): VisualObject[] {
       const fragment = source.slice(range.from, end);
       const object =
         parseVisualTable(fragment, range.from) ??
+        parseVisualSubfigure(fragment, range.from) ??
         parseVisualFigure(fragment, range.from) ??
         parseVisualMath(
           fragment,

@@ -106,5 +106,8 @@ TSV paste, figure preview/width/caption controls, rendered equations and project
 citation/reference pickers. Apply checkpoints and rechecks exact source before
 one shared-undo transaction. Issue #51 extends tables with horizontal
 merge/split, wrapping widths, borders, rich cells and bounded tabularx/longtable
-support. Vertical multirow/custom table structures, arbitrary TeX and further
-manuscript navigation remain under #24; live validation stays separate in #42.
+support. Issues #54–#56 extend this with an include-aware manuscript outline,
+reliable Source/Visual/Proof jumps, figure drag sizing/placement/subfigures,
+vertical table merges and labelled longtable sections. Combined/custom table
+structures and arbitrary TeX remain under #24. Issue #57 checks recovery against
+a pinned public thesis template. Live validation stays separate in #42.

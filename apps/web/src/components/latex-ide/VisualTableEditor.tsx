@@ -16,14 +16,19 @@ import {
   tableDraft,
   pasteTableTsv,
   patchesForVisualTable,
+  longtableSectionForRow,
   type VisualTable,
   type TableDraft,
+  type LongtableSection,
 } from "@/lib/visualTable";
 import {
   cloneTableDraft,
   tableCellAnchor,
+  tableRowAnchor,
   mergeTableCells,
+  mergeTableCellsVertical,
   splitTableCell,
+  splitTableCellVertical,
   resizeTableGrid,
 } from "@/lib/tableGrid";
 import {
@@ -62,6 +67,7 @@ export function VisualTableEditor({
   const [error, setError] = useState("");
   const [active, setActive] = useState({ row: 0, col: 0 });
   const [through, setThrough] = useState(1);
+  const [throughRow, setThroughRow] = useState(1);
   const [panel, setPanel] = useState<Panel>("cells");
   const [selectedColumn, setSelectedColumn] = useState(0);
   const [deletion, setDeletion] = useState<Deletion | null>(null);
@@ -69,8 +75,10 @@ export function VisualTableEditor({
   const selection = useRef({ from: 0, to: 0 });
   const nr = draft.cells.length,
     nc = draft.alignments.length;
-  const row = Math.min(active.row, nr - 1),
-    col = tableCellAnchor(draft, row, Math.min(active.col, nc - 1));
+  const rawRow = Math.min(active.row, nr - 1),
+    rawCol = Math.min(active.col, nc - 1),
+    col = tableCellAnchor(draft, rawRow, rawCol),
+    row = tableRowAnchor(draft, rawRow, col);
   const structural = disabled || !model.structureEditable;
   const protectedCell = model.cells[row]?.[col]?.nodes === null;
   const sourceMode = !!draft.sourceCells?.[row]?.[col];
@@ -311,6 +319,53 @@ export function VisualTableEditor({
                   Split cell
                 </button>
               </div>
+              <label className="block text-xs">
+                Merge {cellName} through row
+                <select
+                  aria-label="Merge through row"
+                  className="mt-1 min-h-9 w-full rounded border border-border bg-background px-2 text-sm"
+                  disabled={structural}
+                  value={Math.max(row, Math.min(throughRow, nr - 1))}
+                  onChange={(e) => setThroughRow(Number(e.target.value))}
+                >
+                  {draft.cells.map((_, r) => (
+                    <option key={r} value={r} disabled={r < row}>
+                      {r + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={control}
+                  disabled={structural || Math.min(throughRow, nr - 1) <= row}
+                  onClick={(e) => {
+                    change((d) =>
+                      mergeTableCellsVertical(
+                        d,
+                        row,
+                        Math.min(throughRow, nr - 1),
+                        col,
+                      ),
+                    );
+                    closeMenu(e);
+                  }}
+                >
+                  Merge rows
+                </button>
+                <button
+                  type="button"
+                  className={control}
+                  disabled={structural || (draft.rowSpans![row]![col] ?? 1) < 2}
+                  onClick={(e) => {
+                    change((d) => splitTableCellVertical(d, row, col));
+                    closeMenu(e);
+                  }}
+                >
+                  Split rows
+                </button>
+              </div>
               {!!draft.spanSpecs![row]![col] && (
                 <label className="block text-xs">
                   Merged cell alignment
@@ -499,6 +554,24 @@ export function VisualTableEditor({
             className="table-editor-canvas"
             data-testid="table-editor-canvas"
           >
+            {model.environment === "longtable" &&
+              model.longtableMarkers?.some(Boolean) && (
+                <p
+                  aria-label="Repeated headers preserved"
+                  className="table-editor-notice"
+                >
+                  Repeated sections preserved (
+                  {model.longtableMarkers
+                    .map((m, i) =>
+                      m
+                        ? `${m === "endfirsthead" ? "First head" : m === "endhead" ? "Head" : m === "endfoot" ? "Foot" : "Last foot"} after row ${i}`
+                        : "",
+                    )
+                    .filter(Boolean)
+                    .join(", ")}
+                  ). Edits keep markers; structure changes need Source.
+                </p>
+              )}
             <div className="table-editor-grid-scroll">
               <table
                 className="table-editor-grid"
@@ -531,35 +604,71 @@ export function VisualTableEditor({
                 </thead>
                 <tbody>
                   {draft.cells.map((line, r) => (
-                    <tr key={r}>
-                      <th scope="row">{r + 1}</th>
-                      {line.map((value, c) => {
-                        const span = draft.spans![r]![c]!;
-                        if (span === 0) return null;
-                        const locked = model.cells[r]?.[c]?.nodes === null;
-                        return (
-                          <td
-                            key={c}
-                            colSpan={span}
-                            data-active={
-                              row === r && col === c ? "true" : undefined
-                            }
-                          >
-                            <input
-                              data-cell={`${r}-${c}`}
-                              aria-label={`Row ${r + 1} column ${c + 1}`}
-                              value={value}
-                              disabled={disabled || locked}
-                              title={
-                                locked
-                                  ? "Custom markup · edit in Source"
-                                  : value
+                    <React.Fragment key={r}>
+                      <tr>
+                        {(() => {
+                          const showSections =
+                            model.environment === "longtable" &&
+                            model.longtableMarkers?.some(Boolean);
+                          if (!showSections)
+                            return <th scope="row">{r + 1}</th>;
+                          const section: LongtableSection =
+                            longtableSectionForRow(model.longtableMarkers, r);
+                          const label =
+                            section === "firsthead"
+                              ? "First head"
+                              : section === "head"
+                                ? "Head"
+                                : section === "foot"
+                                  ? "Foot"
+                                  : section === "lastfoot"
+                                    ? "Last foot"
+                                    : "Body";
+                          return (
+                            <th
+                              scope="row"
+                              aria-label={`Row ${r + 1} ${label}`}
+                              title={`Row ${r + 1} · ${label}`}
+                            >
+                              <span className="block leading-tight">
+                                {r + 1}
+                              </span>
+                              <span className="block text-[10px] font-normal leading-tight text-muted-foreground">
+                                {label}
+                              </span>
+                            </th>
+                          );
+                        })()}
+                        {line.map((value, c) => {
+                          const span = draft.spans![r]![c]!;
+                          const vSpan = draft.rowSpans![r]![c]!;
+                          if (span === 0 || vSpan === 0) return null;
+                          const locked = model.cells[r]?.[c]?.nodes === null;
+                          return (
+                            <td
+                              key={c}
+                              colSpan={span}
+                              rowSpan={vSpan > 1 ? vSpan : undefined}
+                              data-active={
+                                row === r && col === c ? "true" : undefined
                               }
-                              onFocus={() => {
-                                setActive({ row: r, col: c });
-                                setSelectedColumn(c);
-                                setThrough(Math.min(nc - 1, c + span));
-                              }}
+                            >
+                              <input
+                                data-cell={`${r}-${c}`}
+                                aria-label={`Row ${r + 1} column ${c + 1}`}
+                                value={value}
+                                disabled={disabled || locked}
+                                title={
+                                  locked
+                                    ? "Custom markup · edit in Source"
+                                    : value
+                                }
+                                onFocus={() => {
+                                  setActive({ row: r, col: c });
+                                  setSelectedColumn(c);
+                                  setThrough(Math.min(nc - 1, c + span));
+                                  setThroughRow(Math.min(nr - 1, r + vSpan));
+                                }}
                               onSelect={(e) => {
                                 selection.current = {
                                   from: e.currentTarget.selectionStart ?? 0,
@@ -624,7 +733,8 @@ export function VisualTableEditor({
                                 let r2 = r,
                                   c2 = c;
                                 if (e.key === "ArrowUp") r2--;
-                                else if (e.key === "ArrowDown") r2++;
+                                else if (e.key === "ArrowDown")
+                                  r2 += vSpan > 1 ? vSpan : 1;
                                 else if (
                                   e.key === "ArrowLeft" &&
                                   e.currentTarget.selectionStart === 0
@@ -637,9 +747,10 @@ export function VisualTableEditor({
                                   c2 += span;
                                 else return;
                                 c2 = tableCellAnchor(draft, r2, c2);
+                                const r3 = tableRowAnchor(draft, r2, c2);
                                 const next =
                                   form.current?.querySelector<HTMLInputElement>(
-                                    `[data-cell="${r2}-${c2}"]:not(:disabled)`,
+                                    `[data-cell="${r3}-${c2}"]:not(:disabled)`,
                                   );
                                 if (next) {
                                   e.preventDefault();
@@ -656,10 +767,35 @@ export function VisualTableEditor({
                                 {span}
                               </span>
                             )}
+                            {vSpan > 1 && (
+                              <span
+                                className="table-cell-span"
+                                aria-label={`Spans ${vSpan} rows`}
+                              >
+                                {vSpan}↓
+                              </span>
+                            )}
                           </td>
                         );
                       })}
                     </tr>
+                    {model.longtableMarkers?.[r + 1] && (
+                      <tr key={`section-${r}`}>
+                        <td
+                          colSpan={nc + 1}
+                          className="text-xs text-muted-foreground"
+                        >
+                          {model.longtableMarkers[r + 1] === "endfirsthead"
+                            ? "— First head ends —"
+                            : model.longtableMarkers[r + 1] === "endhead"
+                              ? "— Head ends —"
+                              : model.longtableMarkers[r + 1] === "endfoot"
+                                ? "— Foot ends —"
+                                : "— Last foot ends —"}
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>

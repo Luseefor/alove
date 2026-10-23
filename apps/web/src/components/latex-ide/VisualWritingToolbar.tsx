@@ -98,6 +98,7 @@ export function VisualWritingToolbar({
             [
               ["table", "Table"],
               ["figure", "Figure"],
+              ["subfigure", "Subfigures"],
               ["math", "Equation"],
               ["citation", "Citation"],
               ["reference", "Reference"],

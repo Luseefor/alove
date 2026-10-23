@@ -13,6 +13,35 @@ beforeEach(() => {
   });
 });
 describe("editor source controls", () => {
+  it("does not jump a missing-file diagnostic into the current file", () => {
+    useWorkbenchStore
+      .getState()
+      .jumpToDiagnostic({
+        severity: "error",
+        message: "missing",
+        file: "missing.tex",
+        line: 5,
+      });
+    expect(useWorkbenchStore.getState().activeFileId).toBe("main.tex");
+    expect(useWorkbenchStore.getState().focusedLine).toBeNull();
+  });
+  it("does not open another file for a stale build diagnostic", () => {
+    const diagnostic = {
+      severity: "error" as const,
+      message: "old build",
+      file: "chapter.tex",
+      line: 2,
+    };
+    useWorkbenchStore.setState({
+      diagnostics: [diagnostic],
+      diagnosticRevision: 1,
+      documentRevision: 2,
+    });
+    useWorkbenchStore.getState().jumpToDiagnostic(diagnostic);
+    expect(useWorkbenchStore.getState().activeFileId).toBe("main.tex");
+    expect(useWorkbenchStore.getState().focusedLine).toBeNull();
+  });
+
   it("inserts a citation at the selected range rather than after the document", () => {
     useWorkbenchStore.getState().setActiveSelection({ start: 7, end: 13 });
     useWorkbenchStore.getState().appendToActiveFile("\\cite{key}");

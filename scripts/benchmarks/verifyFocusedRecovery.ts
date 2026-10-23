@@ -15,6 +15,7 @@ import {
 } from "../../apps/web/src/lib/buildRecoveryCandidates";
 import { pollCompileJob } from "../../apps/web/src/lib/compilePoll";
 import { focusedRecoveryCorpus } from "./focusedRecoveryCorpus";
+import { realProjectRecoveryCorpus } from "./realProjectRecoveryCorpus";
 
 // This is a functional preservation check, not a latency or Overleaf benchmark.
 const args = process.argv.slice(2);
@@ -38,6 +39,15 @@ const output = resolve(
   flag("--output", "benchmark-results/focused-recovery.json"),
 );
 const selected = flag("--case", "");
+const corpusName = flag("--corpus", "synthetic");
+if (!["synthetic", "real-projects", "all"].includes(corpusName))
+  throw new Error("corpus must be synthetic, real-projects or all");
+const corpus =
+  corpusName === "synthetic"
+    ? focusedRecoveryCorpus
+    : corpusName === "real-projects"
+      ? realProjectRecoveryCorpus
+      : [...focusedRecoveryCorpus, ...realProjectRecoveryCorpus];
 const nativeFetch = globalThis.fetch;
 globalThis.fetch = ((input: Parameters<typeof fetch>[0], init?: RequestInit) =>
   nativeFetch(
@@ -64,7 +74,8 @@ const report: Record<string, unknown> = {
   minimumSubmissionIntervalMs: 2200,
   throttleEvents,
   sourceFiles: {} as Record<string, string>,
-  fixtures: focusedRecoveryCorpus,
+  corpus: corpusName,
+  fixtures: corpus,
   runs,
   compilations,
 };
@@ -72,6 +83,7 @@ for (const file of [
   "apps/web/src/lib/buildRecovery.ts",
   "apps/web/src/lib/buildRecoveryHunks.ts",
   "scripts/benchmarks/focusedRecoveryCorpus.ts",
+  "scripts/benchmarks/realProjectRecoveryCorpus.ts",
   "scripts/benchmarks/verifyFocusedRecovery.ts",
 ])
   (report.sourceFiles as Record<string, string>)[file] = createHash("sha256")
@@ -158,7 +170,7 @@ function equalFiles(a: Record<string, string>, b: Record<string, string>) {
 }
 
 try {
-  for (const fixture of focusedRecoveryCorpus.filter(
+  for (const fixture of corpus.filter(
     (item) => !selected || item.id === selected,
   )) {
     const projectId = `local-focused-proof-${crypto.randomUUID()}`;

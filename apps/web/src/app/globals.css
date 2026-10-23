@@ -195,7 +195,8 @@ input[type="range"] {
   color: var(--foreground);
 }
 .cm-visual-object-table,
-.cm-visual-object-figure {
+.cm-visual-object-figure,
+.cm-visual-object-subfigure {
   margin: 1rem 0;
   padding: 1rem;
   max-width: 100%;
@@ -209,7 +210,8 @@ input[type="range"] {
   border-radius: 0.25rem;
 }
 .cm-visual-object-table > .cm-visual-object-edit,
-.cm-visual-object-figure > .cm-visual-object-edit {
+.cm-visual-object-figure > .cm-visual-object-edit,
+.cm-visual-object-subfigure > .cm-visual-object-edit {
   display: block;
   margin-bottom: 0.75rem;
   padding: 0.25rem 0.5rem;

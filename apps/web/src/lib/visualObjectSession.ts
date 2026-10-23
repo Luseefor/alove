@@ -47,6 +47,7 @@ export function objectSourcePatches(
   const block =
     object.kind === "table" ||
     object.kind === "figure" ||
+    object.kind === "subfigure" ||
     (object.kind === "math" && /^\\\[|^\$\$|^\\begin/.test(fragment));
   const eol = target.source.includes("\r\n") ? "\r\n" : "\n";
   return [

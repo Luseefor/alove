@@ -1,0 +1,62 @@
+{
+  "project": "stanford-thesis-example",
+  "sourceUrl": "https://github.com/dcroote/stanford-thesis-example",
+  "branch": "master",
+  "commit": "ffef6af633d0716fb0592b83c8ce594ed38819d2",
+  "fetchedVia": "gh api repos/dcroote/stanford-thesis-example/contents with GH_CONFIG_DIR=/Users/lucifer/.config/gh, no tokens",
+  "license": "MIT (repository LICENSE, Copyright 2019 Derek Croote) plus suthesis-2e.sty original permissive notice (Stanford thesis style, Joseph Pallas/Emma Pease lineage, free to borrow with acknowledgement)",
+  "baseline": "original upstream, no adaptations",
+  "buildClaim": "no build claim in this change; actual-compiler verification is future work via the verification CLI",
+  "files": [
+    {
+      "path": "main.tex",
+      "sha256": "f8b9b5d0579dcfbb931ef6e5ceb2b3eba2d5eed8b24c6024602dd1e4e97fb7ed",
+      "bytes": 1918
+    },
+    {
+      "path": "ch_intro.tex",
+      "sha256": "47d47e6934666a724e2cc80a51b7cf521d1a48da9e63d8dbf4e908a8ecdfe12a",
+      "bytes": 110
+    },
+    {
+      "path": "ch_paper1.tex",
+      "sha256": "463f787e0516d5c53730a83d7dd4343278b887a5c61471345cbf3db1bdfd5221",
+      "bytes": 2385
+    },
+    {
+      "path": "ch_conclusion.tex",
+      "sha256": "8d15683295bc894b385c0b124b4eb42cceda8ca727a325559383cec5654051f8",
+      "bytes": 44
+    },
+    {
+      "path": "preface_abstract.tex",
+      "sha256": "d5e08dd026837a4930778295292674e7e348a995a34a462e13f9b8dc70fbbe3c",
+      "bytes": 39
+    },
+    {
+      "path": "preface_acknowledgements.tex",
+      "sha256": "c0b92a0e3bac7a05ee1fc5cf2cd5226026a970c38de1b8d161778b399618ce85",
+      "bytes": 59
+    },
+    {
+      "path": "mybib.bib",
+      "sha256": "48ba3eae806ff376bc2542d6be149f73b805d0dc5861d259a896ab1c9fb0439b",
+      "bytes": 1008
+    },
+    {
+      "path": "suthesis-2e.sty",
+      "sha256": "6bc2b0bff1128b7316c54712c91c614cfce3cb1fac99d1ad92c42f28fff4d7a9",
+      "bytes": 21211
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "70d3b0094cc7c82b003877f9f3f6e844242a13bf4db53f42c10d3b3664c681bc",
+      "bytes": 1052
+    },
+    {
+      "path": "figs/paper1/fig1.png",
+      "sha256": "a7ee67b28aca958c9483f258f065116a6bd5beeb8eaeb61728a9db45a42902f0",
+      "bytes": 132800
+    }
+  ]
+}
