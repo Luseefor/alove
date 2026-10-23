@@ -1,0 +1,35 @@
+{
+  "icons": [
+    {
+      "endpoint": "/icon.svg",
+      "status": 200,
+      "contentType": "image/svg+xml"
+    },
+    {
+      "endpoint": "/favicon.ico",
+      "status": 200,
+      "contentType": "image/x-icon"
+    },
+    {
+      "endpoint": "/apple-icon.png",
+      "status": 200,
+      "contentType": "image/png"
+    },
+    {
+      "endpoint": "/manifest.webmanifest",
+      "status": 200,
+      "contentType": "application/manifest+json"
+    },
+    {
+      "endpoint": "/brand/weftly/icon-192.png",
+      "status": 200,
+      "contentType": "image/png"
+    },
+    {
+      "endpoint": "/brand/weftly/icon-512.png",
+      "status": 200,
+      "contentType": "image/png"
+    }
+  ],
+  "pageErrors": []
+}

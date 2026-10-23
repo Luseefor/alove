@@ -58,7 +58,7 @@ async function archive(page: Page) {
   const event = page.waitForEvent("download");
   await page
     .getByRole("menuitem", {
-      name: "Download Source (.alove.json)",
+      name: "Download Source (.weftly.json)",
       exact: true,
     })
     .click();

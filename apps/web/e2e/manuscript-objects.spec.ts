@@ -77,7 +77,7 @@ async function exported(page: Page): Promise<string> {
   const pending = page.waitForEvent("download");
   await page
     .getByRole("menuitem", {
-      name: "Download Source (.alove.json)",
+      name: "Download Source (.weftly.json)",
       exact: true,
     })
     .click();

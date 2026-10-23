@@ -1,12 +1,14 @@
-# alove
+# Weftly
 
-**alove** is a web LaTeX workspace you run yourself. Write in the browser, compile with a full TeX Live install in Docker, and preview the PDF next to your source. Default local mode needs no account. Optional Clerk + Convex provides an authenticated cloud workspace; public multi-user release gates remain open.
+**Weftly** is a web LaTeX workspace you run yourself. Write in the browser, compile with a full TeX Live install in Docker, and preview the PDF next to your source. Default local mode needs no account. Optional Clerk + Convex provides an authenticated cloud workspace; public multi-user release gates remain open.
 
 There is no public hosted demo; clone the repo and run it.
 
-## Why alove (vs Overleaf)
+The app was previously named alove. Existing saved projects, `.alove.json` archives, environment variables and package identifiers remain compatible. New source downloads use `.weftly.json`. Brand assets live in `apps/web/public/brand/weftly`.
 
-Overleaf is a hosted service. alove is software you clone and run:
+## Why Weftly (vs Overleaf)
+
+Overleaf is a hosted service. Weftly is software you clone and run:
 
 - **Local-first** — editor, multi-file projects, and PDFs on your machine; no sign-in for the default `bun run dev`
 - **Your TeX Live** — `latexmk` in Docker (`pdflatex`, `xelatex`, `lualatex`) or a host install

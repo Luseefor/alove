@@ -137,7 +137,7 @@ test("a paper survives its complete create, recover, export, import and delete j
   await test.step("Export exact source and import it as an independent project", async () => {
     await page.getByRole("button", { name: "Export", exact: true }).click();
     const pending = page.waitForEvent("download");
-    await page.getByRole("menuitem", { name: "Download Source (.alove.json)", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Download Source (.weftly.json)", exact: true }).click();
     const download = await pending;
     const destination = testInfo.outputPath("closed-journey.alove.json");
     await download.saveAs(destination);
