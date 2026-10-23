@@ -576,3 +576,18 @@ build and five object browser journeys passed. Exact no-op/Cancel, combined
 operations, limits, confirmation, phone bounds, undo/redo and reload are checked.
 Local Docker is unavailable; the real PDF journey runs in Docker CI.
 See [evidence](benchmarks/2026-10-23-subfigure-count/README.md).
+
+## 2026-10-23: professional editor workspace (#63)
+
+The editor now separates app chrome, panel headers and writing surfaces in both
+light and dark themes. Accent profiles share neutral surfaces; CodeMirror uses
+the same semantic theme and syntax colors. Desktop has one command/mode row and
+framed panes; phones use a compact identity/Build row and utility row while
+retaining the writing width. Tabs attach to the editor, and navigation has clear
+selected states. Decorative group dividers and glows were removed; functional
+pane boundaries and keyboard focus remain.
+
+An initial flat treatment was rejected as paper-like. The final direction uses
+purposeful application structure rather than eliminating all boundaries.
+[Evidence](benchmarks/2026-10-23-quieter-editor/README.md) preserves both iterations,
+final screenshots and contrast calculations for all 12 profile/mode combinations.
