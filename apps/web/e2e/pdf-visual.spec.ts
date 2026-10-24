@@ -92,6 +92,15 @@ for (const width of [390, 1440]) {
   }) => {
     const builds = await compilerFixture(page, "chapters/body.tex");
     await page.setViewportSize({ width, height: 900 });
+    // Imports finish after file reading and persistence, not setInputFiles.
+    // Keep the read asynchronous enough to catch clicks on the old workspace.
+    await page.addInitScript(() => {
+      const read = File.prototype.text;
+      File.prototype.text = async function () {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return read.call(this);
+      };
+    });
     await page.goto("/editor?new=true");
     await page.getByLabel("Import project source").setInputFiles({
       name: "pdf-edit.weftly.json",
@@ -110,6 +119,9 @@ for (const width of [390, 1440]) {
         }),
       ),
     });
+    await expect(
+      page.getByRole("button", { name: "Rename project", exact: true }),
+    ).toHaveText("PDF editing proof");
     await page.getByRole("button", { name: "Visual", exact: true }).click();
     await expect(page.getByTestId("source-panel")).toBeHidden();
     const target = page.getByRole("button", {
@@ -219,6 +231,9 @@ test("real compiled PDF edits rebuild and preserve the included manuscript sourc
       }),
     ),
   });
+  await expect(
+    page.getByRole("button", { name: "Rename project", exact: true }),
+  ).toHaveText("Real PDF edit");
   await page.getByRole("button", { name: "Visual", exact: true }).click();
   const target = page.getByRole("button", {
     name: "Edit paragraph: Scientific writing on the compiled page.",
@@ -273,6 +288,9 @@ test("clicking a mapped equation opens its controls and Apply rebuilds the PDF",
       }),
     ),
   });
+  await expect(
+    page.getByRole("button", { name: "Rename project", exact: true }),
+  ).toHaveText("PDF equation proof");
   await page.getByRole("button", { name: "Visual", exact: true }).click();
   const canvas = page.getByRole("img", { name: "PDF page 1", exact: true });
   await expect(canvas).toBeVisible({ timeout: 30000 });
