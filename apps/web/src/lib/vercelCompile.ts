@@ -104,7 +104,8 @@ export async function runVercelCompile(
       mode: "sandbox",
       runtimeId: snapshotId,
       platform: "linux/amd64",
-      policyId: "vercel-tex-v1:1cpu:2gb:60s:no-network:no-secrets:openin-r:ephemeral",
+      policyId:
+        "vercel-tex-v1:1cpu:2gb:60s:no-network:no-secrets:openin-r:ephemeral",
     };
     sandbox = await Sandbox.create({
       source: { type: "snapshot", snapshotId },
@@ -182,7 +183,9 @@ export async function runVercelCompile(
       } | null;
       if (data?.error)
         throw new OutputTooLargeError(
-          "PDF exceeds the personal cloud limit of 2 MB.",
+          extension === ".pdf"
+            ? "PDF exceeds the personal cloud limit of 2 MB."
+            : "Source mapping exceeds the personal cloud limit of 1 MB.",
         );
       return data
         ? { data: Buffer.from(data.data, "base64"), truncated: data.truncated }
@@ -258,7 +261,9 @@ export async function runVercelCompile(
         timedOut: true,
       };
     return failed(
-      error instanceof Error ? error.message : "Sandbox compilation failed.",
+      error instanceof OutputTooLargeError
+        ? error.message
+        : "Cloud compiler unavailable. Retry the build.",
       error instanceof OutputTooLargeError
         ? "OUTPUT_TOO_LARGE"
         : "INTERNAL_ERROR",

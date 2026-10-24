@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { reserveCompileAdmission, releaseCompileAdmission } from "@alove/queue/admission";
+import {
+  reserveCompileAdmission,
+  releaseCompileAdmission,
+} from "@alove/queue/admission";
 import { NextResponse } from "next/server";
 import {
   COMPILE_REQUEST_LIMITS,
@@ -7,14 +10,25 @@ import {
 } from "@alove/protocol";
 import { getCompileQueue } from "@/lib/compileQueue";
 import {
+  scheduleVercelCompile,
+  usesVercelCompile,
+} from "@/lib/vercelCompileQueue";
+import {
+  VERCEL_COMPILE_LIMITS,
+  vercelCompileSnapshot,
+} from "@/lib/vercelCompile";
+import {
   authorizeCompileRequest,
   canAccessCompileProject,
 } from "@/lib/compileAccess";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 async function readBody(req: Request): Promise<unknown> {
-  const cap = COMPILE_REQUEST_LIMITS.maxRequestBytes;
+  const cap = usesVercelCompile()
+    ? VERCEL_COMPILE_LIMITS.requestBytes
+    : COMPILE_REQUEST_LIMITS.maxRequestBytes;
   const declared = req.headers.get("content-length");
   if (declared && Number(declared) > cap)
     throw new RangeError("Compile request is too large");
@@ -78,24 +92,54 @@ export async function POST(req: Request) {
       ))
     )
       return NextResponse.json({ error: "not found" }, { status: 404 });
+    if (usesVercelCompile()) vercelCompileSnapshot();
     const queue = getCompileQueue();
     const client = await queue.client;
     const jobId = randomUUID();
     const prefix = queue.toKey("").replace(/:$/, "");
-    const admission = await reserveCompileAdmission(client, access.principal.owner, jobId, prefix);
+    const admission = await reserveCompileAdmission(
+      client,
+      access.principal.owner,
+      jobId,
+      prefix,
+    );
     if (!admission.allowed)
-      return NextResponse.json({ error: "Compile limit reached. Wait for a current build or retry shortly." }, {
-        status: 429, headers: { "Retry-After": String(admission.retryAfter) },
-      });
+      return NextResponse.json(
+        {
+          error:
+            "Compile limit reached. Wait for a current build or retry shortly.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(admission.retryAfter) },
+        },
+      );
     let job;
     try {
-      job = await queue.add("build", {
-        version: 1, owner: access.principal.owner, request: validated.value,
-      }, { jobId });
+      job = await queue.add(
+        "build",
+        {
+          version: 1,
+          owner: access.principal.owner,
+          request: validated.value,
+        },
+        { jobId },
+      );
     } catch (error) {
       // A timed-out add might have reached Redis. Keep its slot if the job exists.
-      await releaseCompileAdmission(client, access.principal.owner, jobId, prefix, true).catch(() => {});
+      await releaseCompileAdmission(
+        client,
+        access.principal.owner,
+        jobId,
+        prefix,
+        true,
+      ).catch(() => {});
       throw error;
+    }
+    if (usesVercelCompile()) {
+      // The durable queued job remains available to status polling if scheduling
+      // fails after admission. A later request can wake the Function again.
+      await scheduleVercelCompile(client).catch(() => {});
     }
     return NextResponse.json({ jobId: job.id });
   } catch {

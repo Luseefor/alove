@@ -126,6 +126,13 @@ describe("Vercel compile boundary", () => {
     expect(mock.create).not.toHaveBeenCalled();
   });
 
+  it("keeps provider errors private", async () => {
+    mock.create.mockRejectedValue(new Error("private provider response"));
+    const result = await runVercelCompile(request);
+    expect(result.errorCode).toBe("INTERNAL_ERROR");
+    expect(JSON.stringify(result)).not.toContain("private provider response");
+  });
+
   it("rejects a project that exceeds the Function request budget", async () => {
     const files = Object.fromEntries(
       [0, 1, 2, 3].map((n) => [`${n}.tex`, "a".repeat(800_000)]),

@@ -5,7 +5,10 @@ const mocks = vi.hoisted(() => ({
   getCompileQueue: vi.fn(),
   ping: vi.fn(),
   get: vi.fn(),
+  snapshot: vi.fn(),
 }));
+
+vi.mock("@vercel/sandbox", () => ({ Snapshot: { get: mocks.snapshot } }));
 
 vi.mock("@/lib/compileAuth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/compileAuth")>()),
@@ -33,6 +36,7 @@ function policyOk() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("COMPILE_RUNTIME", "");
   policyOk();
   healthyQueue();
   mocks.ping.mockResolvedValue("PONG");
@@ -42,9 +46,30 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("serviceReadiness", () => {
+  it.each([
+    ["created", undefined, true],
+    ["created", new Date(NOW + 60_000), true],
+    ["created", new Date(NOW - 1), false],
+    ["failed", undefined, false],
+  ])(
+    "checks Sandbox snapshot status %s and expiry %s",
+    async (status, expiresAt, healthy) => {
+      vi.stubEnv("COMPILE_RUNTIME", "vercel-sandbox");
+      vi.stubEnv("COMPILE_VERCEL_SNAPSHOT_ID", "snap_readiness");
+      mocks.snapshot.mockResolvedValue({ status, expiresAt });
+      const result = await serviceReadiness();
+      expect(result.checks.worker).toBe(healthy);
+      expect(mocks.get).not.toHaveBeenCalled();
+      expect(mocks.snapshot).toHaveBeenCalledWith(
+        expect.objectContaining({ snapshotId: "snap_readiness" }),
+      );
+    },
+  );
+
   it("fails closed when auth policy reports a config error even with healthy redis/worker", async () => {
     mocks.getCompileAuthPolicy.mockReturnValue({
       error: "Missing required environment variable: CLERK_SECRET_KEY",
