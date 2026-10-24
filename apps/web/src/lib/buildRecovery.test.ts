@@ -208,6 +208,26 @@ describe("findBuildRecovery", () => {
     expect(report.candidate).toBeNull();
   });
 
+  it("verifies Sandbox trials only against the same snapshot and execution policy", async () => {
+    const environment: CompileEnvironment = { mode: "sandbox", runtimeId: "snap_tex", platform: "linux/amd64", policyId: "offline-v1" };
+    const good = await makeBuild({ files: { "main.tex": "good" }, ok: true, environment });
+    const failed = await makeBuild({ files: { "main.tex": "bad" }, ok: false, environment });
+    const { compile } = mockCompiler(files => files["main.tex"] === "good" ? successResult(environment) : latexFailure(environment));
+    const report = await findBuildRecovery(good, failed, { signal: freshSignal(), compile });
+    expect(report.candidate).not.toBeNull();
+    expect(report.status).not.toBe("incompatible");
+  });
+
+  it.each([undefined, "changed-policy"])("refuses Sandbox verification with a missing or changed policy: %s", async policyId => {
+    const environment: CompileEnvironment = { mode: "sandbox", runtimeId: "snap_tex", platform: "linux/amd64", policyId: "offline-v1" };
+    const good = await makeBuild({ files: { "main.tex": "good" }, ok: true, environment });
+    const failed = await makeBuild({ files: { "main.tex": "bad" }, ok: false, environment: { ...environment, policyId } });
+    const { compile, calls } = mockCompiler(() => successResult(environment));
+    const report = await findBuildRecovery(good, failed, { signal: freshSignal(), compile });
+    expect(report.status).toBe("incompatible");
+    expect(calls).toHaveLength(0);
+  });
+
   it("never verifies when the runtime changes mid-trial", async () => {
     const good = await makeBuild({ files: { "main.tex": "good" }, ok: true });
     const failed = await makeBuild({ files: { "main.tex": "bad" }, ok: false });
