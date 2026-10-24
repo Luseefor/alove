@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { getConvexToken } from "./convexToken";
 import { fetchQuery } from "convex/nextjs";
 import { NextResponse } from "next/server";
 import type { CompileJobOwner } from "@alove/protocol";
@@ -47,7 +48,7 @@ export async function authorizeCompileRequest(
         ok: false,
         response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       };
-    const token = await session.getToken({ template: "convex" });
+    const token = await getConvexToken(session);
     if (!token)
       return {
         ok: false,

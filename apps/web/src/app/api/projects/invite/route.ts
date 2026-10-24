@@ -1,4 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { getConvexToken } from "@/lib/convexToken";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { api } from "../../../../../convex/_generated/api";
 import type { Id } from "../../../../../convex/_generated/dataModel";
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session.userId)
       return Response.json({ error: "Sign in required." }, { status: 401 });
-    const token = await session.getToken({ template: "convex" });
+    const token = await getConvexToken(session);
     if (!token)
       return Response.json(
         { error: "Cloud authentication required." },
