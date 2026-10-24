@@ -172,7 +172,7 @@ describe("pdfVisualEditing source segmentation", () => {
         if (label === "unknown") expect(slice).not.toContain("\\custom");
       }
     }
-    // C отдельно: cite line alone yields no block.
+    // A citation-only line has no editable prose block.
     expect(buildPdfTextBlocks({ "main.tex": "\\cite{key} ok" })).toHaveLength(
       0,
     );

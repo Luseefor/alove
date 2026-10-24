@@ -1,22 +1,46 @@
 # Manuscript visual writing
 
-The work under issue #24 adds a per-file Visual surface for standard LaTeX
-prose and supported tables, figures, equations and citation/reference controls. Source, Visual and Proof share the same canonical document and
-CodeMirror history. No HTML-to-LaTeX conversion regenerates the project.
+Visual mode edits supported text on the compiled PDF page. The earlier per-file
+projection is now named **Manuscript** inside Source. Both write precise patches
+to the canonical LaTeX document and retain the mounted source editor's undo history.
+No HTML-to-LaTeX conversion regenerates the project.
 
 ## Writing modes
 
-- **Source** shows the selected file's LaTeX on a broad editing canvas.
-- **Visual** presents standard section headings, bold/italic text and simple
-  itemize/enumerate lists with manuscript typography. Files remain available on
-  demand; entering Visual closes the desktop file browser.
-- **Proof** reveals the compiled PDF beside the last editing surface on desktop.
-  Narrow layouts show one pane at a time, with Source/PDF controls.
+- **Source** shows the selected file's LaTeX. Its LaTeX/Manuscript control switches
+  between raw source and the existing prose/object projection.
+- **Visual** opens the PDF across the writing area. Click a supported paragraph,
+  heading or list item to edit it on the page, then choose Apply & rebuild.
+  Supported table, figure and equation clicks open their existing controls.
+- **Proof** shows source and PDF together on desktop. Narrow layouts show one
+  pane at a time, with Source/PDF controls.
 
-The initial layout remains Proof with Source editing for compatibility with
-existing projects. Visual requires a `.tex` file and CodeMirror; the textarea
-fallback and non-TeX assets retain their existing source/preview behavior.
+Entering Visual builds a missing or outdated PDF. An empty document body instead
+shows a blank writing page; the first paragraph is escaped into the body, checkpointed
+and compiled. A working compile service is required to typeset the updated PDF.
 
+## Editing on the PDF (#67)
+
+Editable regions require an exact normalized match between source-backed text and
+actual PDF text runs, plus nearby SyncTeX coordinates for the same file and lines.
+Nearest-source-line navigation alone does not authorize a text replacement.
+Ambiguous repeated text is omitted. On-page drafts survive Source/Visual switches
+and PDF rerenders. Apply checks project, role, full source, revision and PDF provenance
+before and after checkpointing, then makes one shared-undo source edit and rebuilds.
+Typing `%`, `&` or other TeX-special characters inserts escaped prose. Included files
+are edited in their own source document. An unsuccessful build retains the last PDF;
+rebuild before making further mapped edits. Undo remains available in the app header.
+
+This supports plain body paragraphs, standard headings/list items and plain text
+inside supported bold/italic wrappers. A whole text block must match on the current
+PDF page. Paragraphs spanning pages, rotated text, custom macro output, unmatched
+hyphenation and ambiguous mappings use Source or Manuscript. Complex PDF layouts
+are not reconstructed from pixels. The default/native PDF viewer remains available
+in Proof; Visual always uses the interactive PDF canvas.
+
+## Manuscript source presentation
+
+The Manuscript control provides the earlier source-backed prose and object editor.
 Select prose to apply bold or italic, or choose a heading style for its line.
 Select plain lines to create a bulleted or numbered list. These actions change
 only that source range and form one undoable operation. Formatting controls do
@@ -24,7 +48,7 @@ not rewrite the preamble. The document setup control opens Source explicitly.
 
 ## Source preservation
 
-The visual surface hides known command wrappers while retaining their exact
+The Manuscript presentation hides known command wrappers while retaining their exact
 source offsets. Paragraph typing, native paste and formatting write through the
 existing save/checkpoint path. Mode switching does not replace the editor or
 create a source edit. Undo/redo remains shared across modes and retained file

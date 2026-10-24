@@ -591,3 +591,13 @@ An initial flat treatment was rejected as paper-like. The final direction uses
 purposeful application structure rather than eliminating all boundaries.
 [Evidence](benchmarks/2026-10-23-quieter-editor/README.md) preserves both iterations,
 final screenshots and contrast calculations for all 12 profile/mode combinations.
+
+## On-PDF Visual editing (#67)
+
+Visual now opens the compiled PDF and edits supported mapped text on the page.
+The previous prose projection is named Manuscript inside Source. Exact PDF text
+and nearby SyncTeX coordinates both authorize targets; Apply checkpoints, rechecks
+project/source/PDF provenance, makes one shared-undo edit and rebuilds. Included
+files, escaped prose, retained drafts, blank-document writing and existing object
+controls are covered. Custom macro output and ambiguous/multi-page text stay in
+Source. Evidence and validation: [PDF editing](benchmarks/2026-10-24-pdf-visual/README.md).

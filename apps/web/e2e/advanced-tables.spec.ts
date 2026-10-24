@@ -49,7 +49,7 @@ async function paper(page: Page, source = original) {
   await expect(
     page.getByText("Advanced table proof", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
 }
 async function archive(page: Page) {
   await page.getByRole("button", { name: "Export", exact: true }).click();

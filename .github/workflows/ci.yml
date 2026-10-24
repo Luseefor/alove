@@ -165,7 +165,14 @@ jobs:
         working-directory: apps/web
         env:
           E2E_REAL_COMPILE: "1"
-        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts e2e/closed-journey.spec.ts e2e/synctex.spec.ts e2e/manuscript.spec.ts e2e/visual-objects.spec.ts e2e/advanced-tables.spec.ts e2e/manuscript-navigation.spec.ts e2e/manuscript-objects.spec.ts
+        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/real-compile.spec.ts e2e/build-recovery.spec.ts e2e/compile-access.spec.ts e2e/real-cancel.spec.ts e2e/closed-journey.spec.ts e2e/synctex.spec.ts e2e/pdf-visual.spec.ts e2e/manuscript.spec.ts e2e/visual-objects.spec.ts e2e/advanced-tables.spec.ts e2e/manuscript-navigation.spec.ts e2e/manuscript-objects.spec.ts
+      - name: Upload PDF editing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-visual-editing-evidence
+          if-no-files-found: ignore
+          path: apps/web/test-results/**/pdf-edit-real-*.png
       - name: Verify focused recovery preservation and refusal controls
         env:
           NEXT_PUBLIC_LOCAL_STANDALONE: "true"

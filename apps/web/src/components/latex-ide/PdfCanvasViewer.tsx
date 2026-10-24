@@ -489,6 +489,7 @@ export function PdfCanvasViewer({
           <canvas
             ref={canvasRef}
             role="img"
+            aria-busy={loading || !viewportSize || (extractText && !pageLayout)}
             aria-label={`PDF page ${clampPage(page, numPages)}`}
             onDoubleClick={onCanvasClick ? undefined : handleDoubleClick}
             onClick={

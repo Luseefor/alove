@@ -51,7 +51,7 @@ async function paper(page: Page) {
   await expect(
     page.getByText("Visual object proof", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
 }
 async function archive(page: Page) {
   await page.getByRole("button", { name: "Export", exact: true }).click();
@@ -79,7 +79,7 @@ async function atProse(page: Page) {
   await page.getByRole("button", { name: "Next match", exact: true }).click();
   await input.press("Escape");
   await source.press("ArrowRight");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
 }
 async function insert(page: Page, name: string) {
   await atProse(page);
@@ -123,7 +123,7 @@ test("table cells, TSV, structure, keyboard, cancel and shared undo preserve exa
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   expect((await archive(page)).files["main.tex"]).toBe(original);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await page.getByRole("button", { name: "Edit table", exact: true }).click();
   await page.getByLabel("Row 1 column 1", { exact: true }).evaluate((el) => {
     const data = new DataTransfer();

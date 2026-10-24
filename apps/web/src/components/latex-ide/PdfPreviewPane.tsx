@@ -165,6 +165,16 @@ export function PdfPreviewPane({
         >
           {filename}
         </span>
+        {visualEditing && pdfDataUrl && (
+          <button
+            type="button"
+            disabled={busy || pdfDraftOpen}
+            onClick={() => void runCompile()}
+            className="shrink-0 rounded px-2 py-1 text-xs text-primary hover:bg-muted disabled:opacity-50"
+          >
+            {busy ? "Compiling…" : "Rebuild"}
+          </button>
+        )}
         {pdfDataUrl && (
           <a
             href={pdfDataUrl}
@@ -214,13 +224,17 @@ export function PdfPreviewPane({
         />
       ) : pdfDataUrl ? (
         <>
-          <div className="shrink-0 border-b border-border bg-background px-3 py-2">
+          <div
+            hidden={visualEditing && !busy && !failed && !stale}
+            className="shrink-0 border-b border-border bg-background px-3 py-2"
+          >
             <div className="flex items-center justify-between gap-2">
               <span className="min-w-0 text-xs font-medium" role="status">
                 {status}
               </span>
               <button
                 type="button"
+                hidden={visualEditing}
                 disabled={busy}
                 onClick={() => void runCompile()}
                 className="shrink-0 rounded border border-border px-2 py-1 text-xs disabled:opacity-50"

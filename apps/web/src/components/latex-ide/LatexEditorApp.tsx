@@ -21,6 +21,7 @@ export function LatexEditorApp() {
     sidebarOpen,
     toggleSidebar,
     bottomPanelOpen,
+    setBottomPanelOpen,
     buildStatus,
     diagnostics,
     buildLog,
@@ -45,6 +46,9 @@ export function LatexEditorApp() {
   const [filesOpen, setFilesOpen] = useState(false);
   const filesButtonRef = useRef<HTMLButtonElement>(null);
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (mode === "visual") setBottomPanelOpen(buildStatus === "failed");
+  }, [mode, buildStatus, setBottomPanelOpen]);
   const showBottomPanel =
     bottomPanelOpen &&
     (buildStatus !== "idle" || diagnostics.length > 0 || Boolean(buildLog));
@@ -205,6 +209,7 @@ export function LatexEditorApp() {
               }
               onClick={() => {
                 setMode("visual");
+                setBottomPanelOpen(false);
                 setPresentation("source");
                 setView("pdf");
                 const current = useWorkbenchStore.getState();
