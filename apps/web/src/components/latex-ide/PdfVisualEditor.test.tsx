@@ -159,4 +159,27 @@ describe("on-page PDF edits", () => {
     expect(apply).not.toHaveBeenCalled();
     expect(compile).not.toHaveBeenCalled();
   });
+  it("returns a retained draft to its original PDF page after navigation elsewhere", async () => {
+    await begin();
+    await change("Draft on the first page.");
+    const setPdfPage = vi.fn();
+    await act(async () => {
+      useWorkbenchStore.setState({ setPdfPage });
+      root.render(
+        <PdfVisualEditor
+          layout={{ ...layout, page: 2, textRuns: [] }}
+          bridge={bridge}
+        />,
+      );
+    });
+    expect(setPdfPage).toHaveBeenCalledWith(1);
+    expect(host.querySelector("textarea")).toBeNull();
+    await act(async () =>
+      root.render(<PdfVisualEditor layout={layout} bridge={bridge} />),
+    );
+    expect(host.querySelector("textarea")!.value).toBe(
+      "Draft on the first page.",
+    );
+    expect(apply).not.toHaveBeenCalled();
+  });
 });

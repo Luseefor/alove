@@ -23,6 +23,7 @@ export type PdfTextDraft = {
   revision: number;
   projectId: string;
   pdf: string;
+  page: number;
 };
 
 export function PdfVisualEditor({
@@ -72,6 +73,11 @@ export function PdfVisualEditor({
     if (draft && document.activeElement !== input.current)
       input.current?.focus();
   }, [draft]);
+  const draftOnOtherPage =
+    !!draft && draft.pdf === state.pdfDataUrl && draft.page !== layout.page;
+  useEffect(() => {
+    if (draftOnOtherPage && draft) state.setPdfPage(draft.page);
+  }, [draftOnOtherPage, draft, state.setPdfPage]);
   const current = (target: PdfTextDraft) => {
     const now = useWorkbenchStore.getState();
     return (
@@ -168,6 +174,7 @@ export function PdfVisualEditor({
         Math.max(region.width + 8, Math.min(300, layout.width - 8)),
       )
     : 0;
+  if (draftOnOtherPage) return null;
   return (
     <>
       {!draft &&
@@ -191,6 +198,7 @@ export function PdfVisualEditor({
                 revision: now.documentRevision,
                 projectId: now.projectId,
                 pdf: now.pdfDataUrl,
+                page: layout.page,
               });
             }}
             className="absolute rounded-sm bg-transparent text-transparent hover:bg-primary/5 hover:outline hover:outline-1 hover:outline-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
