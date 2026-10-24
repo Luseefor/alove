@@ -190,6 +190,10 @@ test.describe(
       const textarea = page.locator('[data-testid="latex-editor-textarea"]');
       await textarea.click();
       await page.keyboard.press("ControlOrMeta+a");
+      expect(await textarea.evaluate((element: HTMLTextAreaElement) => ({
+        start: element.selectionStart,
+        end: element.selectionEnd,
+      }))).toEqual({ start: 0, end: 5 });
     }
 
     // Use sidebar snippet for wrap test
@@ -203,6 +207,17 @@ test.describe(
       expect(content).toContain("\\frac{alpha}{b}");
     }
   });
+
+  if (!isCodeMirror) {
+    test("snippet insertion follows the textarea caret", async ({ page }) => {
+      await setEditorText(page, "alpha beta");
+      const textarea = page.locator('[data-testid="latex-editor-textarea"]');
+      await textarea.press("Home");
+      for (let i = 0; i < 5; i += 1) await textarea.press("ArrowRight");
+      await page.locator('[data-testid="sidebar-snippet-Fraction"]').click();
+      await expect(textarea).toHaveValue("alpha\\frac{a}{b} beta");
+    });
+  }
 
   test("compile button is present and enabled", async ({ page }) => {
     const btn = page.locator('[data-testid="compile-button"]');
