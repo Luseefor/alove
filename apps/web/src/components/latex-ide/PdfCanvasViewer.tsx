@@ -21,6 +21,22 @@ export type CanvasPointClick = {
   pageHeightBp: number;
 };
 
+export type PdfTextRun = {
+  text: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+export type PdfPageLayout = {
+  page: number;
+  width: number;
+  height: number;
+  pageWidthBp: number;
+  pageHeightBp: number;
+  textRuns: PdfTextRun[];
+};
+
 type Props = {
   pdfBytes: Uint8Array | null;
   page: number;
@@ -31,6 +47,9 @@ type Props = {
   stale: boolean;
   onCanvasDoubleClick: (click: CanvasPointClick) => void;
   onError: (message: string) => void;
+  navigationLocked?: boolean;
+  renderOverlay?: (layout: PdfPageLayout) => React.ReactNode;
+  onCanvasClick?: (click: CanvasPointClick) => void;
 };
 
 type ViewportLike = {
@@ -62,14 +81,36 @@ export function PdfCanvasViewer({
   stale,
   onCanvasDoubleClick,
   onError,
+  renderOverlay,
+  navigationLocked = false,
+  onCanvasClick,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const highlightRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<ViewportLike | null>(null);
   const pageHeightRef = useRef<number>(0);
-  const [viewportSize, setViewportSize] = useState<{ width: number; height: number } | null>(null);
-  const [highlightBox, setHighlightBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const [viewportSize, setViewportSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [highlightBox, setHighlightBox] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [pageLayout, setPageLayout] = useState<PdfPageLayout | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() =>
+      setContainerWidth(element.clientWidth),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const [numPages, setNumPages] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -79,8 +120,20 @@ export function PdfCanvasViewer({
   const shownHighlightNonce = useRef(0);
   // Parent callbacks are inline arrows; keep them in refs so document
   // load/render effects never re-run on callback identity changes.
-  const callbacksRef = useRef({ onPageChange, onPageCount, onCanvasDoubleClick, onError });
-  callbacksRef.current = { onPageChange, onPageCount, onCanvasDoubleClick, onError };
+  const callbacksRef = useRef({
+    onPageChange,
+    onPageCount,
+    onCanvasDoubleClick,
+    onError,
+    onCanvasClick,
+  });
+  callbacksRef.current = {
+    onPageChange,
+    onPageCount,
+    onCanvasDoubleClick,
+    onError,
+    onCanvasClick,
+  };
 
   const fail = useCallback((message: string) => {
     setFailed(message);
@@ -99,7 +152,9 @@ export function PdfCanvasViewer({
         const pdfjs = await import("pdfjs-dist");
         if (cancelled) return;
         try {
-          const workerOptions = pdfjs.GlobalWorkerOptions as unknown as { workerSrc?: string };
+          const workerOptions = pdfjs.GlobalWorkerOptions as unknown as {
+            workerSrc?: string;
+          };
           if (!workerOptions.workerSrc) {
             workerOptions.workerSrc = new URL(
               "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -126,7 +181,11 @@ export function PdfCanvasViewer({
         setLoading(false);
       } catch (error) {
         if (!cancelled)
-          fail(error instanceof Error ? `Interactive PDF failed to load: ${error.message}` : "Interactive PDF failed to load.");
+          fail(
+            error instanceof Error
+              ? `Interactive PDF failed to load: ${error.message}`
+              : "Interactive PDF failed to load.",
+          );
       }
     })();
     return () => {
@@ -142,21 +201,36 @@ export function PdfCanvasViewer({
     [],
   );
 
+  const extractText = Boolean(renderOverlay);
+
   // Render the current page. Canvas CSS size equals viewport size 1:1.
   useEffect(() => {
     const doc = docRef.current as unknown as {
       getPage: (n: number) => Promise<{
         view: [number, number, number, number];
+        getTextContent?: () => Promise<{
+          items: Array<{
+            str?: string;
+            transform?: number[];
+            width?: number;
+            height?: number;
+          }>;
+        }>;
         getViewport: (args: { scale: number }) => ViewportLike;
-        render: (args: { canvasContext: unknown; viewport: ViewportLike }) => { promise: Promise<void>; cancel: () => void };
+        render: (args: { canvasContext: unknown; viewport: ViewportLike }) => {
+          promise: Promise<void>;
+          cancel: () => void;
+        };
       }>;
     } | null;
     const canvas = canvasRef.current;
     const scroller = scrollRef.current;
     if (!doc || !canvas || !scroller) return;
+    setPageLayout(null);
     const target = clampPage(page, numPages);
     let cancelled = false;
-    let renderTask: { promise: Promise<void>; cancel: () => void } | null = null;
+    let renderTask: { promise: Promise<void>; cancel: () => void } | null =
+      null;
     (async () => {
       try {
         const pdfPage = await doc.getPage(target);
@@ -164,7 +238,7 @@ export function PdfCanvasViewer({
         const [x0, y0, x1, y1] = pdfPage.view;
         const pageWidthBp = Math.max(1, x1 - x0);
         const pageHeightBp = Math.max(1, y1 - y0);
-        const available = Math.max(80, scroller.clientWidth || 600);
+        const available = Math.max(80, (scroller.clientWidth || 600) - 24);
         const scale = Math.max(0.2, (available / pageWidthBp) * zoom);
         const viewport = pdfPage.getViewport({ scale });
         viewportRef.current = viewport;
@@ -178,13 +252,60 @@ export function PdfCanvasViewer({
         await renderTask.promise;
         if (cancelled) return;
         setViewportSize({ width: viewport.width, height: viewport.height });
+        if (extractText) {
+          const content = await pdfPage
+            .getTextContent?.()
+            .catch(() => ({ items: [] }));
+          if (cancelled) return;
+          const textRuns: PdfTextRun[] = [];
+          for (const item of content?.items ?? []) {
+            const t = item.transform;
+            if (
+              !item.str?.trim() ||
+              !t ||
+              t.length < 6 ||
+              Math.abs(t[1]) > 0.01 ||
+              Math.abs(t[2]) > 0.01
+            )
+              continue;
+            const [left, baseline] = viewport.convertToViewportPoint(
+              t[4],
+              t[5],
+            );
+            const [right, top] = viewport.convertToViewportPoint(
+              t[4] + (item.width ?? 0),
+              t[5] + (item.height || Math.abs(t[3])),
+            );
+            if (![left, top, right, baseline].every(Number.isFinite)) continue;
+            textRuns.push({
+              text: item.str,
+              left: Math.min(left, right),
+              top: Math.min(top, baseline),
+              width: Math.abs(right - left),
+              height: Math.abs(baseline - top),
+            });
+          }
+          setPageLayout({
+            page: target,
+            width: viewport.width,
+            height: viewport.height,
+            pageWidthBp,
+            pageHeightBp,
+            textRuns,
+          });
+        }
       } catch (error) {
         if (cancelled) return;
         const cancelledRender =
           error instanceof Error &&
-          (error.name === "RenderingCancelledException" || error.message.includes("cancelled"));
+          (error.name === "RenderingCancelledException" ||
+            error.message.includes("cancelled"));
         if (!cancelledRender)
-          fail(error instanceof Error ? `Interactive PDF failed to render: ${error.message}` : "Interactive PDF failed to render.");
+          fail(
+            error instanceof Error
+              ? `Interactive PDF failed to render: ${error.message}`
+              : "Interactive PDF failed to render.",
+          );
       }
     })();
     return () => {
@@ -196,12 +317,27 @@ export function PdfCanvasViewer({
       }
       viewportRef.current = null;
     };
-  }, [page, numPages, zoom, loading, failed, reloadNonce, fail]);
+  }, [
+    page,
+    numPages,
+    zoom,
+    loading,
+    failed,
+    reloadNonce,
+    fail,
+    extractText,
+    containerWidth,
+  ]);
 
   // Position the highlight rectangle from top-based big points.
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport || !highlight || stale || highlight.page !== clampPage(page, numPages)) {
+    if (
+      !viewport ||
+      !highlight ||
+      stale ||
+      highlight.page !== clampPage(page, numPages)
+    ) {
       setHighlightBox(null);
       return;
     }
@@ -211,7 +347,10 @@ export function PdfCanvasViewer({
       return;
     }
     // PDF corners (bottom-left origin), then to viewport points.
-    const [ax, ay] = viewport.convertToViewportPoint(highlight.xBp, pageHeightBp - highlight.yTopBp);
+    const [ax, ay] = viewport.convertToViewportPoint(
+      highlight.xBp,
+      pageHeightBp - highlight.yTopBp,
+    );
     const [bx, by] = viewport.convertToViewportPoint(
       highlight.xBp + highlight.wBp,
       pageHeightBp - (highlight.yTopBp + highlight.hBp),
@@ -226,13 +365,17 @@ export function PdfCanvasViewer({
 
   // Scroll the highlight into view once per navigation.
   useEffect(() => {
-    if (!highlight || stale || highlight.nonce === shownHighlightNonce.current) return;
+    if (!highlight || stale || highlight.nonce === shownHighlightNonce.current)
+      return;
     shownHighlightNonce.current = highlight.nonce;
-    highlightRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    highlightRef.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
   }, [highlight, stale, highlightBox]);
 
   const handleDoubleClick = useCallback(
-    (event: React.MouseEvent<HTMLCanvasElement>) => {
+    (event: React.MouseEvent<HTMLCanvasElement>, single = false) => {
       const viewport = viewportRef.current;
       const canvas = canvasRef.current;
       if (!viewport || !canvas) return;
@@ -242,7 +385,10 @@ export function PdfCanvasViewer({
         event.clientY - rect.top,
       );
       if (!Number.isFinite(xPdf) || !Number.isFinite(yPdf)) return;
-      callbacksRef.current.onCanvasDoubleClick({
+      const callback = single
+        ? callbacksRef.current.onCanvasClick
+        : callbacksRef.current.onCanvasDoubleClick;
+      callback?.({
         page: clampPage(page, numPages),
         xPdf,
         yPdf,
@@ -255,12 +401,15 @@ export function PdfCanvasViewer({
   if (!pdfBytes) return null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-testid="pdf-canvas-viewer">
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      data-testid="pdf-canvas-viewer"
+    >
       <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-3 py-1.5">
         <button
           type="button"
           aria-label="Previous PDF page"
-          disabled={page <= 1}
+          disabled={navigationLocked || page <= 1}
           onClick={() => onPageChange(clampPage(page - 1, numPages))}
           className="rounded border border-border px-2 py-0.5 text-xs disabled:opacity-50"
         >
@@ -270,6 +419,7 @@ export function PdfCanvasViewer({
           Page
           <input
             aria-label="Current PDF page"
+            disabled={navigationLocked}
             inputMode="numeric"
             value={String(clampPage(page, numPages))}
             onChange={(e) => {
@@ -283,7 +433,7 @@ export function PdfCanvasViewer({
         <button
           type="button"
           aria-label="Next PDF page"
-          disabled={page >= numPages}
+          disabled={navigationLocked || page >= numPages}
           onClick={() => onPageChange(clampPage(page + 1, numPages))}
           className="rounded border border-border px-2 py-0.5 text-xs disabled:opacity-50"
         >
@@ -292,7 +442,10 @@ export function PdfCanvasViewer({
         <button
           type="button"
           aria-label="Zoom out"
-          onClick={() => setZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))}
+          disabled={navigationLocked}
+          onClick={() =>
+            setZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))
+          }
           className="rounded border border-border px-2 py-0.5 text-xs"
         >
           −
@@ -300,13 +453,19 @@ export function PdfCanvasViewer({
         <button
           type="button"
           aria-label="Zoom in"
-          onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))}
+          disabled={navigationLocked}
+          onClick={() =>
+            setZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))
+          }
           className="rounded border border-border px-2 py-0.5 text-xs"
         >
           +
         </button>
       </div>
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto bg-muted/60 p-3">
+      <div
+        ref={scrollRef}
+        className="relative min-h-0 flex-1 overflow-auto bg-muted/60 p-3"
+      >
         {loading && (
           <p className="text-xs text-muted-foreground" role="status">
             Rendering PDF…
@@ -330,10 +489,17 @@ export function PdfCanvasViewer({
           <canvas
             ref={canvasRef}
             role="img"
+            aria-busy={loading || !viewportSize || (extractText && !pageLayout)}
             aria-label={`PDF page ${clampPage(page, numPages)}`}
-            onDoubleClick={handleDoubleClick}
+            onDoubleClick={onCanvasClick ? undefined : handleDoubleClick}
+            onClick={
+              onCanvasClick
+                ? (event) => handleDoubleClick(event, true)
+                : undefined
+            }
             className="block bg-white shadow"
           />
+          {pageLayout && !loading && !failed && renderOverlay?.(pageLayout)}
           {highlightBox && (
             <div
               ref={highlightRef}
@@ -350,9 +516,11 @@ export function PdfCanvasViewer({
             />
           )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Double-click a point to jump to its source line.
-        </p>
+        {!onCanvasClick && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Double-click a point to jump to its source line.
+          </p>
+        )}
       </div>
     </div>
   );

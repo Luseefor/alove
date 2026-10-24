@@ -219,18 +219,18 @@ input[type="range"] {
   }
 }
 
-/* Source and Visual share a broad writing canvas; Proof reveals the compiled output. */
+/* Source edits the manuscript; Visual edits the PDF; Proof shows both. */
 @media (min-width: 1024px) {
   .latex-workbench[data-mode="source"] .workbench-pdf-panel,
-  .latex-workbench[data-mode="visual"] .workbench-pdf-panel,
   .latex-workbench[data-mode="source"] .workbench-preview-divider,
   .latex-workbench[data-mode="visual"] .workbench-preview-divider {
     display: none;
   }
-  .latex-workbench[data-mode="source"] .workbench-source-panel,
-  .latex-workbench[data-mode="visual"] .workbench-source-panel {
+  .latex-workbench[data-mode="source"] .workbench-source-panel {
     flex: 1 1 100% !important;
   }
+  .latex-workbench[data-mode="visual"] .workbench-source-panel { display: none; }
+  .latex-workbench[data-mode="visual"] .workbench-pdf-panel { flex: 1 1 100% !important; }
 }
 
 [data-presentation="visual"] .cm-editor,

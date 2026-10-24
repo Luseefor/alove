@@ -51,6 +51,7 @@ export function useVisualObjects(
   editor: RefObject<LatexCodeEditorHandle | null>,
   onRequestSource: (() => void) | undefined,
   onMessage: (message: string) => void,
+  onApplied?: () => void,
 ) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const initialCell = useRef<{ row: number; column: number } | undefined>(
@@ -324,6 +325,7 @@ export function useVisualObjects(
           "The document changed while saving. Reopen this editor; no object changes were applied.",
         );
       setTarget(null);
+      onApplied?.();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "The object could not be applied.",

@@ -64,7 +64,7 @@ for (const width of [390, 1440]) {
   }) => {
     await page.setViewportSize({ width, height: 850 });
     await importPaper(page);
-    await page.getByRole("button", { name: "Visual", exact: true }).click();
+    await page.getByRole("button", { name: "Manuscript", exact: true }).click();
     if (width === 390)
       await page.getByRole("button", { name: "Files", exact: true }).click();
     else
@@ -110,7 +110,7 @@ test("find reveals a preamble selection without losing shared undo", async ({
   await source.click();
   await source.press("ControlOrMeta+End");
   await source.pressSequentially("% navigation undo sentinel");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await page
     .getByRole("textbox", { name: "Visual manuscript editor" })
     .press("ControlOrMeta+f");

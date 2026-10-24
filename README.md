@@ -17,7 +17,7 @@ Overleaf is a hosted service. Weftly is software you clone and run:
 
 ## Features
 
-- CodeMirror 6 source editor, PDF preview, outline, folding, snippets and search
+- CodeMirror 6 source editor, on-PDF Visual text edits, Manuscript prose/object controls, outline, folding, snippets and search
 - Durable browser workspaces with revision conflicts and portable source archives
 - Source-aware builds that retain the last successful PDF and mark stale previews
 - Immutable build receipts and bounded, compile-tested whole-file recovery

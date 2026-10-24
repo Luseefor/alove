@@ -6,10 +6,18 @@ import { X, Plus, Search } from "lucide-react";
 import Image from "next/image";
 import React, { useMemo } from "react";
 import type { EditorState } from "@codemirror/state";
+import type { PdfEditBridge } from "@/lib/pdfEditBridge";
+import { parseVisualObjects } from "@/lib/visualObjects";
 import type { VisualFormat } from "@alove/editor";
 import { useVisualObjects } from "./VisualObjectDialog";
 import { VisualWritingToolbar } from "./VisualWritingToolbar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/utils";
 import { sourceNavigationNeedsSource } from "@/lib/sourceNavigation";
 import { getEditorMode } from "@/lib/editorMode";
@@ -20,9 +28,15 @@ import { LatexCodeEditor, type LatexCodeEditorHandle } from "./LatexCodeEditor";
 export function EditorPane({
   presentation = "source",
   onRequestSource,
+  onRequestManuscript,
+  pdfEditBridge,
+  onVisualObjectApplied,
 }: {
   presentation?: "source" | "visual";
   onRequestSource?: () => void;
+  onRequestManuscript?: () => void;
+  pdfEditBridge?: React.Ref<PdfEditBridge>;
+  onVisualObjectApplied?: () => void;
 } = {}) {
   const [visualMessage, setVisualMessage] = useState("");
   const {
@@ -116,7 +130,25 @@ export function EditorPane({
     codeEditorRef,
     onRequestSource,
     setVisualMessage,
+    onVisualObjectApplied,
   );
+  useImperativeHandle(pdfEditBridge, () => ({
+    fileId: activeFileId,
+    getValue: () => codeEditorRef.current?.getValue(),
+    applySourcePatches: (expected, patches) =>
+      !isViewer &&
+      (codeEditorRef.current?.applySourcePatches(expected, patches) ?? false),
+    openObjectAt: (expected, offset) => {
+      if (isViewer || codeEditorRef.current?.getValue() !== expected)
+        return false;
+      const object = parseVisualObjects(expected).find(
+        (entry) => offset >= entry.from && offset <= entry.to,
+      );
+      if (!object) return false;
+      visualObjects.open(object, expected);
+      return true;
+    },
+  }));
 
   const [findOpen, setFindOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
@@ -391,9 +423,7 @@ export function EditorPane({
                 {name}
               </span>
               {isDirty && (
-                <span className="text-[11px] font-bold text-warning">
-                  *
-                </span>
+                <span className="text-[11px] font-bold text-warning">*</span>
               )}
               <button
                 aria-label={`Close ${name}`}
@@ -424,6 +454,28 @@ export function EditorPane({
         </button>
       </div>
 
+      {onRequestManuscript &&
+        codeMirrorEnabled &&
+        activeFileId?.toLowerCase().endsWith(".tex") && (
+          <div className="flex shrink-0 items-center gap-1 bg-panel-header px-3 py-1 text-xs">
+            <button
+              type="button"
+              aria-pressed={!visualActive}
+              onClick={onRequestSource}
+              className="rounded px-2 py-1 text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground"
+            >
+              LaTeX
+            </button>
+            <button
+              type="button"
+              aria-pressed={visualActive}
+              onClick={onRequestManuscript}
+              className="rounded px-2 py-1 text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground"
+            >
+              Manuscript
+            </button>
+          </div>
+        )}
       {visualActive && (
         <VisualWritingToolbar
           readOnly={isViewer}

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Files, X } from "lucide-react";
+import { isBlankPdfSource } from "@/lib/pdfEditBridge";
+import type { PdfEditBridge } from "@/lib/pdfEditBridge";
 import { getEditorMode } from "@/lib/editorMode";
 import { BuildRecoveryDialog } from "./BuildRecoveryDialog";
 import { AppHeader } from "./AppHeader";
@@ -19,12 +21,16 @@ export function LatexEditorApp() {
     sidebarOpen,
     toggleSidebar,
     bottomPanelOpen,
+    setBottomPanelOpen,
     buildStatus,
     diagnostics,
     buildLog,
     activeFileId,
   } = useWorkbenchStore();
   const [mode, setMode] = useState<"source" | "visual" | "proof">("proof");
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const pdfEditBridge = useRef<PdfEditBridge | null>(null);
   const [presentation, setPresentation] = useState<"source" | "visual">(
     "source",
   );
@@ -40,6 +46,9 @@ export function LatexEditorApp() {
   const [filesOpen, setFilesOpen] = useState(false);
   const filesButtonRef = useRef<HTMLButtonElement>(null);
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (mode === "visual") setBottomPanelOpen(buildStatus === "failed");
+  }, [mode, buildStatus, setBottomPanelOpen]);
   const showBottomPanel =
     bottomPanelOpen &&
     (buildStatus !== "idle" || diagnostics.length > 0 || Boolean(buildLog));
@@ -52,7 +61,7 @@ export function LatexEditorApp() {
   }, []);
   useEffect(() => {
     setFilesOpen(false);
-    setView("source");
+    if (modeRef.current !== "visual") setView("source");
     if (!visualSupported) {
       setMode((mode) => (mode === "visual" ? "source" : mode));
       setPresentation("source");
@@ -162,7 +171,7 @@ export function LatexEditorApp() {
       <BuildRecoveryDialog />
       <AppHeader />
       <div className="flex min-w-0 shrink-0 flex-col border-b border-border bg-chrome lg:h-11 lg:flex-row lg:items-center lg:gap-2 lg:px-2">
-        {presentation !== "visual" && <ActionToolbar />}
+        {presentation !== "visual" && mode !== "visual" && <ActionToolbar />}
         <div className="flex h-10 shrink-0 items-center justify-between gap-2 bg-chrome px-2 lg:h-11 lg:justify-end lg:px-0">
           <button
             ref={filesButtonRef}
@@ -190,18 +199,30 @@ export function LatexEditorApp() {
             </button>
             <button
               type="button"
-              aria-pressed={mode === "visual" && view === "source"}
-              aria-controls="source-panel"
+              aria-pressed={mode === "visual"}
+              aria-controls="pdf-panel"
               disabled={!visualSupported}
               title={
                 !visualSupported
-                  ? "Visual writing requires a .tex file and CodeMirror"
-                  : "Visual writing"
+                  ? "PDF editing requires a .tex file and CodeMirror"
+                  : "Edit text on the compiled PDF"
               }
               onClick={() => {
                 setMode("visual");
-                setPresentation("visual");
-                setView("source");
+                setBottomPanelOpen(false);
+                setPresentation("source");
+                setView("pdf");
+                const current = useWorkbenchStore.getState();
+                if (
+                  (!current.pdfDataUrl ||
+                    current.pdfSourceRevision !== current.documentRevision) &&
+                  !isBlankPdfSource(
+                    current.mainFile
+                      ? current.filesByPath[current.mainFile]
+                      : undefined,
+                  )
+                )
+                  void current.runCompile();
                 if (
                   window.matchMedia("(min-width: 1024px)").matches &&
                   sidebarOpen
@@ -299,6 +320,21 @@ export function LatexEditorApp() {
                 <EditorPane
                   presentation={presentation}
                   onRequestSource={requestSource}
+                  onRequestManuscript={() => {
+                    setMode("source");
+                    setPresentation("visual");
+                    setView("source");
+                    if (
+                      window.matchMedia("(min-width: 1024px)").matches &&
+                      sidebarOpen
+                    )
+                      toggleSidebar();
+                  }}
+                  onVisualObjectApplied={() => {
+                    if (modeRef.current === "visual")
+                      void useWorkbenchStore.getState().runCompile();
+                  }}
+                  pdfEditBridge={pdfEditBridge}
                 />
               </Panel>
               <PanelResizeHandle
@@ -312,7 +348,11 @@ export function LatexEditorApp() {
                 data-testid="pdf-panel"
                 id="pdf-panel"
               >
-                <PdfPreviewPane />
+                <PdfPreviewPane
+                  visualEditing={mode === "visual"}
+                  pdfEditBridge={pdfEditBridge}
+                  onRequestSource={requestSource}
+                />
               </Panel>
             </PanelGroup>
           </main>

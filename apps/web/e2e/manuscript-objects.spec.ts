@@ -70,7 +70,7 @@ async function paper(page: Page, initialSource = source) {
   await expect(
     page.getByText("Manuscript object proof", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
 }
 async function exported(page: Page): Promise<string> {
   await page.getByRole("button", { name: "Export", exact: true }).click();
@@ -301,6 +301,7 @@ test("subfigure ordering follows panel edits through Cancel, undo, redo and relo
   await editor.press("ControlOrMeta+z");
   expect(await exported(page)).toBe(initial);
   await editor.press("ControlOrMeta+Shift+z");
+  await expect(editor).toContainText(String.raw`First moved \& edited`);
   expect(await exported(page)).toBe(expected);
   await page.reload();
   expect(await exported(page)).toBe(expected);

@@ -61,7 +61,7 @@ test("visual writing preserves exact source, shared undo, custom syntax and dura
   page,
 }, testInfo) => {
   await importPaper(page);
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   const visual = page.getByRole("textbox", {
     name: "Visual manuscript editor",
   });
@@ -76,7 +76,7 @@ test("visual writing preserves exact source, shared undo, custom syntax and dura
     "notes.tex": "Untouched included source.\r\n",
   });
   await find(page, "plain");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await page
     .getByRole("button", { name: "Bold selected text", exact: true })
     .click();
@@ -90,12 +90,12 @@ test("visual writing preserves exact source, shared undo, custom syntax and dura
     .getByRole("textbox", { name: "LaTeX source editor" })
     .press("ControlOrMeta+z");
   expect((await sourceArchive(page)).files["main.tex"]).toBe(original);
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await visual.press("ControlOrMeta+Shift+z");
   expect((await sourceArchive(page)).files["main.tex"]).toBe(bold);
 
   await find(page, "sentence");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await visual.pressSequentially("50% résumé");
   expect((await sourceArchive(page)).files["main.tex"]).toBe(
     bold.replace("sentence", "50\\% résumé"),
@@ -103,7 +103,7 @@ test("visual writing preserves exact source, shared undo, custom syntax and dura
   await visual.press("ControlOrMeta+z");
   expect((await sourceArchive(page)).files["main.tex"]).toBe(bold);
   await find(page, "sentence");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   const composition = await page.context().newCDPSession(page);
   await composition.send("Input.imeSetComposition", {
     text: "研究",
@@ -119,7 +119,7 @@ test("visual writing preserves exact source, shared undo, custom syntax and dura
   expect((await sourceArchive(page)).files["main.tex"]).toBe(bold);
 
   await find(page, "Second paragraph.");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await page
     .getByRole("combobox", { name: "Paragraph style" })
     .selectOption("subsection");
@@ -129,14 +129,14 @@ test("visual writing preserves exact source, shared undo, custom syntax and dura
   );
   expect((await sourceArchive(page)).files["main.tex"]).toBe(heading);
   await find(page, "Untouched macro");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await visual.press("X");
   await expect(
     page.getByRole("status").filter({ hasText: "crosses LaTeX structure" }),
   ).toBeVisible();
   expect((await sourceArchive(page)).files["main.tex"]).toBe(heading);
   await page.getByRole("button", { name: "Source", exact: true }).click();
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   for (const width of [390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const colorScheme of ["light", "dark"] as const) {
@@ -167,10 +167,10 @@ test("a visually formatted paper produces a real PDF and keeps recovery availabl
   test.setTimeout(180000);
   await importPaper(page);
   await find(page, "plain");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await page.getByRole("button", { name: "Italicize selected text" }).click();
   await find(page, "Second paragraph.");
-  await page.getByRole("button", { name: "Visual", exact: true }).click();
+  await page.getByRole("button", { name: "Manuscript", exact: true }).click();
   await page.getByRole("button", { name: "Create bulleted list" }).click();
   await expect(
     page.getByRole("textbox", { name: "Visual manuscript editor" }),
