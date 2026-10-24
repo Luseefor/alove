@@ -7,7 +7,12 @@ export type CompileAuthPolicy =
   | { error: string };
 
 export function getCompileAuthPolicy(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = {
+    ...process.env,
+    // Convex supplies this public URL to the nested Next build. Direct member
+    // access lets Next inline it into Functions where it is not a runtime env.
+    NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL,
+  },
 ): CompileAuthPolicy {
   const origin = env.ALOVE_LOCAL_COMPILE_ORIGIN;
   if (origin) {
