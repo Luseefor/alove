@@ -102,11 +102,14 @@ export function GitHubSync() {
     setBusy("oauth");
     setNotice(null);
     try {
-      const account = await user.createExternalAccount({
-        strategy: "oauth_github",
-        redirectUrl: `${window.location.origin}${window.location.pathname}`,
+      const existing = user.externalAccounts.find((account) => account.provider === "github");
+      const authorization = {
+        redirectUrl: window.location.href,
         additionalScopes: [...GITHUB_OAUTH_SCOPES],
-      });
+      };
+      const account = existing
+        ? await existing.reauthorize(authorization)
+        : await user.createExternalAccount({ strategy: "oauth_github", ...authorization });
       const url = account.verification?.externalVerificationRedirectURL;
       if (url) window.location.href = url instanceof URL ? url.href : String(url);
       else setNotice({ kind: "error", text: "GitHub did not return a verification URL." });
@@ -352,16 +355,18 @@ export function GitHubSync() {
           {notice.text}
         </p>
       )}
-      {!githubLinked && (
-        <button
-          type="button"
-          disabled={busy !== null}
-          onClick={() => void connectGitHubAccount()}
-          className="rounded border border-border px-2 py-1 text-xs disabled:opacity-50"
-        >
-          {busy === "oauth" ? "Opening GitHub…" : "Connect GitHub account"}
-        </button>
-      )}
+      <button
+        type="button"
+        disabled={busy !== null || !user}
+        onClick={() => void connectGitHubAccount()}
+        className="rounded border border-border px-2 py-1 text-xs disabled:opacity-50"
+      >
+        {busy === "oauth"
+          ? "Opening GitHub…"
+          : githubLinked
+            ? "Authorize GitHub sync"
+            : "Connect GitHub account"}
+      </button>
       {!connected ? (
         <div className="flex flex-col gap-2">
           {githubLinked && (
