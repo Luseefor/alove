@@ -8,6 +8,7 @@
     "dev:with-convex": "concurrently -n convex,next -c blue,green \"convex dev\" \"next dev --turbopack -p 3000\"",
     "convex:dev": "convex dev",
     "build": "next build --turbopack",
+    "build:vercel": "convex deploy --cmd 'bun run build' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL",
     "start": "next start",
     "lint": "eslint . && bun ./scripts/check-design-tokens.mjs",
     "typecheck": "tsc --noEmit",

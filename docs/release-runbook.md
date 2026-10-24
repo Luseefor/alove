@@ -1,6 +1,6 @@
 # Release runbook
 
-The application uses Clerk for identity, Convex for project data, and a private Redis queue between the website and a dedicated Docker runner. The backend choice and hosting constraints are in [publish-plan.md](publish-plan.md). Local mode remains available without these accounts.
+The application uses Clerk for identity, Convex for project data, and a private Redis queue between the website and a dedicated Docker runner. For personal Vercel hosting with on-demand TeX Sandboxes, use [vercel-personal-hosting.md](vercel-personal-hosting.md). The Docker hosting constraints are in [publish-plan.md](publish-plan.md). Local mode remains available without these accounts.
 
 ## Configuration to add
 
