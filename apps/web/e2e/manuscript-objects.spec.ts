@@ -301,6 +301,7 @@ test("subfigure ordering follows panel edits through Cancel, undo, redo and relo
   await editor.press("ControlOrMeta+z");
   expect(await exported(page)).toBe(initial);
   await editor.press("ControlOrMeta+Shift+z");
+  await expect(editor).toContainText(String.raw`First moved \& edited`);
   expect(await exported(page)).toBe(expected);
   await page.reload();
   expect(await exported(page)).toBe(expected);

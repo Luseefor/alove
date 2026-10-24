@@ -102,6 +102,10 @@ export function PdfVisualEditor({
         throw new Error(
           "The document changed. Your draft is kept here; copy it, then rebuild and reopen the text.",
         );
+      if (draft.text === draft.region.block.text) {
+        setDraft(null);
+        return;
+      }
       const patch = pdfTextReplacement(
         draft.region.block,
         draft.text,

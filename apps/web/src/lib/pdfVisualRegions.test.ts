@@ -103,4 +103,23 @@ describe("PDF text region proof", () => {
     });
     expect(buildPdfTextRegions(blocks, layout, mapping())).toHaveLength(0);
   });
+  it("matches TeX punctuation and discretionary line-end hyphens without changing source", () => {
+    const source = "We don't stop -- scientific writing.";
+    const blocks = buildPdfTextBlocks({ "main.tex": source });
+    const page = {
+      ...layout,
+      textRuns: [
+        {
+          text: "We don’t stop – scien-",
+          left: 70,
+          top: 100,
+          width: 180,
+          height: 12,
+        },
+        { text: "tific writing.", left: 70, top: 115, width: 80, height: 12 },
+      ],
+    };
+    const [region] = buildPdfTextRegions(blocks, page, mapping());
+    expect(region.block.source).toBe(source);
+  });
 });

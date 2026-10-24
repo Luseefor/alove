@@ -11,7 +11,14 @@ export type PdfTextRegion = {
   height: number;
   fontSize: number;
 };
-const normalized = (text: string) => text.normalize("NFKC").replace(/\s+/g, "");
+const normalized = (text: string) =>
+  text
+    .normalize("NFKC")
+    .replace(/``|''|[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/—/g, "---")
+    .replace(/–/g, "--")
+    .replace(/\s+/g, "");
 
 /** Require both the actual PDF text and nearby source coordinates, never nearest-line alone. */
 export function buildPdfTextRegions(
@@ -42,6 +49,14 @@ export function buildPdfTextRegions(
       let text = "";
       for (let end = start; end < Math.min(runs.length, start + 128); end++) {
         text += normalized(runs[end].text);
+        // A line-end discretionary hyphen is not part of the source word.
+        if (
+          !target.startsWith(text) &&
+          text.endsWith("-") &&
+          runs[end + 1]?.top > runs[end].top + runs[end].height / 2 &&
+          target.startsWith(text.slice(0, -1))
+        )
+          text = text.slice(0, -1);
         if (!target.startsWith(text)) break;
         if (text !== target) continue;
         const group = runs.slice(start, end + 1);
