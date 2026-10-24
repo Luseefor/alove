@@ -56,11 +56,12 @@ and the packages used by supported manuscript controls. It must contain no
 documents or application credentials. Runtime Sandboxes use Vercel's automatic
 OIDC identity in the Function; do not create a long-lived Vercel token for TeX.
 
-Run `bun scripts/verify-vercel-sandbox.ts` explicitly from `apps/web` in an
-authorized Vercel build. It uses the configured tools snapshot. If that snapshot
+Set `WEFTLY_VERIFY_SANDBOX=1` only for the administrative Preview branch to run
+`scripts/verify-vercel-sandbox.ts` before its Vercel build. Ordinary builds do not
+run this proof. It uses the configured tools snapshot. If that snapshot
 expires, it clones the clean tools filesystem and snapshots it with
 `expiration: 0` before writing any fixtures. Copy the printed public snapshot ID
-into `COMPILE_VERCEL_SNAPSHOT_ID`, then restore the normal build command.
+into `COMPILE_VERCEL_SNAPSHOT_ID`, then remove or disable the proof flag.
 Do not leave an expiring snapshot configured for the published app.
 
 The proof exercises the real SDK, all three engines, nested main files,
