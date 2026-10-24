@@ -1,12 +1,26 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, type RefObject } from "react";
 import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import { FileText, Loader2, Play } from "lucide-react";
 import { useWorkbenchStore } from "@/stores/workbenchStore";
+import { isBlankPdfSource } from "@/lib/pdfEditBridge";
+import { PdfVisualBlankPage } from "./PdfVisualBlankPage";
+import type { PdfEditBridge } from "@/lib/pdfEditBridge";
+import { findSourceForPdf, syncTexEntryToBp } from "@/lib/synctex";
+import { parseVisualObjects } from "@/lib/visualObjects";
+import { PdfVisualEditor, type PdfTextDraft } from "./PdfVisualEditor";
 import { PdfCanvasViewer } from "./PdfCanvasViewer";
 
-export function PdfPreviewPane() {
+export function PdfPreviewPane({
+  visualEditing = false,
+  pdfEditBridge,
+  onRequestSource,
+}: {
+  visualEditing?: boolean;
+  pdfEditBridge?: RefObject<PdfEditBridge | null>;
+  onRequestSource?: () => void;
+} = {}) {
   const {
     pdfDataUrl,
     buildStatus,
@@ -29,12 +43,39 @@ export function PdfPreviewPane() {
     goToSourceForPdfPoint,
     setBuildRecoveryOpen,
   } = useWorkbenchStore();
+  const blankSource = useWorkbenchStore((s) =>
+    s.mainFile ? s.filesByPath[s.mainFile] : undefined,
+  );
+  const showBlankPage =
+    visualEditing &&
+    !!pdfEditBridge &&
+    !pdfDataUrl &&
+    isBlankPdfSource(blankSource);
+  const [pdfDraftOpen, setPdfDraftOpen] = useState(false);
+  const [pdfTextDraft, setPdfTextDraft] = useState<PdfTextDraft | null>(null);
+  const [blankDraftText, setBlankDraftText] = useState("");
+  const projectId = useWorkbenchStore((s) => s.projectId);
+  useEffect(() => {
+    setPdfTextDraft(null);
+    setBlankDraftText("");
+  }, [projectId, mainFile]);
+  useEffect(() => {
+    if (!pdfTextDraft && !blankDraftText.trim()) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [pdfTextDraft, blankDraftText]);
   const viewerStyle = useIdeSettingsStore((s) => s.pdfViewerStyle);
   const [browserUrl, setBrowserUrl] = useState<string | null>(null);
   const [syncedPage, setSyncedPage] = useState<number | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [reversePage, setReversePage] = useState<string>("");
-  const [viewerMode, setViewerMode] = useState<"auto" | "iframe" | "interactive">("auto");
+  const [viewerMode, setViewerMode] = useState<
+    "auto" | "iframe" | "interactive"
+  >("auto");
   useEffect(() => {
     if (!pdfDataUrl || typeof URL.createObjectURL !== "function") {
       setBrowserUrl(null);
@@ -83,11 +124,16 @@ export function PdfPreviewPane() {
   // the native viewer. Without a mapping the default iframe render is
   // byte-for-byte what the existing tests assert.
   const interactiveAvailable =
-    hasSynctex && !synctexStale && viewerStyle !== "browser" && pdfBytes !== null;
+    hasSynctex &&
+    !synctexStale &&
+    viewerStyle !== "browser" &&
+    pdfBytes !== null;
   const interactiveActive =
     pdfDataUrl !== null &&
-    viewerMode !== "iframe" &&
-    (viewerMode === "interactive" || (viewerMode === "auto" && interactiveAvailable));
+    (visualEditing ||
+      (viewerMode !== "iframe" &&
+        (viewerMode === "interactive" ||
+          (viewerMode === "auto" && interactiveAvailable))));
   const filename = (pdfMainFile ?? mainFile ?? "main.tex")
     .split("/")
     .at(-1)!
@@ -129,6 +175,26 @@ export function PdfPreviewPane() {
           </a>
         )}
       </div>
+      {visualEditing && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-panel-header px-3 py-2 text-xs">
+          <span className="min-w-0 flex-1">
+            {!pdfDataUrl
+              ? showBlankPage
+                ? "Write your first paragraph on the page."
+                : "Build your document to edit the PDF page."
+              : synctexStale
+                ? "Rebuild to continue editing this page."
+                : "Click text to edit. Click a table, figure, or equation for its controls."}
+          </span>
+          <button
+            type="button"
+            onClick={onRequestSource}
+            className="rounded px-2 py-1 text-primary hover:bg-muted"
+          >
+            Edit in Source
+          </button>
+        </div>
+      )}
       {failed && (
         <div className="shrink-0 border-b border-border bg-background p-2">
           <button
@@ -140,7 +206,13 @@ export function PdfPreviewPane() {
           </button>
         </div>
       )}
-      {pdfDataUrl ? (
+      {showBlankPage && pdfEditBridge ? (
+        <PdfVisualBlankPage
+          bridge={pdfEditBridge}
+          text={blankDraftText}
+          onTextChange={setBlankDraftText}
+        />
+      ) : pdfDataUrl ? (
         <>
           <div className="shrink-0 border-b border-border bg-background px-3 py-2">
             <div className="flex items-center justify-between gap-2">
@@ -170,6 +242,7 @@ export function PdfPreviewPane() {
           </div>
           <div
             className="shrink-0 border-b border-border bg-background px-3 py-2"
+            hidden={visualEditing}
             data-testid="synctex-controls"
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -253,7 +326,7 @@ export function PdfPreviewPane() {
                 ? " Mapping truncated to transport limits."
                 : ""}
             </p>
-            {hasSynctex && viewerStyle !== "browser" && (
+            {hasSynctex && !visualEditing && viewerStyle !== "browser" && (
               <div
                 className="mt-2 flex items-center gap-1"
                 role="group"
@@ -270,7 +343,9 @@ export function PdfPreviewPane() {
                 <button
                   type="button"
                   aria-pressed={interactiveActive}
-                  disabled={!interactiveAvailable && viewerMode !== "interactive"}
+                  disabled={
+                    !interactiveAvailable && viewerMode !== "interactive"
+                  }
                   onClick={() => setViewerMode("interactive")}
                   title={
                     interactiveAvailable
@@ -284,14 +359,147 @@ export function PdfPreviewPane() {
               </div>
             )}
           </div>
+          {visualEditing && syncMessage && (
+            <p
+              role="status"
+              className="shrink-0 bg-panel-header px-3 py-2 text-xs text-muted-foreground"
+            >
+              {syncMessage}
+            </p>
+          )}
           {interactiveActive ? (
             <PdfCanvasViewer
               pdfBytes={pdfBytes}
               page={pdfPage}
               onPageChange={setPdfPage}
               onPageCount={setPdfPageCount}
+              navigationLocked={pdfDraftOpen}
               highlight={pdfHighlight}
               stale={synctexStale}
+              renderOverlay={
+                visualEditing && pdfEditBridge
+                  ? (layout) => (
+                      <PdfVisualEditor
+                        layout={layout}
+                        bridge={pdfEditBridge}
+                        onEditingChange={setPdfDraftOpen}
+                        draft={pdfTextDraft}
+                        onDraftChange={setPdfTextDraft}
+                      />
+                    )
+                  : undefined
+              }
+              onCanvasClick={
+                visualEditing
+                  ? async (click) => {
+                      const current = useWorkbenchStore.getState();
+                      const revision = current.documentRevision,
+                        project = current.projectId;
+                      if (current.projectRole === "viewer") {
+                        setSyncMessage("This project is read-only.");
+                        return;
+                      }
+                      if (
+                        current.synctexRevision !== revision ||
+                        current.buildStatus === "queued" ||
+                        current.buildStatus === "running"
+                      ) {
+                        setSyncMessage("Rebuild to edit the current PDF.");
+                        return;
+                      }
+                      const target = findSourceForPdf(
+                        current.synctexMapping,
+                        click.page,
+                        click.xPdf,
+                        click.pageHeightBp - click.yPdf,
+                      );
+                      const source = target && current.filesByPath[target.file];
+                      if (!target || typeof source !== "string") {
+                        setSyncMessage(
+                          "No editable source is mapped here. Use Edit in Source.",
+                        );
+                        return;
+                      }
+                      const objects = parseVisualObjects(source).filter(
+                        (entry) => {
+                          const first = source
+                              .slice(0, entry.from)
+                              .split("\n").length,
+                            last = source.slice(0, entry.to).split("\n").length;
+                          return target.line >= first && target.line <= last;
+                        },
+                      );
+                      const object = objects.length === 1 ? objects[0] : null;
+                      if (!object) {
+                        setSyncMessage(
+                          "Click highlighted text to edit it. Custom typesetting can be edited in Source.",
+                        );
+                        return;
+                      }
+                      const firstLine = source
+                        .slice(0, object.from)
+                        .split("\n").length;
+                      const lastLine = source
+                        .slice(0, object.to)
+                        .split("\n").length;
+                      const hit = current.synctexMapping?.entries.some(
+                        (entry) => {
+                          if (
+                            entry.file !== target.file ||
+                            entry.page !== click.page ||
+                            entry.line < firstLine ||
+                            entry.line > lastLine + 1
+                          )
+                            return false;
+                          const box = syncTexEntryToBp(
+                            current.synctexMapping,
+                            entry,
+                          );
+                          const y = click.pageHeightBp - click.yPdf;
+                          return (
+                            click.xPdf >= box.xBp - 12 &&
+                            click.xPdf <=
+                              box.xBp + Math.max(box.wBp, 12) + 12 &&
+                            y >= box.yTopBp - Math.max(box.hBp, 12) - 12 &&
+                            y <= box.yTopBp + 12
+                          );
+                        },
+                      );
+                      if (!hit) {
+                        setSyncMessage(
+                          "Click directly on a mapped object to edit it.",
+                        );
+                        return;
+                      }
+                      current.openFile(target.file);
+                      for (let i = 0; i < 20; i++) {
+                        await new Promise<void>((resolve) =>
+                          requestAnimationFrame(() => resolve()),
+                        );
+                        const now = useWorkbenchStore.getState();
+                        if (
+                          now.projectId !== project ||
+                          now.documentRevision !== revision ||
+                          now.projectRole === "viewer"
+                        )
+                          return;
+                        if (
+                          pdfEditBridge?.current?.fileId === target.file &&
+                          pdfEditBridge.current.openObjectAt(
+                            source,
+                            object.from,
+                          )
+                        ) {
+                          setSyncMessage(null);
+                          return;
+                        }
+                      }
+                      setSyncMessage(
+                        "The source editor is not ready. Try clicking the object again.",
+                      );
+                    }
+                  : undefined
+              }
               onCanvasDoubleClick={(click) => {
                 const target = goToSourceForPdfPoint(click);
                 if (target) {
@@ -303,7 +511,9 @@ export function PdfPreviewPane() {
                     "Source changed since last build. Rebuild to sync.",
                   );
                 } else {
-                  setSyncMessage(`No source mapped for PDF page ${click.page}.`);
+                  setSyncMessage(
+                    `No source mapped for PDF page ${click.page}.`,
+                  );
                 }
               }}
               onError={(message) => setSyncMessage(message)}
