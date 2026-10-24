@@ -80,6 +80,34 @@ describe("GitHubSync", () => {
     expect(container.textContent).toMatch(/Connect GitHub account/);
   });
 
+  it("authorizes repository sync through the existing GitHub sign-in account", async () => {
+    seedCloud();
+    const reauthorize = vi.fn().mockResolvedValue({ verification: {} });
+    const createExternalAccount = vi.fn();
+    userMock.user = {
+      externalAccounts: [{
+        provider: "github",
+        verification: { status: "verified" },
+        reauthorize,
+      }],
+      createExternalAccount,
+    };
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ connected: false, githubLinked: true }),
+    );
+    await act(async () => root.render(<GitHubSync />));
+    const authorize = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Authorize GitHub sync",
+    );
+    expect(authorize).toBeTruthy();
+    await act(async () => authorize!.click());
+    expect(reauthorize).toHaveBeenCalledWith({
+      redirectUrl: window.location.href,
+      additionalScopes: ["repo"],
+    });
+    expect(createExternalAccount).not.toHaveBeenCalled();
+  });
+
   it("previews and applies a pull into the store", async () => {
     seedCloud();
     fetchMock.mockImplementation(async (url: unknown) => {
