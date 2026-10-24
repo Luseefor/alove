@@ -630,6 +630,19 @@ export function EditorPane({
               data-testid="latex-editor-textarea"
               ref={textareaRef}
               value={content}
+              onSelect={(e) =>
+                setActiveSelection({
+                  start: e.currentTarget.selectionStart,
+                  end: e.currentTarget.selectionEnd,
+                })
+              }
+              onFocus={(e) => {
+                setActiveSelection({
+                  start: e.currentTarget.selectionStart,
+                  end: e.currentTarget.selectionEnd,
+                });
+                if (focusedLine) setFocusedLine(null);
+              }}
               onChange={(e) => updateActiveFileContent(e.target.value)}
               spellCheck={spellcheckEnabled}
               readOnly={isViewer}

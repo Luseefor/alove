@@ -58,6 +58,17 @@ jobs:
       - name: Run full Playwright suite
         working-directory: apps/web
         run: bunx playwright test --config playwright.config.ts --workers=1
+      - name: Build textarea fallback
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_LOCAL_STANDALONE: "true"
+          NEXT_PUBLIC_EDITOR_MODE: textarea
+        run: bun run build
+      - name: Verify textarea fallback editing
+        working-directory: apps/web
+        env:
+          E2E_EDITOR_MODE: textarea
+        run: bunx playwright test --config playwright.config.ts --workers=1 e2e/editor.spec.ts e2e/language-tools.spec.ts e2e/project-search.spec.ts e2e/undo-retention.spec.ts
       - name: Upload browser test results
         if: failure()
         uses: actions/upload-artifact@v4
