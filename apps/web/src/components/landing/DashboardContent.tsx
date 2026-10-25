@@ -1,226 +1,64 @@
-"use client";
-
-import { Plus, Play, Layout, Zap, ShieldCheck } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
-import { isLocalStandalone } from "@/lib/localStandalone";
 import { LocalProjectList } from "./LocalProjectList";
-import { ProjectLauncher } from "./ProjectLauncher";
-import { useServiceReadiness } from "@/hooks/useServiceReadiness";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { isLocalStandalone } from "@/lib/localStandalone";
+import styles from "./landing.module.css";
 
-function SectionHeader({
-  title,
-  action,
-}: {
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between mb-4 px-2">
-      <h2 className="text-overline text-muted-foreground opacity-80">{title}</h2>
-      {action}
-    </div>
-  );
-}
-
-function QuickStartCard({
-  title,
-  icon: Icon,
-  color,
-  href,
-}: {
-  title: string;
-  icon: LucideIcon;
-  color: string;
-  href: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group bg-card-bg border border-border rounded-3xl p-6 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer flex flex-col items-start gap-4"
-    >
-      <div
-        className={cn(
-          "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all group-hover:scale-110 shadow-sm",
-          color,
-        )}
-      >
-        <Icon className="w-6 h-6" />
-      </div>
-      <h3 className="text-[15px] font-black text-foreground group-hover:text-primary transition-colors">
-        {title}
-      </h3>
-    </Link>
-  );
-}
-
-function StatusRow({
-  label,
-  status,
-  subtext,
-  icon: Icon,
-  color,
-  statusColor,
-}: {
-  label: string;
-  status: string;
-  subtext: string;
-  icon: LucideIcon;
-  color: string;
-  statusColor: string;
-}) {
-  return (
-    <div className="flex items-start gap-5 group cursor-default">
-      <div
-        className={cn(
-          "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-colors shadow-sm",
-          color,
-        )}
-      >
-        <Icon className="w-6 h-6" />
-      </div>
-      <div className="flex-1 space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="text-[14px] font-black text-foreground tracking-tight">
-            {label}
-          </span>
-          <span
-            className={cn(
-              "text-[10px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full border shadow-sm",
-              statusColor,
-            )}
-          >
-            {status}
-          </span>
-        </div>
-        <p className="text-[12px] text-muted-foreground font-bold opacity-70 leading-tight">
-          {subtext}
-        </p>
-      </div>
-    </div>
-  );
-}
+const features = [
+  {
+    title: "Find your writing flow.",
+    description:
+      "Switch between LaTeX source and visual editing. Edit supported text on your PDF, then rebuild to see the result.",
+    detail: "Source + Visual",
+  },
+  {
+    title: "Revise with a way back.",
+    description:
+      "Keep checkpoints of your work. After a failed build, test a focused restoration before applying it.",
+    detail: "History + build recovery",
+  },
+  {
+    title: "Keep your work portable.",
+    description:
+      "Bring references and project files together. Download your source and PDF, or connect your GitHub repository.",
+    detail: "Your files, within reach",
+  },
+];
 
 export function DashboardContent() {
-  const localMode = isLocalStandalone();
-  const { status, offline, loading, retry } = useServiceReadiness();
-
-  const compileStatus =
-    status === "ready" ? "Ready" : status === "checking" ? "Checking" : "Unavailable";
-
-  const compileStatusColor =
-    compileStatus === "Ready"
-      ? "bg-success-bg text-success border-success-border"
-      : compileStatus === "Checking"
-        ? "bg-muted text-muted-foreground border-border"
-        : "bg-error-bg text-error border-error-border";
-
-  const compileSubtext = offline
-    ? "You are offline"
-    : loading || status === "checking"
-      ? "Checking compile backend"
-      : status === "ready"
-        ? "Compile backend reported ready"
-        : "Compile backend unavailable";
-
   return (
-    <div className="space-y-16">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-        {/* Recent Projects */}
-        <div className="lg:col-span-8 space-y-4">
-          <SectionHeader
-            title="Active Documents"
-            action={
-              <Link
-                href="/projects"
-                className="text-[11px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity"
-              >
-                View all
-              </Link>
-            }
-          />
-          {localMode ? (
-            <LocalProjectList />
-          ) : (
-            <Link href="/editor" className="text-primary underline">
-              Open cloud workspace
+    <>
+      <section className={styles.features} aria-label="Inside Weftly">
+        {features.map((feature, index) => (
+          <article key={feature.title}>
+            <span className={styles.featureNumber}>
+              0{index + 1} / {feature.detail}
+            </span>
+            <h2>{feature.title}</h2>
+            <p>{feature.description}</p>
+          </article>
+        ))}
+      </section>
+      {isLocalStandalone() && (
+        <section className={styles.savedProjects} aria-label="Your saved work">
+          <div className={styles.sectionHeading}>
+            <h2>Pick up where you left off.</h2>
+            <Link href="/projects">
+              View all <ArrowRight size={15} aria-hidden="true" />
             </Link>
-          )}
-        </div>
-
-        {/* Workspace Status */}
-        <div className="lg:col-span-4 space-y-4">
-          <SectionHeader title="Workspace Health" />
-          <div className="bg-background border border-border rounded-shell p-10 shadow-sm space-y-12 border-border min-h-[300px] flex flex-col justify-center">
-            <StatusRow
-              label="Local Standalone"
-              status={localMode ? "Active" : "Cloud"}
-              subtext={
-                localMode
-                  ? "Source is saved in this browser"
-                  : "Cloud source status not checked here"
-              }
-              icon={ShieldCheck}
-              color="bg-success-bg text-success border-success-border"
-              statusColor="bg-success-bg text-success border-success-border"
-            />
-            <StatusRow
-              label="Compile Pipeline"
-              status={compileStatus}
-              subtext={compileSubtext}
-              icon={Zap}
-              color={
-                compileStatus === "Ready"
-                  ? "bg-primary/5 text-primary border-primary/10"
-                  : "bg-muted text-zinc-300 border-border"
-              }
-              statusColor={compileStatusColor}
-            />
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={retry}
-                className="inline-flex items-center justify-center rounded-2xl border border-border bg-card-bg px-4 py-2 text-[11px] font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted active:scale-95"
-              >
-                Retry
-              </button>
-              <Link
-                href="/status"
-                className="text-[11px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity"
-              >
-                View status
-              </Link>
-            </div>
           </div>
+          <LocalProjectList />
+        </section>
+      )}
+      <section className={styles.closing} aria-labelledby="start-title">
+        <div>
+          <p className={styles.eyebrow}>Start something worth writing.</p>
+          <h2 id="start-title">A blank page. A little possibility.</h2>
         </div>
-      </div>
-
-      {/* Quick Start */}
-      <div className="space-y-6 pt-4">
-        <SectionHeader title="Launch Actions" />
-        {localMode && <ProjectLauncher />}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          <QuickStartCard
-            title="New Document"
-            icon={Plus}
-            href="/editor?new=true"
-            color="text-primary bg-primary/5 border-primary/10"
-          />
-          <QuickStartCard
-            title="Open Sample"
-            icon={Play}
-            href="/editor?sample=true"
-            color="text-success bg-success-bg border-success-border"
-          />
-          <QuickStartCard
-            title="LaTeX Editor"
-            icon={Layout}
-            href="/editor"
-            color="text-violet-600 bg-violet-50 border-violet-100"
-          />
-        </div>
-      </div>
-    </div>
+        <Link href="/editor?new=true" className={styles.primaryCta}>
+          Create a project <ArrowRight size={18} aria-hidden="true" />
+        </Link>
+      </section>
+    </>
   );
 }

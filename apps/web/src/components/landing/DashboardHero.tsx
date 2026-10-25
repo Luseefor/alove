@@ -1,134 +1,78 @@
-"use client";
-
-import { Button } from "@/components/ui/primitives";
-import { Edit3, Plus, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import styles from "./landing.module.css";
 
 export function DashboardHero() {
   return (
-    <div className="bg-background border border-border rounded-shell p-5 sm:p-8 lg:p-14 shadow-sm relative overflow-hidden group border-border">
-      {/* Subtle decorative background gradient */}
-      <div className="absolute top-0 right-0 w-2/3 h-full bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.08),transparent_70%)] pointer-events-none" />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center relative z-10">
-        <div className="lg:col-span-7 space-y-12">
-          <div className="space-y-8">
-            <h1 className="text-4xl sm:text-5xl xl:text-[64px] font-black leading-[1] tracking-tight text-foreground">
-              Write, compile, and polish <br />
-              <span className="text-primary italic relative inline-block mt-2">
-                research beautifully
-                <svg
-                  className="absolute -bottom-3 left-0 w-full h-4 text-primary/10"
-                  viewBox="0 0 100 10"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    d="M0 5 Q 25 0 50 5 T 100 5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                  />
-                </svg>
-              </span>
-            </h1>
-            <p className="text-[20px] text-muted-foreground max-w-lg leading-relaxed font-bold opacity-80">
-              The high-fidelity LaTeX IDE that keeps your ideas, sources, and
-              documents perfectly synchronized.
-            </p>
+    <>
+      <section className={styles.hero} aria-labelledby="hero-title">
+        <div>
+          <p className={styles.eyebrow}>
+            <span /> A workspace for LaTeX
+          </p>
+          <h1 id="hero-title">
+            Your paper.
+            <br />
+            <span>From idea to PDF.</span>
+          </h1>
+          <p className={styles.introduction}>
+            Write in source. Refine on the page. Bring your text, equations, and
+            references together in one focused workspace.
+          </p>
+          <div className={styles.heroActions}>
+            <Link href="/editor?new=true" className={styles.primaryCta}>
+              Start writing <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+            <Link href="/editor?sample=true" className={styles.textCta}>
+              Explore a sample <ArrowUpRight size={16} aria-hidden="true" />
+            </Link>
           </div>
-
-          <div className="flex flex-wrap items-center gap-6 pt-4">
-            <Button
-              variant="primary"
-              size="lg"
-              href="/editor"
-              className="h-16 px-12 rounded-2xl gap-3 text-base font-black shadow-2xl shadow-primary/30 hover:scale-[1.02] transition-transform active:scale-95"
-            >
-              <Edit3 className="w-5.5 h-5.5" />
-              Open Editor
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              href="/editor?new=true"
-              className="h-16 px-10 rounded-2xl gap-3 text-base font-black border-2 border-zinc-200 hover:border-primary/20 hover:bg-muted hover:scale-[1.02] transition-transform active:scale-95"
-            >
-              <Plus className="w-5.5 h-5.5" />
-              New Project
-            </Button>
-          </div>
+          <p className={styles.portability}>
+            Your source. Your files. Yours to keep.
+          </p>
         </div>
-
-        <div className="lg:col-span-5 hidden lg:block pr-4">
-          <div className="relative group/preview">
-            <div className="absolute -inset-8 bg-primary/5 rounded-[50px] blur-3xl opacity-50" />
-
-            {/* Display-only Illustrative Preview */}
-            <div className="relative bg-background border border-border rounded-shell shadow-float overflow-hidden ring-12 ring-zinc-50/50 cursor-default">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-error/60" />
-                  <div className="w-3 h-3 rounded-full bg-warning/60" />
-                  <div className="w-3 h-3 rounded-full bg-success/60" />
-                </div>
-                <div className="px-3 py-1 bg-background border border-border rounded-full">
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
-                    IDE Preview
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-12 h-[360px]">
-                {/* Mini Editor Gutter */}
-                <div className="col-span-5 border-r border-border p-6 bg-background space-y-4">
-                  <div className="space-y-3 font-mono text-[10px] text-muted-foreground select-none opacity-50">
-                    <p className="text-primary font-bold">
-                      \documentclass{"{...}"}
-                    </p>
-                    <div className="h-1.5 bg-muted rounded-full w-full" />
-                    <p className="mt-6 font-black text-foreground">
-                      \begin{"{document}"}
-                    </p>
-                    <div className="h-1.5 bg-muted rounded-full w-5/6 pl-4" />
-                    <div className="h-1.5 bg-muted rounded-full w-4/6 pl-4" />
-                    <p className="mt-8 text-primary font-bold">
-                      \section{"{Results}"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Mini PDF Render */}
-                <div className="col-span-7 bg-[#f8fafc] p-8 flex flex-col items-center justify-center relative">
-                  <div className="w-full aspect-[1/1.414] bg-background shadow-2xl rounded-sm border border-zinc-200/30 p-6 space-y-6 scale-110">
-                    <div className="space-y-2">
-                      <div className="h-2 bg-zinc-900 rounded-full w-2/3 mx-auto" />
-                      <div className="h-1.5 bg-muted rounded-full w-1/3 mx-auto" />
-                    </div>
-                    <div className="pt-6 space-y-2">
-                      {[...Array(8)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "h-1 bg-muted rounded-full",
-                            i % 3 === 0 ? "w-full" : "w-11/12",
-                          )}
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-auto h-12 bg-primary/5 rounded-2xl border border-primary/10 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-primary/20" />
-                    </div>
-                  </div>
-
-                  <div className="absolute top-6 right-6 bg-success text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xl shadow-success/30 border border-white/20">
-                    SUCCESS
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className={styles.heroNote}>
+          <span className={styles.noteIndex}>[ w ]</span>
+          <p>
+            Less between
+            <br />
+            you and the page.
+          </p>
+          <span>
+            For the first draft, the final revision,
+            <br />
+            and everything in between.
+          </span>
         </div>
-      </div>
-    </div>
+      </section>
+      <figure className={styles.product}>
+        <div className={styles.productImages}>
+          <Image
+            src="/landing/editor-light.webp"
+            alt="Weftly's editor with LaTeX source beside its typeset PDF, project files, and source and visual writing modes."
+            width={1440}
+            height={900}
+            priority
+            sizes="(max-width: 720px) 1100px, (max-width: 1360px) 92vw, 1248px"
+            className="dark:hidden"
+          />
+          <Image
+            src="/landing/editor-dark.webp"
+            alt="Weftly's editor in dark appearance with LaTeX source beside its typeset PDF."
+            width={1440}
+            height={900}
+            sizes="(max-width: 720px) 1100px, (max-width: 1360px) 92vw, 1248px"
+            className="hidden dark:block"
+          />
+        </div>
+        <figcaption>
+          <span>Source and PDF, side by side.</span>
+          <Link href="/editor?sample=true">
+            Try the workspace <ArrowUpRight size={14} aria-hidden="true" />
+          </Link>
+        </figcaption>
+      </figure>
+    </>
   );
 }
