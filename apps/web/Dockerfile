@@ -15,6 +15,7 @@ RUN bun install --frozen-lockfile
 
 COPY packages ./packages
 COPY apps/web ./apps/web
+COPY apps/compile-worker/src/compileFileData.ts apps/compile-worker/src/logParse.ts apps/compile-worker/src/synctex.ts ./apps/compile-worker/src/
 
 # UI mode is a build-time choice. It never grants compile authorization.
 ARG NEXT_PUBLIC_LOCAL_STANDALONE=false

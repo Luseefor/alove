@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   // Forwarded as defaults for client bundles. Source must still read flags via direct
   // process.env.NEXT_PUBLIC_* member access for stable build-time injection behavior.
   env: {
+    NEXT_PUBLIC_COMPILE_RUNTIME: process.env.COMPILE_RUNTIME ?? "",
     NEXT_PUBLIC_LOCAL_STANDALONE: process.env.NEXT_PUBLIC_LOCAL_STANDALONE ?? "false",
     NEXT_PUBLIC_EDITOR_MODE: process.env.NEXT_PUBLIC_EDITOR_MODE ?? "",
     NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR: process.env.NEXT_PUBLIC_ENABLE_CODEMIRROR_EDITOR ?? "",

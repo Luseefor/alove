@@ -1,5 +1,6 @@
 import type { CompileJobPayload, CompileJobResult } from "@alove/protocol";
 import { pollCompileJob } from "./compilePoll";
+import { serializeCompileRequest } from "./compileRequest";
 import { hashBuildSource, type BuildRecord } from "./buildRecord";
 import { compareBuildFiles, recoveryCandidateOrder, restoreCandidateFile, type FileChange } from "./buildRecoveryCandidates";
 import { createFocusedRecoveryCandidates, type FocusedRecoveryCandidate } from "./buildRecoveryHunks";
@@ -34,7 +35,7 @@ export type RecoveryCompiler = (request: CompileJobPayload, signal: AbortSignal)
 
 export const compileRecoveryTrial: RecoveryCompiler = async (request, signal) => {
   const response = await fetch("/api/compile", {
-    method: "POST", signal, headers: { "content-type": "application/json" }, body: JSON.stringify(request),
+    method: "POST", signal, headers: { "content-type": "application/json" }, body: serializeCompileRequest(request),
   });
   if (!response.ok) throw new Error(`Recovery trial could not be queued (${response.status}).`);
   const { jobId } = await response.json() as { jobId: string };
@@ -42,7 +43,8 @@ export const compileRecoveryTrial: RecoveryCompiler = async (request, signal) =>
 };
 
 function sameEnvironment(a: BuildRecord["result"]["environment"], b: BuildRecord["result"]["environment"]): boolean {
-  return Boolean(a && b && a.mode === "docker" && b.mode === "docker" &&
+  return Boolean(a && b && a.mode === b.mode &&
+    (a.mode === "docker" || (a.mode === "sandbox" && Boolean(a.policyId))) &&
     a.runtimeId === b.runtimeId && a.platform === b.platform && a.policyId === b.policyId);
 }
 
@@ -60,7 +62,7 @@ export async function findBuildRecovery(
     return incompatible("Choose a successful build followed by a LaTeX compilation failure from the same project.");
   if (good.mainFile !== failed.mainFile || good.engine !== failed.engine || good.cleanAux !== failed.cleanAux ||
       !sameEnvironment(good.result.environment, failed.result.environment))
-    return incompatible("The compiler, root, settings, or recorded Docker image/sandbox policy changed. Build a successful baseline in the current environment first.");
+    return incompatible("The compiler, root, settings, or recorded runtime and sandbox policy changed. Build a successful baseline in the current environment first.");
   try {
     if (await hashBuildSource(good) !== good.sourceHash || await hashBuildSource(failed) !== failed.sourceHash)
       return incompatible("A stored build does not match its source fingerprint. Recovery stopped.");
@@ -84,7 +86,7 @@ export async function findBuildRecovery(
       errorCode: result.errorCode, log: result.log.slice(-16_384), environment: result.environment,
       sourceHash, ...(candidate ? { scope: candidate.scope ?? "file", line: candidate.firstChangedLine } : {}) });
     if (!sameEnvironment(failed.result.environment, result.environment))
-      throw new Error("The Docker runtime or sandbox policy changed during recovery. No patch is verified.");
+      throw new Error("The compiler runtime or sandbox policy changed during recovery. No patch is verified.");
     return result;
   };
   try {

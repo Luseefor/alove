@@ -22,8 +22,8 @@ export interface CompileJobPayload {
 }
 
 export interface CompileEnvironment {
-  mode: "docker" | "host";
-  /** Resolved immutable Docker image ID; host runtimes are unverified. */
+  mode: "docker" | "host" | "sandbox";
+  /** Immutable Docker image or Sandbox snapshot ID; host runtimes are unverified. */
   runtimeId: string;
   /** Server execution policy; absent on legacy builds. */
   policyId?: string;
@@ -65,6 +65,9 @@ export const COMPILE_REQUEST_LIMITS = {
   minTimeoutMs: 1000,
   maxTimeoutMs: 120000,
 } as const;
+
+/** Serialized JSON cap for the personal Function deployment. */
+export const PERSONAL_CLOUD_REQUEST_BYTES = 3_000_000;
 
 /**
  * Bounds for the optional SyncTeX mapping carried on CompileJobResult.

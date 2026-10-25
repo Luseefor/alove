@@ -5,6 +5,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { toCmDiagnostics } from "@/lib/editorDiagnostics";
 import { pollCompileJob } from "@/lib/compilePoll";
+import { serializeCompileRequest } from "@/lib/compileRequest";
 import {
   listCompileSnapshots,
   saveCompileSnapshot,
@@ -56,7 +57,7 @@ export function useCompileRun({
       const res = await fetch("/api/compile", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+        body: serializeCompileRequest({
           projectId: projectId ?? "local",
           mainFile,
           files: merged,

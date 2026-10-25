@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { getConvexToken } from "@/lib/convexToken";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "../../../../convex/_generated/api";
 import { authorizeCloudApiOrigin } from "@/lib/cloudApiOrigin";
@@ -57,7 +58,7 @@ export async function authorizeGitHubRoute(
       ok: false,
       response: Response.json({ error: "Sign in required." }, { status: 401 }),
     };
-  const convexToken = await session.getToken({ template: "convex" });
+  const convexToken = await getConvexToken(session);
   if (!convexToken)
     return {
       ok: false,

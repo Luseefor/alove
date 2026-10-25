@@ -1,6 +1,6 @@
 # Release runbook
 
-The application uses Clerk for identity, Convex for project data, and a private Redis queue between the website and a dedicated Docker runner. The backend choice and hosting constraints are in [publish-plan.md](publish-plan.md). Local mode remains available without these accounts.
+The application uses Clerk for identity, Convex for project data, and a private Redis queue between the website and a dedicated Docker runner. For personal Vercel hosting with on-demand TeX Sandboxes, use [vercel-personal-hosting.md](vercel-personal-hosting.md). The Docker hosting constraints are in [publish-plan.md](publish-plan.md). Local mode remains available without these accounts.
 
 ## Configuration to add
 
@@ -28,7 +28,7 @@ Run `bun run deploy:check -- --target=release` with the intended environment to 
 
 ## Provider and host setup
 
-1. Create a production Clerk application. Configure its domain, allowed redirects, `/sign-in` and `/sign-up` paths. Create the Clerk JWT template named **convex** with application/audience `convex`. Copy its issuer exactly. Use the same Clerk application for the publishable key, secret key and webhook.
+1. Create a production Clerk application. Configure its domain, allowed redirects, `/sign-in` and `/sign-up` paths. Activate Clerk's Convex integration so session tokens have the `convex` audience. Existing installations can retain the JWT template named **convex** with application/audience `convex`; server routes support both modes. Copy the issuer exactly. Use the same Clerk application for the publishable key, secret key and webhook.
 2. Create the Convex production deployment. Generate its deployment-scoped deploy key. The workflow sets the issuer and webhook secret in that deployment before deploying functions. It also checks that the deployment URL selected by the key equals the public URL used by the web image.
 3. Add a Clerk webhook endpoint at `https://<production-deployment>.convex.site/clerk-users-webhook` (HTTP actions use `.site`, not `.cloud`). Subscribe to `user.deleted`. Copy its signing secret to `CLERK_WEBHOOK_SECRET`. Test delivery after deploying. Authentic account-deletion events schedule owner-scoped project cleanup; provider backups and browser drafts follow their separate retention policies.
 4. Provision two Ubuntu 24.04 **amd64** VMs with Docker Engine and Compose **2.30 or newer**. `deploy/cloud-init.yml` installs these and creates the deployment account. Add the deployment public SSH key to that account's `authorized_keys` before using the workflow. Start with at least 4 GiB RAM per host and one worker; measure actual use before changing concurrency. TeX container limits remain separate from worker container limits.

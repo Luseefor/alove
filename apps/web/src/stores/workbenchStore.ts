@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { preferenceStorage } from "@/lib/preferenceStorage";
 import { useIdeSettingsStore } from "@/stores/ideSettingsStore";
 import { pollCompileJob } from "@/lib/compilePoll";
+import { serializeCompileRequest } from "@/lib/compileRequest";
 import { normalizeDiagnosticFile } from "@/lib/editorDiagnostics";
 import { BibliographyService } from "@/services/BibliographyService";
 import { ProjectService } from "@/services/ProjectService";
@@ -964,7 +965,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
             signal: controller.signal,
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify(request),
+            body: serializeCompileRequest(request),
           });
           if (!isCurrent()) return;
           if (!res.ok) {

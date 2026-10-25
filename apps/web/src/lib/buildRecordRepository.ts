@@ -84,7 +84,7 @@ function checkDiagnostics(value: unknown): void {
 function checkEnvironment(value: unknown): void {
   if (value === undefined) return;
   if (!isPlainRecord(value)) fail("Invalid environment");
-  if (value["mode"] !== "docker" && value["mode"] !== "host")
+  if (value["mode"] !== "docker" && value["mode"] !== "host" && value["mode"] !== "sandbox")
     fail("Invalid environment mode");
   if (typeof value["runtimeId"] !== "string" || !value["runtimeId"])
     fail("Invalid environment runtimeId");
