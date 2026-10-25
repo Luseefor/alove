@@ -31,7 +31,7 @@ test("a paper survives its complete create, recover, export, import and delete j
 
   await test.step("Start from home and create a named multi-file paper", async () => {
     await page.goto("/");
-    await page.getByRole("link", { name: "New Project", exact: true }).click();
+    await page.getByRole("link", { name: "Start writing", exact: true }).click();
     await expect(page).toHaveURL(/project=local-/);
     await page.getByRole("button", { name: "Rename project", exact: true }).click();
     await page.getByRole("textbox", { name: "Project name" }).fill("Closed journey paper");
