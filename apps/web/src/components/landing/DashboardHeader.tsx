@@ -1,17 +1,12 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { Moon, Sun, ArrowUpRight } from "lucide-react";
-import { UserButton, useUser } from "@clerk/nextjs";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { isLocalStandalone } from "@/lib/localStandalone";
 import styles from "./landing.module.css";
-
-function CloudAccount() {
-  const { isSignedIn } = useUser();
-  return isSignedIn ? <UserButton /> : <Link href="/sign-in">Sign in</Link>;
-}
 
 export function DashboardHeader() {
   const { resolved, setAppearance } = useTheme();
@@ -38,7 +33,7 @@ export function DashboardHeader() {
           <Sun className="hidden dark:block" size={18} />
           <Moon className="dark:hidden" size={18} />
         </button>
-        {!isLocalStandalone() && <CloudAccount />}
+        {!isLocalStandalone() && <Link href="/sign-in">Sign in</Link>}
         <Link href="/editor" className={styles.headerCta}>
           <span>Open workspace</span>
           <ArrowUpRight size={15} aria-hidden="true" />

@@ -28,17 +28,17 @@ test.describe("Weftly front page", () => {
   test("keeps saved-project search and project navigation available", async ({
     page,
   }) => {
+    await page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "Projects", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/projects$/);
     await expect(
       page.getByText("No saved projects yet", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("searchbox", { name: "Search projects by title" }),
     ).toBeVisible();
-    await page
-      .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("link", { name: "Projects", exact: true })
-      .click();
-    await expect(page).toHaveURL(/\/projects$/);
     await expect(
       page.getByRole("button", { name: "Import source archive", exact: true }),
     ).toBeVisible();

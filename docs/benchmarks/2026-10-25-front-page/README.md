@@ -5,23 +5,28 @@ Issue #76 replaces the dashboard-style public home page.
 The front page now uses one navigation bar, a clear editor entry point, a sample
 entry point and real product captures. The sidebar, fabricated illustration,
 workspace-health cards, duplicate launch cards and tip banner are removed.
-Saved-project search and deleted-workspace recovery remain available in local
-mode, with the project library linked in both modes.
+Saved-project search and deleted-workspace recovery stay in the project
+library, linked from both modes.
 
 ## Browser evidence
 
 - [Desktop, light](home-light-1440.png) and [desktop, dark](home-dark-1440.png).
 - [Phone, light](home-light-390.png) and [phone, dark](home-dark-390.png).
 
-These are captures of the production standalone build. Cloud mode additionally
-shows the sign-in or account control and does not show the local project list.
+These are captures of the public front page in the production cloud-mode
+build. The page renders without a Clerk provider. Sign-in is an ordinary link
+to the protected authentication route.
 
-Five production-browser journeys pass: new project creation, the existing
+Five standalone production-browser journeys pass: new project creation, the existing
 sample, project-library navigation and import access, keyboard skip navigation,
 and responsive image/theme checks. The latter covers 360, 390, 768 and 1440 CSS
 pixels in both appearances, checks loaded image data and horizontal overflow,
 and verifies appearance persistence after reload. Focused lint, separate web and
-Convex typechecks, and the production build pass.
+Convex typechecks, and production builds in both local and cloud modes pass.
+A regression test renders the public cloud header without a Clerk provider.
+CI initially caught an incorrect useUser dependency on this public route; the
+header now avoids auth hooks entirely. Two public cloud-mode browser checks
+repeat keyboard, responsive and theme verification with Sign in visible.
 
 ## Product image provenance
 

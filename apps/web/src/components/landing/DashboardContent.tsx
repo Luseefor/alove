@@ -1,7 +1,5 @@
-import { LocalProjectList } from "./LocalProjectList";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { isLocalStandalone } from "@/lib/localStandalone";
 import styles from "./landing.module.css";
 
 const features = [
@@ -39,17 +37,6 @@ export function DashboardContent() {
           </article>
         ))}
       </section>
-      {isLocalStandalone() && (
-        <section className={styles.savedProjects} aria-label="Your saved work">
-          <div className={styles.sectionHeading}>
-            <h2>Pick up where you left off.</h2>
-            <Link href="/projects">
-              View all <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-          </div>
-          <LocalProjectList />
-        </section>
-      )}
       <section className={styles.closing} aria-labelledby="start-title">
         <div>
           <p className={styles.eyebrow}>Start something worth writing.</p>

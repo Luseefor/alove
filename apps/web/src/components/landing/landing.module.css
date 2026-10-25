@@ -46,6 +46,12 @@
   font-size: 13px;
   font-weight: 500;
 }
+.navigation a {
+  padding-block: 10px;
+}
+.headerActions > a:not(.headerCta) {
+  padding-block: 10px;
+}
 .navigation {
   color: var(--muted-foreground);
 }
@@ -144,6 +150,7 @@
   transition: opacity 150ms;
 }
 .textCta {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -227,28 +234,6 @@
   color: var(--muted-foreground);
   font-size: 14px;
   line-height: 1.8;
-}
-.savedProjects {
-  padding-block: 40px 70px;
-  border-top: 1px solid var(--border);
-}
-.sectionHeading {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: center;
-  margin-bottom: 28px;
-}
-.sectionHeading h2 {
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.8px;
-}
-.sectionHeading a {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
 }
 .closing {
   border-top: 1px solid var(--border);
@@ -418,9 +403,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 22px;
-  }
-  .sectionHeading h2 {
-    font-size: 21px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
