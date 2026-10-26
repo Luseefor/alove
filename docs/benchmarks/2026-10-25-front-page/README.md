@@ -1,5 +1,9 @@
 # Weftly front page
 
+Initial proposal. The owner rejected its colors and proportions; the
+[2026-10-26 color revision](../2026-10-26-color-balance/README.md) contains the
+updated result. These original captures are retained as before evidence.
+
 Issue #76 replaces the dashboard-style public home page.
 
 The front page now uses one navigation bar, a clear editor entry point, a sample

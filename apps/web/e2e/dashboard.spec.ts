@@ -93,6 +93,10 @@ test.describe("Weftly front page", () => {
         await expect(
           page.getByRole("link", { name: "Start writing", exact: true }),
         ).toBeInViewport();
+        if (width >= 1000) {
+          const bounds = (await image.boundingBox())!;
+          expect(bounds.y + bounds.height).toBeLessThanOrEqual(960);
+        }
         if (process.env.E2E_EVIDENCE_DIR)
           await page.screenshot({
             path: `${process.env.E2E_EVIDENCE_DIR}/home-${theme}-${width}.png`,
