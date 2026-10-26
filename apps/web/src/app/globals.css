@@ -5,32 +5,32 @@
 /* App chrome, panel headers and editor surfaces have distinct visual roles. */
 :root {
   color-scheme: light;
-  --workspace-bg: #edf0f4;
+  --workspace-bg: #eceff3;
   --chrome-bg: #f7f8fa;
-  --panel-header-bg: #f1f4f8;
+  --panel-header-bg: #f1f3f6;
   --background: #ffffff;
-  --foreground: #253247;
-  --border: #dce2eb;
-  --primary: #3c63c8;
+  --foreground: #202630;
+  --border: #dce1e8;
+  --primary: #2b5fd9;
   --primary-foreground: #ffffff;
-  --ring: #3c63c8;
-  --secondary: #f1f4f8;
-  --secondary-foreground: #435269;
-  --muted: #f1f4f8;
-  --muted-foreground: #5e6c81;
-  --accent: #e7edf6;
-  --accent-foreground: #253247;
+  --ring: #2b5fd9;
+  --secondary: #f1f3f6;
+  --secondary-foreground: #495565;
+  --muted: #f1f3f6;
+  --muted-foreground: #5d6877;
+  --accent: #e9eef9;
+  --accent-foreground: #202630;
   --sidebar-bg: #f7f8fa;
   --card-bg: #ffffff;
-  --card-border: #dce2eb;
+  --card-border: #dce1e8;
   --editor-line: #f5f7fb;
   --editor-selection: #dce6fb;
-  --editor-gutter: #8490a3;
-  --syntax-command: #705581;
-  --syntax-string: #426e57;
-  --syntax-number: #856230;
-  --syntax-comment: #73777d;
-  --syntax-punctuation: #5e6c81;
+  --editor-gutter: #788494;
+  --syntax-command: #755098;
+  --syntax-string: #2f7055;
+  --syntax-number: #805b24;
+  --syntax-comment: #626d7b;
+  --syntax-punctuation: #5d6877;
   --success: #41765b;
   --success-bg: #edf3ee;
   --success-border: #d5e3d9;
@@ -47,32 +47,32 @@
 
 .dark {
   color-scheme: dark;
-  --workspace-bg: #101419;
-  --chrome-bg: #1a2028;
-  --panel-header-bg: #1e252e;
-  --background: #171c23;
-  --foreground: #dce4ee;
-  --border: #2c3643;
-  --primary: #9bb6ff;
-  --primary-foreground: #171c23;
-  --ring: #9bb6ff;
-  --secondary: #1e252e;
-  --secondary-foreground: #c7d2e2;
-  --muted: #1e252e;
-  --muted-foreground: #9aa8bc;
-  --accent: #29364a;
-  --accent-foreground: #dce4ee;
-  --sidebar-bg: #1a2028;
-  --card-bg: #1e252e;
-  --card-border: #2c3643;
-  --editor-line: #1e2632;
-  --editor-selection: #304360;
-  --editor-gutter: #718096;
-  --syntax-command: #baa6ca;
-  --syntax-string: #a8c4ad;
-  --syntax-number: #c8b18c;
-  --syntax-comment: #939aa4;
-  --syntax-punctuation: #a5abb4;
+  --workspace-bg: #0f1217;
+  --chrome-bg: #191d24;
+  --panel-header-bg: #20252e;
+  --background: #15191f;
+  --foreground: #edf1f6;
+  --border: #303743;
+  --primary: #6b9ef5;
+  --primary-foreground: #15191f;
+  --ring: #6b9ef5;
+  --secondary: #20252e;
+  --secondary-foreground: #c0c8d5;
+  --muted: #20252e;
+  --muted-foreground: #abb5c4;
+  --accent: #28354c;
+  --accent-foreground: #edf1f6;
+  --sidebar-bg: #191d24;
+  --card-bg: #20252e;
+  --card-border: #303743;
+  --editor-line: #202733;
+  --editor-selection: #304465;
+  --editor-gutter: #8a96a7;
+  --syntax-command: #bfadf1;
+  --syntax-string: #8fcdb3;
+  --syntax-number: #daba84;
+  --syntax-comment: #a0adbf;
+  --syntax-punctuation: #aeb8c7;
   --success: #a2c1ac;
   --success-bg: #25332b;
   --success-border: #3b4c40;
@@ -229,8 +229,12 @@ input[type="range"] {
   .latex-workbench[data-mode="source"] .workbench-source-panel {
     flex: 1 1 100% !important;
   }
-  .latex-workbench[data-mode="visual"] .workbench-source-panel { display: none; }
-  .latex-workbench[data-mode="visual"] .workbench-pdf-panel { flex: 1 1 100% !important; }
+  .latex-workbench[data-mode="visual"] .workbench-source-panel {
+    display: none;
+  }
+  .latex-workbench[data-mode="visual"] .workbench-pdf-panel {
+    flex: 1 1 100% !important;
+  }
 }
 
 [data-presentation="visual"] .cm-editor,

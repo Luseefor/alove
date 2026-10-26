@@ -1,8 +1,16 @@
 .landing {
-  --landing-width: 1248px;
+  --landing-width: 1320px;
+  --landing-canvas: #f5f7fa;
+  --landing-panel: #ffffff;
+  --landing-preview: #dfe6f0;
   min-height: 100dvh;
-  background: var(--background);
+  background: var(--landing-canvas);
   color: var(--foreground);
+}
+:global(.dark) .landing {
+  --landing-canvas: #10141a;
+  --landing-panel: #1c222b;
+  --landing-preview: #2a3443;
 }
 .landing a,
 .landing button {
@@ -20,10 +28,10 @@
   margin-inline: auto;
 }
 .header {
-  min-height: 96px;
+  min-height: 88px;
   display: flex;
   align-items: center;
-  gap: 64px;
+  gap: 48px;
 }
 .brand {
   display: inline-flex;
@@ -46,9 +54,7 @@
   font-size: 13px;
   font-weight: 500;
 }
-.navigation a {
-  padding-block: 10px;
-}
+.navigation a,
 .headerActions > a:not(.headerCta) {
   padding-block: 10px;
 }
@@ -74,7 +80,7 @@
   color: var(--muted-foreground);
 }
 .themeButton:hover {
-  background: var(--muted);
+  background: var(--landing-panel);
   color: var(--foreground);
 }
 .headerCta {
@@ -82,21 +88,23 @@
   align-items: center;
   gap: 16px;
   padding: 11px 15px;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--foreground);
-  color: var(--background);
-  transition: opacity 150ms;
+  color: var(--foreground);
+  transition: background 150ms;
 }
-.headerCta:hover,
-.primaryCta:hover {
-  opacity: 0.85;
+.headerCta:hover {
+  background: var(--landing-panel);
 }
 .hero {
   display: grid;
-  grid-template-columns: 1fr 270px;
-  align-items: end;
-  gap: 80px;
-  padding-block: 58px 48px;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr);
+  align-items: center;
+  gap: 52px;
+  padding-block: 40px 64px;
+}
+.heroCopy {
+  padding-block: 16px;
 }
 .eyebrow {
   display: flex;
@@ -114,40 +122,45 @@
   border-radius: 50%;
 }
 .hero h1 {
-  margin-block: 25px 24px;
-  font-size: clamp(48px, 5.4vw, 74px);
-  line-height: 1.06;
-  font-weight: 550;
-  letter-spacing: -0.058em;
+  margin-block: 24px 23px;
+  font-size: clamp(44px, 4.4vw, 64px);
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
 }
 .hero h1 > span {
-  color: var(--muted-foreground);
+  color: var(--foreground);
 }
 .introduction {
-  max-width: 520px;
+  max-width: 410px;
   color: var(--muted-foreground);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.75;
 }
 .heroActions {
-  margin-top: 32px;
+  margin-top: 28px;
   display: flex;
   align-items: center;
-  gap: 28px;
+  flex-wrap: wrap;
+  gap: 22px;
 }
 .primaryCta {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 30px;
+  gap: 24px;
   min-height: 48px;
-  padding: 13px 22px;
+  padding: 13px 20px;
   border-radius: 6px;
   color: var(--primary-foreground);
   background: var(--primary);
   font-size: 14px;
   font-weight: 600;
   transition: opacity 150ms;
+}
+.primaryCta:hover {
+  opacity: 0.88;
 }
 .textCta {
   min-height: 44px;
@@ -158,74 +171,54 @@
   font-weight: 500;
 }
 .portability {
-  margin-top: 18px;
-  color: var(--muted-foreground);
-  font-size: 11px;
-}
-.heroNote {
-  padding-bottom: 5px;
-}
-.noteIndex {
-  display: block;
-  font:
-    24px var(--font-geist-mono),
-    monospace;
-  color: var(--primary);
-  letter-spacing: -4px;
-}
-.heroNote p {
-  margin-block: 19px 15px;
-  font-size: 23px;
-  font-weight: 500;
-  letter-spacing: -0.6px;
-  line-height: 1.3;
-}
-.heroNote > span:last-child {
+  margin-top: 16px;
   color: var(--muted-foreground);
   font-size: 12px;
-  line-height: 1.8;
 }
 .product {
+  min-width: 0;
   margin: 0;
 }
 .productImages {
-  padding: 16px 16px 0;
+  padding: 12px;
   overflow: hidden;
-  background: var(--workspace-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: var(--landing-preview);
+  border-radius: 10px;
 }
 .productImages img {
   width: 100%;
   height: auto;
-  border-radius: 6px 6px 0 0;
+  border-radius: 4px;
 }
 .product figcaption {
-  padding-block: 17px;
+  padding-block: 13px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: 11px;
 }
 .product figcaption a {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: var(--foreground);
 }
 .features {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 64px;
-  padding-block: 74px 90px;
+  gap: 42px;
+  padding: 36px;
+  background: var(--landing-panel);
+  border-radius: 8px;
 }
 .featureNumber {
   color: var(--muted-foreground);
   font-size: 11px;
 }
 .features h2 {
-  margin-block: 19px 13px;
+  margin-block: 17px 11px;
   font-size: 21px;
   font-weight: 550;
   letter-spacing: -0.65px;
@@ -236,18 +229,17 @@
   line-height: 1.8;
 }
 .closing {
-  border-top: 1px solid var(--border);
-  padding-block: 60px 70px;
+  padding-block: 60px 64px;
   display: flex;
   justify-content: space-between;
   gap: 30px;
   align-items: center;
 }
 .closing h2 {
-  font-size: 30px;
+  font-size: 29px;
   font-weight: 500;
   letter-spacing: -1px;
-  margin-top: 15px;
+  margin-top: 14px;
 }
 .closing .primaryCta {
   flex-shrink: 0;
@@ -258,7 +250,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 30px;
-  padding-block: 28px 36px;
+  padding-block: 28px 34px;
   color: var(--muted-foreground);
   font-size: 11px;
 }
@@ -288,23 +280,52 @@
 .skipLink:focus {
   transform: translateY(0);
 }
-@media (max-width: 1000px) {
+@media (max-width: 1100px) {
   .header {
-    gap: 35px;
+    gap: 32px;
   }
   .hero {
-    gap: 40px;
-    grid-template-columns: 1fr 200px;
-    padding-top: 65px;
+    gap: 32px;
   }
-  .heroNote p {
-    font-size: 20px;
+  .hero h1 {
+    font-size: 46px;
+  }
+  .introduction {
+    font-size: 15px;
+  }
+  .heroActions {
+    gap: 14px;
   }
   .features {
-    gap: 30px;
+    gap: 28px;
+    padding: 28px;
   }
   .features h2 {
     font-size: 19px;
+  }
+}
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-block: 36px 48px;
+  }
+  .heroCopy {
+    max-width: 650px;
+    padding-block: 0;
+  }
+  .hero h1 {
+    font-size: 56px;
+  }
+  .introduction {
+    max-width: 530px;
+  }
+  .features {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .features p {
+    max-width: 580px;
   }
 }
 @media (max-width: 720px) {
@@ -314,8 +335,8 @@
     width: calc(100% - 40px);
   }
   .header {
-    min-height: 78px;
-    gap: 25px;
+    min-height: 76px;
+    gap: 20px;
   }
   .brand {
     font-size: 23px;
@@ -330,31 +351,29 @@
     font-size: 12px;
   }
   .guideLink,
-  .headerCta,
-  .heroNote {
+  .headerCta {
     display: none;
   }
   .headerActions {
     margin-left: 0;
-    gap: 14px;
+    gap: 12px;
     font-size: 12px;
   }
   .hero {
-    grid-template-columns: 1fr;
-    gap: 0;
-    padding-block: 56px 45px;
+    padding-block: 32px 36px;
+    gap: 30px;
   }
   .hero h1 {
-    font-size: clamp(40px, 7.5vw, 60px);
-    margin-top: 23px;
+    font-size: clamp(40px, 8vw, 54px);
+    margin-block: 20px;
   }
   .introduction {
     font-size: 15px;
     max-width: 430px;
   }
   .heroActions {
-    gap: 22px;
-    margin-top: 27px;
+    gap: 20px;
+    margin-top: 24px;
   }
   .primaryCta {
     padding-inline: 18px;
@@ -365,26 +384,19 @@
     gap: 4px;
   }
   .productImages {
-    padding: 8px 8px 0;
-    height: auto;
-    border-radius: 9px;
-  }
-  .productImages img {
-    width: 100%;
-    height: auto;
+    padding: 8px;
+    border-radius: 8px;
   }
   .product figcaption {
     font-size: 10px;
-    gap: 12px;
   }
   .features {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    padding-block: 48px 55px;
+    gap: 29px;
+    padding: 25px 23px;
   }
   .features h2 {
     margin-block: 12px 8px;
-    font-size: 22px;
+    font-size: 21px;
   }
   .features p {
     max-width: 430px;
@@ -392,8 +404,8 @@
   .closing {
     flex-direction: column;
     align-items: flex-start;
-    padding-block: 42px 48px;
-    gap: 25px;
+    padding-block: 40px 45px;
+    gap: 24px;
   }
   .closing h2 {
     font-size: 27px;
