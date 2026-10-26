@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-26",
+  "criterion": "WCAG relative-luminance contrast >= 4.5:1 for the listed token pairs; not a complete accessibility audit",
+  "rows": [
+    {
+      "profile": "slate",
+      "mode": "light",
+      "accent": "#475569",
+      "button": 7.577663953533317,
+      "secondaryTextMinimum": 4.905088035692812,
+      "accentTextMinimum": 6.569974338499286
+    },
+    {
+      "profile": "slate",
+      "mode": "dark",
+      "accent": "#bac5d5",
+      "button": 10.107414480664826,
+      "secondaryTextMinimum": 7.42459592211951,
+      "accentTextMinimum": 8.813764940827165
+    },
+    {
+      "profile": "emerald",
+      "mode": "light",
+      "accent": "#1f7560",
+      "button": 5.567806492107577,
+      "secondaryTextMinimum": 4.905088035692812,
+      "accentTextMinimum": 4.827390868635684
+    },
+    {
+      "profile": "emerald",
+      "mode": "dark",
+      "accent": "#68c9a5",
+      "button": 8.806903662670805,
+      "secondaryTextMinimum": 7.42459592211951,
+      "accentTextMinimum": 7.679706703210674
+    },
+    {
+      "profile": "ocean",
+      "mode": "light",
+      "accent": "#2b5fd9",
+      "button": 5.612643169171935,
+      "secondaryTextMinimum": 4.905088035692812,
+      "accentTextMinimum": 4.866265094194216
+    },
+    {
+      "profile": "ocean",
+      "mode": "dark",
+      "accent": "#6b9ef5",
+      "button": 6.579541879383999,
+      "secondaryTextMinimum": 7.42459592211951,
+      "accentTextMinimum": 5.737425298443324
+    },
+    {
+      "profile": "violet",
+      "mode": "light",
+      "accent": "#6d4fc6",
+      "button": 5.859247002220257,
+      "secondaryTextMinimum": 4.905088035692812,
+      "accentTextMinimum": 5.080075163476527
+    },
+    {
+      "profile": "violet",
+      "mode": "dark",
+      "accent": "#af9af0",
+      "button": 7.3092393254741275,
+      "secondaryTextMinimum": 7.42459592211951,
+      "accentTextMinimum": 6.3737286557522905
+    },
+    {
+      "profile": "amber",
+      "mode": "light",
+      "accent": "#8a5b14",
+      "button": 5.854163967814426,
+      "secondaryTextMinimum": 4.905088035692812,
+      "accentTextMinimum": 5.075668078943247
+    },
+    {
+      "profile": "amber",
+      "mode": "dark",
+      "accent": "#dfb269",
+      "button": 8.994307055480887,
+      "secondaryTextMinimum": 7.42459592211951,
+      "accentTextMinimum": 7.843124306842272
+    },
+    {
+      "profile": "rose",
+      "mode": "light",
+      "accent": "#9f435f",
+      "button": 6.100586028251238,
+      "secondaryTextMinimum": 4.905088035692812,
+      "accentTextMinimum": 5.289320548020484
+    },
+    {
+      "profile": "rose",
+      "mode": "dark",
+      "accent": "#e59cb1",
+      "button": 8.164658266125308,
+      "secondaryTextMinimum": 7.42459592211951,
+      "accentTextMinimum": 7.119662394123627
+    }
+  ]
+}

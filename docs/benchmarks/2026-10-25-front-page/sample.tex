@@ -1,0 +1,43 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,booktabs}
+\title{Notes on wave motion}
+\author{A Weftly sample}
+\date{}
+\begin{document}
+\maketitle
+\begin{abstract}
+A simple model connects the shape of a wave to the way it moves.
+This short example brings prose, equations, and a table together.
+\end{abstract}
+\section{A pattern in motion}
+A wave carries a disturbance through space. Its shape changes with
+position and time, while the underlying relationship stays the same.
+For a travelling wave, we can write
+\begin{equation}
+  y(x,t)=A\sin(kx-\omega t).
+\end{equation}
+Here, $A$ is the amplitude, $k$ is the wave number, and $\omega$ is
+the angular frequency. The speed follows from their ratio:
+\[
+  v=\frac{\omega}{k}=f\lambda.
+\]
+\section{Reading the relationship}
+A longer wavelength produces a higher speed when the frequency is
+held constant. The table uses illustrative values to show this
+relationship.
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Wave & Frequency (Hz) & Wavelength (m) \\
+\midrule
+A & 2.0 & 0.5 \\
+B & 2.0 & 1.0 \\
+C & 2.0 & 1.5 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\section{The next question}
+A useful model makes the next question easier to ask. What changes
+when the medium changes, or when two waves meet?
+\end{document}
